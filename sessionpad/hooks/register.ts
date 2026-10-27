@@ -40,6 +40,7 @@ import { PANE_ID, PANE_TITLE, renderBand, renderPane } from "../src/ui";
 import {
   forgetMeasuring,
   scheduleRefresh,
+  setMeasureDisk,
   startWorkspace,
 } from "../src/workspace";
 
@@ -323,12 +324,9 @@ async function exportCommand(
 const MAX_WAITING = 8;
 
 /** Sets the Workspace tab up and reads git into it, never failing the caller. */
-async function showWorkspace(
-  $: EngineInterface,
-  measureDisk: boolean
-): Promise<void> {
+async function showWorkspace($: EngineInterface): Promise<void> {
   try {
-    await startWorkspace($, measureDisk);
+    await startWorkspace($);
     scheduleRefresh($, "none");
   } catch (error) {
     $.ui.log(`sessionpad: could not read the workspace: ${String(error)}`, {
@@ -339,7 +337,7 @@ async function showWorkspace(
 
 export const register: Register = (on, options) => {
   const showBand = options.showBand !== false;
-  const measureDisk = options.measureDisk !== false;
+  setMeasureDisk(options.measureDisk !== false);
   const timeline: TimelineSettings = {
     summaryModel: summaryModel(options.summaryModel),
     cap: timelineCap(options.timelineCap),
@@ -378,7 +376,7 @@ export const register: Register = (on, options) => {
     }
     // A new session or a reload: no `du` from before is still this module's.
     forgetMeasuring();
-    await showWorkspace($, measureDisk);
+    await showWorkspace($);
     await registerTools($);
     // Commands go last: a name clash there must not stop the rest.
     served = await registerCommands($);
@@ -427,13 +425,13 @@ export const register: Register = (on, options) => {
           }
         }
         await loadSession($, id, e.cwd);
-        // $.state was reset, the Workspace tab's with it.
-        await showWorkspace($, measureDisk);
       } catch (error) {
         $.ui.log(`sessionpad: could not reload the pad: ${String(error)}`, {
           to: "debug",
         });
       }
+      // $.state was reset, the Workspace tab's with it, whatever the pad did.
+      await showWorkspace($);
       return next(e);
     }
   ).catch(($, e, next) => next(e));
@@ -556,7 +554,7 @@ export const register: Register = (on, options) => {
       // size; any turn may have moved the branch.
       const isChanged = log.fileCount > 0 || log.commands > 0;
       $.clock.after(0, () => {
-        scheduleRefresh($, isChanged ? "current" : "none");
+        scheduleRefresh($, isChanged ? "changed" : "none");
         const followers = (id: string) =>
           followersOf(clearedTo, id, finished.at);
         finishTurn($, finished, timeline, followers).catch((error: unknown) => {

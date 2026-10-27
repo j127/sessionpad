@@ -47,7 +47,7 @@ export type GitWorld = {
 
 /** What `du -sk` answers for a path: kibibytes, or how it fails. */
 export type DuAnswer =
-  number | "fails" | "missing" | "garbage" | { partial: number };
+  number | "fails" | "missing" | "garbage" | "timeout" | { partial: number };
 
 /** One call the plugin made of `$.model.complete`. */
 export type ModelCall = { model: string; prompt: string; system?: string };
@@ -269,6 +269,11 @@ export function world(on: On, options: WorldOptions = {}): World {
       if (state.duDelayMs > 0) await state.clock.sleep(state.duDelayMs);
       const answer = state.du.get(path) ?? 1024;
       if (answer === "missing") return { deny: "spawn du ENOENT" };
+      if (answer === "timeout") {
+        // As the engine does: the child is killed when its time is up.
+        await state.clock.sleep(e.init?.timeoutMs ?? 30_000);
+        return { deny: "du timed out" };
+      }
       const ran = (exitCode: number, stdout: string) => ({
         value: {
           exitCode,

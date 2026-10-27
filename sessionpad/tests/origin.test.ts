@@ -231,6 +231,15 @@ describe("which submission a turn began from", () => {
     command: { name: "review", args: "" },
   };
 
+  test("a reminder on one side alone doesn't stop a match", () => {
+    expect(
+      submissionFor(
+        [peer],
+        "<system-reminder>be brief</system-reminder>Ship it"
+      )
+    ).toBe(peer);
+  });
+
   test("the oldest with the turn's text", () => {
     const first = typed("Ship it");
     expect(submissionFor([typed("a"), first, peer], " Ship it\n")).toBe(first);

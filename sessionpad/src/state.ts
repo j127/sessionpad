@@ -40,7 +40,6 @@ export const EMPTY_WORKSPACE: WorkspaceView = {
   worktrees: [],
   sizes: {},
   measuring: [],
-  measureDisk: true,
   readAt: null,
 };
 

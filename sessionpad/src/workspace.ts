@@ -15,15 +15,37 @@ export const SIZE_MAX_AGE_MS = 10 * 60 * 1000;
 /** How long `du` may run on a large tree: the most `$.process.run` allows. */
 export const DU_TIMEOUT_MS = 10 * 60 * 1000;
 
+/**
+ * How long a tree whose `du` ran out of time waits before it is tried again
+ * on its own: another try would hold the queue for 10 minutes and likely
+ * fail the same way. Refresh sizes tries it at once.
+ */
+export const TOO_LARGE_RETRY_MS = 24 * 60 * 60 * 1000;
+
+/** A failure this close to the time `du` was given is it running out. */
+const TIMEOUT_MARGIN_MS = 5000;
+
 /** Where the store keeps a working tree's size. */
 export const sizeKey = (path: string): string => `size:${path}`;
 
 /**
  * Which sizes a refresh measures: none (git and the stored sizes only), the
- * stale ones (the tab opened), the current tree's if stale (a turn changed
- * files), or all of them however fresh (Refresh sizes).
+ * stale ones (the tab opened), the current tree's if stale (`changed`: a
+ * turn changed files, and if the size is fresh it is measured once it isn't;
+ * `current`: that later measure), or all of them however fresh (Refresh
+ * sizes).
  */
-export type Measure = "none" | "stale" | "current" | "all";
+export type Measure = "none" | "stale" | "changed" | "current" | "all";
+
+// The `measureDisk` setting, set when the module loads: kept here rather
+// than in $.state, which /clear resets.
+let measureDisk = true;
+
+export function setMeasureDisk(isOn: boolean): void {
+  measureDisk = isOn;
+}
+
+export const isMeasureDisk = (): boolean => measureDisk;
 
 /** The total `du -sk` prints first, in kibibytes; null when there is none. */
 export function parseDu(stdout: string): number | null {
@@ -51,19 +73,24 @@ export function formatSize(kb: number): string {
   }
 }
 
+/** How long a size is used before it is measured again. */
+const maxAge = (record: SizeRecord): number =>
+  record.isTooLarge === true ? TOO_LARGE_RETRY_MS : SIZE_MAX_AGE_MS;
+
 /** Whether a size is too old to use, or from a clock that has since gone back. */
 export const isStale = (record: SizeRecord, now: number): boolean =>
-  now - record.at >= SIZE_MAX_AGE_MS || record.at > now;
+  now - record.at >= maxAge(record) || record.at > now;
 
 /** A stored size, read loosely: another version of the mod may have written it. */
 export function parseSize(value: unknown): SizeRecord | undefined {
   if (typeof value !== "object" || value === null) return undefined;
-  const { kb, at, isPartial } = value as Record<string, unknown>;
+  const { kb, at, isPartial, isTooLarge } = value as Record<string, unknown>;
   if (typeof at !== "number" || !Number.isFinite(at)) return undefined;
   if (kb !== null && (typeof kb !== "number" || !Number.isFinite(kb))) {
     return undefined;
   }
-  return isPartial === true ? { kb, at, isPartial } : { kb, at };
+  if (kb === null && isTooLarge === true) return { kb, at, isTooLarge };
+  return isPartial === true && kb !== null ? { kb, at, isPartial } : { kb, at };
 }
 
 async function readSize(
@@ -85,28 +112,39 @@ const newer = (
   one === undefined || (other !== undefined && other.at > one.at) ? other : one;
 
 // One `du` at a time, so a refresh of many trees doesn't run them all at
-// once, and a tree already waiting isn't queued twice.
+// once, and a tree already waiting isn't queued twice. `generation` fences
+// off a queue that was dropped: its runs neither start nor touch the new one.
+let generation = 0;
 let measuring: Promise<void> = Promise.resolve();
+/** Trees waiting or being measured. */
 const queued = new Set<string>();
+/** Waiting trees Refresh sizes asked to measure afresh. */
+const forced = new Set<string>();
+/** The tree `du` runs on now. */
+let running: string | undefined;
+/** Whether a timer will measure the current tree once its size is old. */
+let isFollowing = false;
 
 /**
  * Drops the queue: a new module starts with none, and a test's session must
  * not wait behind the last one's `du`.
  */
 export function forgetMeasuring(): void {
+  generation++;
   measuring = Promise.resolve();
   queued.clear();
+  forced.clear();
+  running = undefined;
+  isFollowing = false;
 }
 
 /**
- * Sets the Workspace tab up for this session: the setting, and nothing
- * measuring, since a reload or a new session left any earlier run behind.
+ * Sets the Workspace tab up after its state was reset (a new session, a
+ * reload, /clear): what is still queued shows as measuring.
  */
-export async function startWorkspace(
-  $: EngineInterface,
-  measureDisk: boolean
-): Promise<void> {
-  await changeWorkspace($, (view) => ({ ...view, measureDisk, measuring: [] }));
+export async function startWorkspace($: EngineInterface): Promise<void> {
+  const still = [...queued];
+  await changeWorkspace($, (view) => ({ ...view, measuring: still }));
 }
 
 /**
@@ -137,16 +175,16 @@ export async function refreshWorkspace(
     ...place,
     worktree: place.worktree,
   });
-  const stored = new Map<string, SizeRecord | undefined>();
-  for (const tree of worktrees)
-    stored.set(tree.path, await readSize($, tree.path));
+  const stored = await Promise.all(
+    worktrees.map((tree) => readSize($, tree.path))
+  );
   await changeWorkspace($, (view) => {
     // The trees listed now, each with the newest size known for it.
     const sizes: Record<string, SizeRecord> = {};
-    for (const tree of worktrees) {
-      const best = newer(view.sizes[tree.path], stored.get(tree.path));
+    worktrees.forEach((tree, at) => {
+      const best = newer(view.sizes[tree.path], stored[at]);
       if (best !== undefined) sizes[tree.path] = best;
-    }
+    });
     return {
       ...view,
       status: "repo",
@@ -158,63 +196,122 @@ export async function refreshWorkspace(
       readAt: now,
     };
   });
+  if (!measureDisk || measure === "none") return;
   const view = await readWorkspace($);
-  if (!view.measureDisk || measure === "none") return;
   const force = measure === "all";
+  const isCurrentOnly = measure === "changed" || measure === "current";
+  const targets: string[] = [];
   for (const tree of worktrees) {
     if (tree.isBare || tree.isPrunable) continue;
-    if (measure === "current" && !tree.isCurrent) continue;
+    if (isCurrentOnly && !tree.isCurrent) continue;
     const known = view.sizes[tree.path];
-    if (!force && known !== undefined && !isStale(known, now)) continue;
-    await queueMeasure($, tree.path, force);
+    if (!force && known !== undefined && !isStale(known, now)) {
+      // Changed inside the 10 minutes: measured once they are up.
+      if (measure === "changed") follow($, maxAge(known) - (now - known.at));
+      continue;
+    }
+    targets.push(tree.path);
   }
+  await queueMeasures($, targets, force);
 }
 
-async function queueMeasure(
+/** Measures the current tree once `ms` have passed, if no timer will yet. */
+function follow($: EngineInterface, ms: number): void {
+  if (isFollowing) return;
+  isFollowing = true;
+  const mine = generation;
+  $.clock.after(Math.max(0, ms), async () => {
+    if (mine !== generation) return;
+    isFollowing = false;
+    await refreshWorkspace($, "current").catch((error: unknown) => {
+      $.ui.log(`sessionpad: the workspace was not read: ${String(error)}`, {
+        to: "debug",
+      });
+    });
+  });
+}
+
+async function queueMeasures(
   $: EngineInterface,
-  path: string,
+  paths: readonly string[],
   force: boolean
 ): Promise<void> {
-  if (queued.has(path)) return;
-  queued.add(path);
-  await changeWorkspace($, (view) =>
-    view.measuring.includes(path)
-      ? view
-      : { ...view, measuring: [...view.measuring, path] }
-  );
-  measuring = measuring.then(() => measureOne($, path, force));
+  const added: string[] = [];
+  for (const path of paths) {
+    if (queued.has(path)) {
+      // Waiting, it is measured afresh. Running, its size will be new anyway.
+      if (force && running !== path) forced.add(path);
+      continue;
+    }
+    queued.add(path);
+    if (force) forced.add(path);
+    added.push(path);
+  }
+  if (added.length === 0) return;
+  await changeWorkspace($, (view) => ({
+    ...view,
+    measuring: [
+      ...view.measuring,
+      ...added.filter((path) => !view.measuring.includes(path)),
+    ],
+  }));
+  const mine = generation;
+  for (const path of added) {
+    measuring = measuring
+      .then(() => measureOne($, path, mine))
+      .catch(() => undefined);
+  }
 }
 
 /**
  * Measures one tree and shows its size. Unless forced, a size another
- * session stored while this one waited is used instead. Never rejects.
+ * session stored while this one waited is used instead. A run whose queue
+ * was dropped doesn't start, and one already running stores its size but
+ * leaves the new queue and the tab alone.
  */
 async function measureOne(
   $: EngineInterface,
   path: string,
-  force: boolean
+  mine: number
 ): Promise<void> {
+  if (mine !== generation) return;
+  running = path;
+  const force = forced.delete(path);
+  const isMine = (): boolean => mine === generation;
   try {
     let record = await readSize($, path);
     if (force || record === undefined || isStale(record, await $.clock.now())) {
-      record = await runDu($, path);
-      try {
-        await $.store.set(sizeKey(path), record);
-      } catch {
-        // A full store: the tab still shows the size, until the next one.
+      const measured = await runDu($, path);
+      record = measured.record;
+      if (measured.isKept) {
+        try {
+          await $.store.set(sizeKey(path), record);
+        } catch {
+          // A full store: the tab still shows the size, until the next one.
+        }
       }
     }
     const size = record;
-    await changeWorkspace($, (view) => withSize(view, path, size));
+    if (isMine())
+      await changeWorkspace($, (view) => withSize(view, path, size));
   } catch (error) {
-    $.ui.log(`sessionpad: measuring ${path} failed: ${String(error)}`, {
-      to: "debug",
-    });
-    await changeWorkspace($, (view) => withSize(view, path, undefined)).catch(
-      () => undefined
-    );
+    try {
+      $.ui.log(`sessionpad: measuring ${path} failed: ${String(error)}`, {
+        to: "debug",
+      });
+    } catch {
+      // Nowhere to say it; the tab stops showing the tree as measuring.
+    }
+    if (isMine()) {
+      await changeWorkspace($, (view) => withSize(view, path, undefined)).catch(
+        () => undefined
+      );
+    }
   } finally {
-    queued.delete(path);
+    if (isMine()) {
+      queued.delete(path);
+      if (running === path) running = undefined;
+    }
   }
 }
 
@@ -230,21 +327,34 @@ function withSize(
 }
 
 /**
- * `du -sk` on one tree. A size with an error exit (files it couldn't read)
- * is a lower bound; no size at all, because `du` is missing (as on Windows),
- * failed, or ran past its time, is kept as unavailable.
+ * `du -sk` on one tree, and whether to keep the result for every session.
+ * A size with an error exit (files it couldn't read) is a lower bound, and
+ * no size from a run that finished is unavailable; both are kept. A run out
+ * of time is kept as too large, retried after a day. `du` that wouldn't
+ * start (missing, as on Windows) or was refused is shown in this session
+ * only: another may well manage.
  */
-async function runDu($: EngineInterface, path: string): Promise<SizeRecord> {
+async function runDu(
+  $: EngineInterface,
+  path: string
+): Promise<{ record: SizeRecord; isKept: boolean }> {
+  const started = await $.clock.now();
   try {
     const ran = await $.process.run(["du", "-sk", path], {
       timeoutMs: DU_TIMEOUT_MS,
     });
     const kb = parseDu(ran.stdout);
     const at = await $.clock.now();
-    if (kb === null) return { kb: null, at };
-    return ran.exitCode === 0 ? { kb, at } : { kb, at, isPartial: true };
+    if (kb === null) return { record: { kb: null, at }, isKept: true };
+    const record: SizeRecord =
+      ran.exitCode === 0 ? { kb, at } : { kb, at, isPartial: true };
+    return { record, isKept: true };
   } catch {
-    return { kb: null, at: await $.clock.now() };
+    const at = await $.clock.now();
+    if (at - started >= DU_TIMEOUT_MS - TIMEOUT_MARGIN_MS) {
+      return { record: { kb: null, at, isTooLarge: true }, isKept: true };
+    }
+    return { record: { kb: null, at }, isKept: false };
   }
 }
 

@@ -239,8 +239,11 @@ export function submissionFor(
   waiting: readonly Submission[],
   text: string
 ): Submission | undefined {
-  const typed = text.trim();
-  const same = waiting.find((one) => one.text.trim() === typed);
+  // Compared as openingOf reads them: a reminder on one side alone doesn't count.
+  const typed = withoutReminders(text).trim();
+  const same = waiting.find(
+    (one) => withoutReminders(one.text).trim() === typed
+  );
   if (same !== undefined) return same;
   const head = typed.slice(0, EXAMINED_LENGTH);
   const name = commandNameIn(head);

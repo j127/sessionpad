@@ -101,6 +101,8 @@ export type SizeRecord = {
   at: number;
   /** `du` could not read every file, so the size is a lower bound. */
   isPartial?: boolean;
+  /** `du` ran out of time: tried again after a day, or on Refresh sizes. */
+  isTooLarge?: boolean;
 };
 
 /** What the Workspace tab draws. */
@@ -119,8 +121,6 @@ export type WorkspaceView = {
   sizes: Record<string, SizeRecord>;
   /** Paths waiting for `du`, or being measured. */
   measuring: string[];
-  /** The `measureDisk` setting: false, no `du` runs. */
-  measureDisk: boolean;
   /** When git was last read, to tell today's times from older ones. */
   readAt: number | null;
 };

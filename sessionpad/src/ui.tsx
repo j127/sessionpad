@@ -34,7 +34,7 @@ import {
   showTab,
 } from "./state";
 import { RECENT_COUNT } from "./timeline";
-import { formatSize, scheduleRefresh } from "./workspace";
+import { formatSize, isMeasureDisk, scheduleRefresh } from "./workspace";
 
 export const PANE_ID = "sessionpad";
 export const PANE_TITLE = "sessionpad";
@@ -394,30 +394,41 @@ export function renderBand(
 }
 
 /** What a tree's size reads as, measured or not. */
-export function sizeText(view: WorkspaceView, path: string): string {
-  if (!view.measureDisk) return "not measured";
+export function sizeText(
+  view: WorkspaceView,
+  path: string,
+  measureDisk = isMeasureDisk()
+): string {
+  if (!measureDisk) return "not measured";
   if (view.measuring.includes(path)) return "measuring…";
   const size = view.sizes[path];
   if (size === undefined) return "not measured yet";
+  if (size.isTooLarge === true) return "too large to measure";
   if (size.kb === null) return "size unavailable";
   return size.isPartial === true
     ? `at least ${formatSize(size.kb)}`
     : formatSize(size.kb);
 }
 
-/** When a tree was measured: the time if today, else the date and time. */
-export function measuredText(view: WorkspaceView, path: string): string {
+/**
+ * When a tree was measured, or tried: the time if today, else the date and
+ * time. `now` is when the tab is drawn.
+ */
+export function measuredText(
+  view: WorkspaceView,
+  path: string,
+  now: number,
+  measureDisk = isMeasureDisk()
+): string {
   const size = view.sizes[path];
-  if (
-    !view.measureDisk ||
-    size === undefined ||
-    view.measuring.includes(path)
-  ) {
+  if (!measureDisk || size === undefined || view.measuring.includes(path)) {
     return "";
   }
-  const isToday =
-    view.readAt !== null && formatDay(view.readAt) === formatDay(size.at);
-  return `measured ${isToday ? formatClock(size.at) : formatTime(size.at)}`;
+  const when =
+    formatDay(now) === formatDay(size.at)
+      ? formatClock(size.at)
+      : formatTime(size.at);
+  return `${size.kb === null ? "tried" : "measured"} ${when}`;
 }
 
 /** What a tree other than this one shows in place of a size. */
@@ -464,7 +475,7 @@ async function renderWorkspaceTab(
       </Box>
     </Box>
   );
-  const measured = measuredText(view, path);
+  const measured = measuredText(view, path, await $.clock.now());
   const size =
     measured === ""
       ? sizeText(view, path)
@@ -516,7 +527,7 @@ async function renderWorkspaceTab(
       {field("branch", "Branch", view.branch ?? "", "truncate-end")}
       {field("worktree", "Worktree", path, "truncate-start")}
       {field("size", "Size", size, "truncate-end")}
-      {view.measureDisk ? (
+      {isMeasureDisk() ? (
         <Box marginTop={1}>
           <Button
             key="refresh-sizes"

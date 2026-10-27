@@ -9,6 +9,7 @@ import { measuredText, sizeText } from "../src/ui";
 import {
   DU_TIMEOUT_MS,
   SIZE_MAX_AGE_MS,
+  TOO_LARGE_RETRY_MS,
   formatSize,
   isStale,
   parseDu,
@@ -125,41 +126,63 @@ describe("reading the workspace", () => {
       at: NOW,
       isPartial: true,
     });
+    expect(parseSize({ kb: null, at: NOW, isTooLarge: true })).toEqual({
+      kb: null,
+      at: NOW,
+      isTooLarge: true,
+    });
+    expect(parseSize({ kb: 5, at: NOW, isTooLarge: true })).toEqual({
+      kb: 5,
+      at: NOW,
+    });
     expect(parseSize("junk")).toBeUndefined();
     expect(parseSize({ kb: "10", at: NOW })).toBeUndefined();
     expect(parseSize({ kb: 10 })).toBeUndefined();
     expect(isStale({ kb: 1, at: NOW - SIZE_MAX_AGE_MS + 1 }, NOW)).toBe(false);
     expect(isStale({ kb: 1, at: NOW - SIZE_MAX_AGE_MS }, NOW)).toBe(true);
     expect(isStale({ kb: 1, at: NOW + MINUTE }, NOW)).toBe(true);
+    // Too large to measure waits a day, not ten minutes.
+    const huge = { kb: null, at: NOW, isTooLarge: true };
+    expect(isStale(huge, NOW + 60 * MINUTE)).toBe(false);
+    expect(isStale(huge, NOW + TOO_LARGE_RETRY_MS)).toBe(true);
   });
 
   test("a size says how and when it was measured", () => {
+    const DAY = 24 * 60 * MINUTE;
     const view: WorkspaceView = {
       ...EMPTY_WORKSPACE,
       readAt: NOW,
       sizes: {
         "/today": { kb: 2 * MB, at: NOW - MINUTE },
-        "/before": { kb: 2 * MB, at: NOW - 2 * 24 * 60 * MINUTE },
+        "/before": { kb: 2 * MB, at: NOW - 2 * DAY },
         "/partial": { kb: 2 * MB, at: NOW, isPartial: true },
         "/failed": { kb: null, at: NOW },
+        "/huge": { kb: null, at: NOW, isTooLarge: true },
       },
       measuring: ["/busy"],
     };
     expect(sizeText(view, "/today")).toBe("2 MB");
-    expect(measuredText(view, "/today")).toBe(
+    expect(measuredText(view, "/today", NOW)).toBe(
       `measured ${formatClock(NOW - MINUTE)}`
     );
-    expect(measuredText(view, "/before")).toBe(
-      `measured ${formatTime(NOW - 2 * 24 * 60 * MINUTE)}`
+    expect(measuredText(view, "/before", NOW)).toBe(
+      `measured ${formatTime(NOW - 2 * DAY)}`
+    );
+    // Drawn on a later day than git was read, the date shows.
+    expect(measuredText(view, "/today", NOW + DAY)).toBe(
+      `measured ${formatTime(NOW - MINUTE)}`
     );
     expect(sizeText(view, "/partial")).toBe("at least 2 MB");
     expect(sizeText(view, "/failed")).toBe("size unavailable");
-    expect(sizeText(view, "/busy")).toBe("measuring…");
-    expect(measuredText(view, "/busy")).toBe("");
-    expect(sizeText(view, "/never")).toBe("not measured yet");
-    expect(sizeText({ ...view, measureDisk: false }, "/today")).toBe(
-      "not measured"
+    expect(measuredText(view, "/failed", NOW)).toBe(
+      `tried ${formatClock(NOW)}`
     );
+    expect(sizeText(view, "/huge")).toBe("too large to measure");
+    expect(sizeText(view, "/busy")).toBe("measuring…");
+    expect(measuredText(view, "/busy", NOW)).toBe("");
+    expect(sizeText(view, "/never")).toBe("not measured yet");
+    expect(sizeText(view, "/today", false)).toBe("not measured");
+    expect(measuredText(view, "/today", NOW, false)).toBe("");
   });
 });
 
@@ -327,7 +350,7 @@ describe("the Workspace tab", () => {
     await start($);
     const ui = await openTab($, w);
     const shown = await texts(ui);
-    expect(shown).toContain(`size unavailable, measured ${formatClock(NOW)}`);
+    expect(shown).toContain(`size unavailable, tried ${formatClock(NOW)}`);
     expect(shown.filter((text) => text === "size unavailable")).toHaveLength(2);
     expect(shown).toContain("at least 2 MB");
     await ui.unmount();
@@ -483,6 +506,7 @@ describe("sizes shared with other sessions", () => {
     await start($);
     const ui = await openTab($, w);
     expect(await texts(ui)).toContain("measuring…");
+    await w.clock.advance(30_000);
     // A reload runs session.start again; the old module's du is gone.
     await start($);
     await w.clock.settle();
@@ -493,6 +517,169 @@ describe("sizes shared with other sessions", () => {
     await w.clock.settle();
     expect(await texts(ui)).toContain("measuring…");
     expect(w.duRuns).toHaveLength(2);
+    // The old run ending leaves the new one shown, and queued only once.
+    await w.clock.advance(30_000);
+    expect(await texts(ui)).toContain("measuring…");
+    await ui.press({ key: "refresh-sizes" });
+    await w.clock.settle();
+    expect(w.duRuns).toHaveLength(2);
+    await w.clock.advance(30_000);
+    expect(await texts(ui)).toContain(
+      `1 MB, measured ${formatClock(NOW + 90_000)}`
+    );
+    // The old run's end didn't free the tree for a third, needless run.
+    expect(w.duRuns).toHaveLength(2);
+    await ui.unmount();
+  });
+});
+
+describe("after the review of milestone 3", () => {
+  test("/clear reads the workspace again, even when the pad can't load", async ($, on) => {
+    const w = world(on);
+    await start($);
+    const ui = await openTab($, w);
+    w.git = { top: REPO, branch: "feat/after-clear", sha: "abc1234" };
+    w.storeBroken = true;
+    w.sessionId = "22222222-aaaa-bbbb-cccc-000000000002";
+    await $.classic.SessionStart({ source: "clear", session_id: w.sessionId });
+    await w.clock.settle();
+    expect(await texts(ui)).toContain("feat/after-clear");
+    await ui.unmount();
+  });
+
+  test(
+    "measureDisk off holds after /clear",
+    { options: { measureDisk: false } },
+    async ($, on) => {
+      const w = world(on);
+      await start($);
+      w.sessionId = "22222222-aaaa-bbbb-cccc-000000000002";
+      await $.classic.SessionStart({
+        source: "clear",
+        session_id: w.sessionId,
+      });
+      const ui = await openTab($, w);
+      await w.clock.advance(11 * MINUTE);
+      await runTurn($, w, { calls: [{ tool: "Bash", command: "ls" }] });
+      expect(w.duRuns).toEqual([]);
+      expect(await texts(ui)).toContain("not measured");
+      await ui.unmount();
+    }
+  );
+
+  test("/clear while du runs still shows it measuring", async ($, on) => {
+    const w = world(on);
+    w.duDelayMs = 30_000;
+    await start($);
+    const ui = await openTab($, w);
+    w.sessionId = "22222222-aaaa-bbbb-cccc-000000000002";
+    await $.classic.SessionStart({ source: "clear", session_id: w.sessionId });
+    await w.clock.settle();
+    expect(await texts(ui)).toContain("measuring…");
+    await w.clock.advance(30_000);
+    expect(await texts(ui)).toContain(
+      `1 MB, measured ${formatClock(NOW + 30_000)}`
+    );
+    expect(w.duRuns).toHaveLength(1);
+    await ui.unmount();
+  });
+
+  test("a tree du can't finish in time waits a day, unless refreshed", async ($, on) => {
+    const w = world(on);
+    w.du.set(REPO, "timeout");
+    await start($);
+    const ui = await openTab($, w);
+    await w.clock.advance(DU_TIMEOUT_MS);
+    expect(await texts(ui)).toContain(
+      `too large to measure, tried ${formatClock(NOW + DU_TIMEOUT_MS)}`
+    );
+    expect(w.store.get(sizeKey(REPO))).toEqual({
+      kb: null,
+      at: NOW + DU_TIMEOUT_MS,
+      isTooLarge: true,
+    });
+    // Neither a changing turn nor opening the tab tries it again soon.
+    await w.clock.advance(60 * MINUTE);
+    await runTurn($, w, { calls: [{ tool: "Bash", command: "ls" }] });
+    await ui.press({ key: "tab-notes" });
+    await ui.press({ key: "tab-workspace" });
+    await w.clock.settle();
+    expect(w.duRuns).toHaveLength(1);
+    await ui.press({ key: "refresh-sizes" });
+    await w.clock.settle();
+    expect(w.duRuns).toHaveLength(2);
+    await w.clock.advance(DU_TIMEOUT_MS);
+    await ui.unmount();
+  });
+
+  test("a tree waiting in a dropped queue isn't measured", async ($, on) => {
+    const w = world(on);
+    w.git = {
+      top: REPO,
+      branch: "main",
+      sha: "abc1234",
+      others: [{ path: FEATURE, branch: "feat/x" }],
+    };
+    w.duDelayMs = 60_000;
+    await start($);
+    const ui = await openTab($, w);
+    await w.clock.advance(30_000);
+    await start($);
+    await w.clock.advance(60_000);
+    await w.clock.advance(60_000);
+    expect(w.duRuns.map((run) => run.path)).toEqual([REPO]);
+    await ui.unmount();
+  });
+
+  test("du that won't start isn't kept for other sessions", async ($, on) => {
+    const w = world(on);
+    w.du.set(REPO, "missing");
+    await start($);
+    const ui = await openTab($, w);
+    expect(await texts(ui)).toContain(
+      `size unavailable, tried ${formatClock(NOW)}`
+    );
+    expect(w.store.has(sizeKey(REPO))).toBe(false);
+    await ui.unmount();
+  });
+
+  test("a change inside the 10 minutes is measured when they are up", async ($, on) => {
+    const w = world(on);
+    await start($);
+    await runTurn($, w, { calls: [{ tool: "Edit", path: `${REPO}/a.ts` }] });
+    expect(w.duRuns).toHaveLength(1);
+    await w.clock.advance(MINUTE);
+    await runTurn($, w, { calls: [{ tool: "Edit", path: `${REPO}/b.ts` }] });
+    await w.clock.advance(MINUTE);
+    await runTurn($, w, { calls: [{ tool: "Edit", path: `${REPO}/c.ts` }] });
+    expect(w.duRuns).toHaveLength(1);
+    // One timer, however many turns: the size is ten minutes old at NOW + 10m.
+    await w.clock.advance(8 * MINUTE);
+    expect(w.duRuns).toHaveLength(2);
+    // Idle from here, nothing more runs.
+    await w.clock.advance(60 * MINUTE);
+    expect(w.duRuns).toHaveLength(2);
+  });
+
+  test("Refresh sizes makes a waiting tree measure afresh", async ($, on) => {
+    const w = world(on);
+    w.git = {
+      top: REPO,
+      branch: "main",
+      sha: "abc1234",
+      others: [{ path: FEATURE, branch: "feat/x" }],
+    };
+    w.duDelayMs = 1000;
+    await start($);
+    const ui = await openTab($, w);
+    // While this tree runs, another session stores the waiting one's size,
+    await w.store.set(sizeKey(FEATURE), { kb: 7 * MB, at: NOW });
+    // but Refresh asked for a new one.
+    await ui.press({ key: "refresh-sizes" });
+    await w.clock.settle();
+    await w.clock.advance(1000);
+    await w.clock.advance(1000);
+    expect(w.duRuns.map((run) => run.path)).toEqual([REPO, FEATURE]);
     await ui.unmount();
   });
 });
