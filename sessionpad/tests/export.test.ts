@@ -1,8 +1,13 @@
 import { describe, expect, test } from "claude-code/testing";
 
-import { exportMarkdown, formatTokens } from "../src/export";
+import {
+  codeSpan,
+  escapeMarkdown,
+  exportMarkdown,
+  formatTokens,
+} from "../src/export";
 import { addNote, emptyPad, makeNote, setHeadline } from "../src/store";
-import { markEntry } from "../src/timeline";
+import { markEntry, timelineText } from "../src/timeline";
 import {
   HOME,
   NOW,
@@ -11,6 +16,7 @@ import {
   runCommand,
   runTurn,
   start,
+  timelineFile,
   world,
 } from "./harness";
 
@@ -59,6 +65,58 @@ describe("/pad-export", () => {
     expect(w.files.has("/tmp/x/pad.md")).toBe(true);
   });
 
+  test("Windows paths are used as given", async ($, on) => {
+    const w = world(on);
+    await start($);
+    // The test's file system runs on this machine, which may read a Windows
+    // path as relative; what matters is that the mod passed it on as given.
+    const ran = await runCommand($, "pad-export", "C:\\Users\\j\\pad.md");
+    expect(ran.text).toBe("Exported to C:\\Users\\j\\pad.md");
+    const drive = await runCommand($, "pad-export", "D:pad.md");
+    expect(drive.text).toBe("Exported to D:pad.md");
+    expect(w.files.size).toBe(2);
+  });
+
+  test("a file that isn't an export is never overwritten", async ($, on) => {
+    const w = world(on, { files: { [`${REPO}/README.md`]: "# My project\n" } });
+    await start($);
+    const ran = await runCommand($, "pad-export", "README.md");
+    expect(ran.text).toContain("isn't a sessionpad export");
+    expect(w.files.get(`${REPO}/README.md`)).toBe("# My project\n");
+  });
+
+  test("an earlier export is replaced", async ($, on) => {
+    const w = world(on, {
+      files: { [`${REPO}/pad.md`]: "# sessionpad: old\n" },
+    });
+    await start($);
+    await runCommand($, "headline", "New aim");
+    const ran = await runCommand($, "pad-export", "pad.md");
+    expect(ran.text).toBe(`Exported to ${REPO}/pad.md`);
+    expect(w.files.get(`${REPO}/pad.md`)).toContain("# sessionpad: New aim");
+  });
+
+  test("a folder gets a file named for the session", async ($, on) => {
+    const w = world(on);
+    w.dirs.add(`${REPO}/docs`);
+    await start($);
+    const ran = await runCommand($, "pad-export", "docs/");
+    expect(ran.text).toBe(`Exported to ${REPO}/docs/${SESSION}.md`);
+    expect(w.files.has(`${REPO}/docs/${SESSION}.md`)).toBe(true);
+  });
+
+  test("a timeline that can't be read is said, not shown as empty", async ($, on) => {
+    const w = world(on, {
+      files: { [timelineFile()]: timelineText([markEntry(NOW, "x")]) },
+    });
+    await start($);
+    w.readFails = true;
+    await runCommand($, "pad-export");
+    const markdown = w.files.get(DEFAULT_PATH)!;
+    expect(markdown).toContain("The timeline could not be read");
+    expect(markdown).not.toContain("No turns recorded");
+  });
+
   test("with no home folder it asks for a path", async ($, on) => {
     const w = world(on);
     w.env = {};
@@ -93,10 +151,36 @@ describe("the Markdown", () => {
     expect(markdown).toContain("0 turns, oldest first.");
   });
 
+  test("summaries, prompts and headlines read as written", async ($, on) => {
+    const w = world(on);
+    await start($);
+    await runCommand($, "headline", "Fix <b>bold</b> #1");
+    w.modelReply = "Linked [docs](http://x) and *stars*";
+    await runTurn($, w, {
+      text: "Use `code` | pipes",
+      calls: [{ tool: "Edit", path: "/repo/odd`name.ts" }],
+    });
+    await runCommand($, "pad-export");
+    const markdown = w.files.get(DEFAULT_PATH)!;
+    expect(markdown).toContain("# sessionpad: Fix \\<b\\>bold\\</b\\> \\#1");
+    expect(markdown).toContain("Linked \\[docs\\](http://x) and \\*stars\\*");
+    expect(markdown).toContain("Asked: Use \\`code\\` \\| pipes");
+    expect(markdown).toContain("``/repo/odd`name.ts``");
+  });
+
+  test("code spans hold any backticks", () => {
+    expect(codeSpan("plain")).toBe("`plain`");
+    expect(codeSpan("a`b")).toBe("``a`b``");
+    expect(codeSpan("`edge")).toBe("`` `edge ``");
+    expect(escapeMarkdown("a_b")).toBe("a\\_b");
+  });
+
   test("token counts read short", () => {
     expect(formatTokens(850)).toBe("850");
     expect(formatTokens(12_345)).toBe("12.3k");
     expect(formatTokens(2_000)).toBe("2k");
     expect(formatTokens(1_250_000)).toBe("1.3M");
+    expect(formatTokens(999_949)).toBe("999.9k");
+    expect(formatTokens(999_950)).toBe("1M");
   });
 });

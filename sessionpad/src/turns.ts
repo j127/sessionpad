@@ -52,6 +52,25 @@ export function turnTokens(usage: TurnUsage | undefined): TurnTokens | null {
   };
 }
 
+/**
+ * The ids a session's timeline was carried on to by /clear, in order: each
+ * /clear maps the id it left to the one it moved to.
+ */
+export function followersOf(
+  clearedTo: ReadonlyMap<string, string>,
+  sessionId: string
+): string[] {
+  const followers: string[] = [];
+  const seen = new Set([sessionId]);
+  let next = clearedTo.get(sessionId);
+  while (next !== undefined && !seen.has(next)) {
+    followers.push(next);
+    seen.add(next);
+    next = clearedTo.get(next);
+  }
+  return followers;
+}
+
 /** Shows the entries, if the session they belong to is still the one open. */
 async function showIfOpen(
   $: EngineInterface,
@@ -68,24 +87,34 @@ async function showIfOpen(
  * the model for a better line and puts that on the entry when it answers.
  * The entry is in the file before the model is asked, so a slow or failed
  * call, or a reload, never loses the turn.
+ *
+ * A /clear can come between the turn's end and this work, carrying the
+ * timeline to a new id before the entry is in it, so each write goes to the
+ * turn's own session and every id it was carried on to (`followers`, read
+ * again at each write). Adding a turn twice keeps one copy.
  */
 export async function finishTurn(
   $: EngineInterface,
   turn: FinishedTurn,
-  settings: TimelineSettings
+  settings: TimelineSettings,
+  followers: (sessionId: string) => readonly string[] = () => []
 ): Promise<void> {
   const place = await gitPlace($);
   const entry = turnEntry(turn, place.branch, place.worktree);
-  const added = await changeTimeline($, turn.sessionId, (entries) =>
-    addEntry(entries, entry, settings.cap)
-  );
-  await showIfOpen($, turn.sessionId, added);
+  for (const id of [turn.sessionId, ...followers(turn.sessionId)]) {
+    const added = await changeTimeline($, id, (entries) =>
+      addEntry(entries, entry, settings.cap)
+    );
+    await showIfOpen($, id, added);
+  }
 
   if (settings.summaryModel === null || !isWorthSummary(entry)) return;
   const line = await modelSummary($, settings.summaryModel, entry, turn.answer);
   if (line === null) return;
-  const summarized = await changeTimeline($, turn.sessionId, (entries) =>
-    withSummary(entries, entry.turnId, line)
-  );
-  await showIfOpen($, turn.sessionId, summarized);
+  for (const id of [turn.sessionId, ...followers(turn.sessionId)]) {
+    const summarized = await changeTimeline($, id, (entries) =>
+      withSummary(entries, entry.turnId, line)
+    );
+    await showIfOpen($, id, summarized);
+  }
 }

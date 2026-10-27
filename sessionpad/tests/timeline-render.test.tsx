@@ -72,6 +72,26 @@ describe("the Timeline tab", () => {
     }
   });
 
+  test("when narrow, a turn's marks go on a line under it", async ($, on) => {
+    const w = world(on);
+    await start($);
+    await runTurn($, w, {
+      turnId: "t1",
+      calls: [{ tool: "Bash", command: "ls" }],
+    });
+    for (const surface of SURFACES) {
+      const narrow = await $.ui.mount(paneTarget(surface, 30));
+      await narrow.press({ key: "tab-timeline" });
+      expect(await narrow.find({ key: "marks-t1" })).toBeDefined();
+      await narrow.unmount();
+      const wide = await $.ui.mount(paneTarget(surface, 90));
+      await wide.press({ key: "tab-timeline" });
+      expect(await wide.find({ key: "marks-t1" })).toBeUndefined();
+      expect(await wide.find({ type: "Text", text: /^1 cmd$/ })).toBeDefined();
+      await wide.unmount();
+    }
+  });
+
   test("an empty timeline says what will appear", async ($, on) => {
     world(on);
     await start($);
@@ -152,6 +172,9 @@ describe("a turn's marks", () => {
         before
       )
     ).toBe("stopped · 2 files · 1 cmd · → feat/x");
+    expect(turnMarks(turn({ branch: "b".repeat(40) }), before)).toBe(
+      `→ ${"b".repeat(23)}…`
+    );
     expect(turnMarks(turn({ branch: "main" }), before)).toBe("");
     expect(turnMarks(turn({ branch: "feat/x" }), undefined)).toBe("");
     expect(turnMarks(turn({ branch: null }), before)).toBe("");

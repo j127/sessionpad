@@ -18,9 +18,21 @@ import {
 } from "../src/pad";
 import { readHeadline } from "../src/state";
 import { summaryModel } from "../src/summary";
-import { carryTimeline, newTurnLog, timelineCap } from "../src/timeline";
+import {
+  carryTimeline,
+  isCountedLoop,
+  newTurnLog,
+  timelineCap,
+  withAgent,
+} from "../src/timeline";
 import type { TurnLog } from "../src/timeline";
-import { finishTurn, isSucceeded, turnTokens, withCall } from "../src/turns";
+import {
+  finishTurn,
+  followersOf,
+  isSucceeded,
+  turnTokens,
+  withCall,
+} from "../src/turns";
 import type { TimelineSettings } from "../src/turns";
 import { PANE_ID, PANE_TITLE, renderBand, renderPane } from "../src/ui";
 
@@ -311,6 +323,11 @@ export const register: Register = (on, options) => {
   // What the main conversation's running turn has done so far. A reload
   // mid-turn loses it, and that turn's entry has no prompt or files.
   let turn: TurnLog | undefined;
+  // Each /clear's move, from the id it left to the one it went to, so a
+  // turn that ended just before still reaches the timeline carried on.
+  const clearedTo = new Map<string, string>();
+  // Sessions already told their turns aren't being recorded: once is enough.
+  const warned = new Set<string>();
 
   on("session.start", async ($, e, next) => {
     try {
@@ -353,7 +370,12 @@ export const register: Register = (on, options) => {
             });
           }
           try {
-            if (how !== undefined) await carryTimeline($, previous, id, how);
+            // Set before the carry, so a turn's entry written meanwhile is
+            // sent on too; dropped if the new id kept a timeline of its own.
+            if (how === "clear") clearedTo.set(previous, id);
+            const isTaken =
+              how !== undefined && (await carryTimeline($, previous, id, how));
+            if (how === "clear" && !isTaken) clearedTo.delete(previous);
           } catch (error) {
             $.ui.log(
               `sessionpad: could not carry the timeline: ${String(error)}`,
@@ -414,22 +436,31 @@ export const register: Register = (on, options) => {
   // The timeline. Every hook here only watches: it passes the event on and
   // hands back what came back, untouched.
   on("turn.start", ($, e, next) => {
-    if (e.agentId === undefined) turn = newTurnLog(e.turnId, e.text);
+    if (e.agentId === undefined) {
+      turn = newTurnLog(e.turnId, e.text);
+    } else if (turn !== undefined) {
+      turn = withAgent(turn, e.agentId);
+    }
     return next(e);
   });
 
-  // Counted while the main conversation's turn runs, a subagent's calls too:
-  // they are part of what the turn did.
-  // The matcher is spelled out, not COUNTED_TOOLS, so validate can read it.
+  // Counted while the main conversation's turn runs, a subagent's calls too
+  // when its run started during the turn: they are part of what the turn did.
+  // A call counts toward the turn it started in, and only if that turn is
+  // still running when the call answers.
+  // The matcher is spelled out so validate can read it.
   on(
     "tool.call",
     { tool: ["Edit", "Write", "NotebookEdit", "Bash"] },
     async ($, e, next) => {
+      const startedIn =
+        turn !== undefined && isCountedLoop(turn, e.agentId)
+          ? turn.turnId
+          : undefined;
       const result = await next(e);
       try {
-        if (turn !== undefined && isSucceeded(result)) {
-          turn = withCall(turn, e);
-        }
+        const isSameTurn = turn !== undefined && turn.turnId === startedIn;
+        if (isSameTurn && isSucceeded(result)) turn = withCall(turn!, e);
       } catch {
         // Counting is best effort; the call's result stands either way.
       }
@@ -452,11 +483,18 @@ export const register: Register = (on, options) => {
         tokens: turnTokens(e.usage),
       };
       $.clock.after(0, () => {
-        finishTurn($, finished, timeline).catch((error: unknown) =>
-          $.ui.log(`sessionpad: the turn was not recorded: ${String(error)}`, {
+        const followers = (id: string) => followersOf(clearedTo, id);
+        finishTurn($, finished, timeline, followers).catch((error: unknown) => {
+          const why = String(error);
+          $.ui.log(`sessionpad: the turn was not recorded: ${why}`, {
             to: "debug",
-          })
-        );
+          });
+          if (warned.has(finished.sessionId)) return;
+          warned.add(finished.sessionId);
+          $.ui.toast(
+            `sessionpad: turns in this session aren't being added to the timeline: ${why}`
+          );
+        });
       });
     } catch (error) {
       $.ui.log(`sessionpad: the turn was not recorded: ${String(error)}`, {

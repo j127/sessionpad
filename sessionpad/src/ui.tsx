@@ -191,6 +191,16 @@ async function pressExport($: EngineInterface): Promise<void> {
   });
 }
 
+/** A branch name short enough to sit beside a turn's line. */
+const BRANCH_MARK_LENGTH = 24;
+const shortBranch = (branch: string): string =>
+  branch.length <= BRANCH_MARK_LENGTH
+    ? branch
+    : `${branch.slice(0, BRANCH_MARK_LENGTH - 1)}…`;
+
+/** Below this width a turn's marks go on a line of their own. */
+export const NARROW_COLUMNS = 50;
+
 const plural = (n: number, one: string, many: string): string =>
   n === 1 ? `1 ${one}` : `${n} ${many}`;
 
@@ -208,7 +218,7 @@ export function turnMarks(entry: TurnEntry, before: TurnEntry | undefined) {
     entry.branch !== null &&
     before.branch !== null &&
     entry.branch !== before.branch;
-  if (isMoved) marks.push(`→ ${entry.branch}`);
+  if (isMoved) marks.push(`→ ${shortBranch(entry.branch!)}`);
   return marks.join(" · ");
 }
 
@@ -220,6 +230,7 @@ async function renderTimelineTab(
   const { Box, Text, Button } = $.ui.resolve(e);
   const recent = await readRecent($);
   const turns = recent.filter((entry) => entry.kind === "turn").length;
+  const isNarrow = width < NARROW_COLUMNS;
 
   const header = (
     <Box flexDirection="row" columnGap={2}>
@@ -268,21 +279,37 @@ async function renderTimelineTab(
       );
     }
     const marks = turnMarks(entry, before);
-    return (
-      <Box key={`turn-${entry.turnId}`} flexDirection="row" columnGap={1}>
-        <Text dimColor>
-          {time} {formatDuration(entry.durationMs).padStart(5)}
-        </Text>
+    const line = (
+      <Box flexDirection="row" columnGap={1}>
+        <Box flexShrink={0}>
+          <Text dimColor>
+            {time} {formatDuration(entry.durationMs).padStart(5)}
+          </Text>
+        </Box>
         <Box flexGrow={1} flexShrink={1}>
           <Text wrap="truncate-end" dimColor={entry.isAborted}>
             {entry.summary}
           </Text>
         </Box>
-        {marks === "" ? null : (
+        {marks === "" || isNarrow ? null : (
           <Box flexShrink={0}>
             <Text dimColor>{marks}</Text>
           </Box>
         )}
+      </Box>
+    );
+    if (!isNarrow || marks === "") {
+      return <Box key={`turn-${entry.turnId}`}>{line}</Box>;
+    }
+    // Narrow: the summary keeps the row, and the marks go under it.
+    return (
+      <Box key={`turn-${entry.turnId}`} flexDirection="column">
+        {line}
+        <Box key={`marks-${entry.turnId}`} paddingLeft={2}>
+          <Text dimColor wrap="truncate-end">
+            {marks}
+          </Text>
+        </Box>
       </Box>
     );
   };

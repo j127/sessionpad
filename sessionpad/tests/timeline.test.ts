@@ -1,7 +1,9 @@
 import { describe, expect, test } from "claude-code/testing";
+import type { Engine } from "claude-code/testing";
 
 import type { TimelineEntry, TurnEntry } from "../types";
 import { SHORT_TURN_MS, SUMMARY_SYSTEM } from "../src/summary";
+import { followersOf } from "../src/turns";
 import {
   PROMPT_LENGTH,
   RECENT_COUNT,
@@ -12,8 +14,13 @@ import {
   fileName,
   markEntry,
   recentEntries,
+  FILE_BUDGET,
+  MAX_PATH_LENGTH,
+  fitEntries,
+  shortPath,
   timelineCap,
   timelineText,
+  utf8Length,
   withFile,
   newTurnLog,
 } from "../src/timeline";
@@ -28,6 +35,7 @@ import {
   timelineFile,
   world,
 } from "./harness";
+import type { World } from "./harness";
 
 const NEW_ID = "22222222-aaaa-bbbb-cccc-000000000002";
 
@@ -37,6 +45,25 @@ const onlyTurn = (entries: TimelineEntry[]): TurnEntry => {
   if (entry.kind !== "turn") throw new Error("expected a turn entry");
   return entry;
 };
+
+/** Ends a turn the test started, and lets the work after it run. */
+async function endTurn(
+  $: Engine,
+  w: World,
+  turnId: string,
+  over: { agentId?: string; answer?: string } = {}
+): Promise<void> {
+  await $.turn.complete({
+    answer: over.answer ?? "Done.",
+    durationMs: 9000,
+    isAborted: false,
+    reason: "answer",
+    turnId,
+    ...(over.agentId === undefined ? {} : { agentId: over.agentId }),
+  });
+  await w.clock.settle();
+  await w.clock.settle();
+}
 
 describe("a turn's entry", () => {
   test("one turn makes one entry with files, commands, branch and duration", async ($, on) => {
@@ -88,36 +115,81 @@ describe("a turn's entry", () => {
     const w = world(on);
     await start($);
     await $.turn.start({ text: "Refactor with a helper", turnId: "t1" });
-    await callTool(
-      $,
-      { tool: "Edit", path: `${REPO}/a.ts` },
-      { agentId: "agent-1" }
-    );
     await $.turn.start({
       text: "subagent prompt",
       turnId: "s1",
       agentId: "agent-1",
     });
-    await $.turn.complete({
-      answer: "done",
-      durationMs: 1000,
-      isAborted: false,
-      reason: "answer",
-      turnId: "s1",
-      agentId: "agent-1",
-    });
-    await $.turn.complete({
-      answer: "All done.",
-      durationMs: 9000,
-      isAborted: false,
-      reason: "answer",
-      turnId: "t1",
-    });
-    await w.clock.settle();
-    await w.clock.settle();
+    await callTool(
+      $,
+      { tool: "Edit", path: `${REPO}/a.ts` },
+      { agentId: "agent-1" }
+    );
+    await endTurn($, w, "s1", { agentId: "agent-1" });
+    await endTurn($, w, "t1");
     const entry = onlyTurn(w.timeline());
     expect(entry.prompt).toBe("Refactor with a helper");
     expect(entry.files).toEqual([`${REPO}/a.ts`]);
+  });
+
+  test("a background agent started in an earlier turn is not counted", async ($, on) => {
+    const w = world(on);
+    await start($);
+    await $.turn.start({ text: "start a watcher", turnId: "t1" });
+    await $.turn.start({ text: "watch", turnId: "s1", agentId: "bg" });
+    await endTurn($, w, "t1");
+    await $.turn.start({ text: "something else", turnId: "t2" });
+    await callTool($, { tool: "Bash", command: "ls" }, { agentId: "bg" });
+    await endTurn($, w, "t2");
+    const [first, second] = w.timeline();
+    expect(first?.kind === "turn" && first.commands).toBe(0);
+    expect(second?.kind === "turn" && second.commands).toBe(0);
+  });
+
+  test("a call that answers after its turn ended counts toward neither", async ($, on) => {
+    const w = world(on);
+    await start($);
+    w.toolDelayMs = 1000;
+    await $.turn.start({ text: "first", turnId: "t1" });
+    const late = callTool($, { tool: "Bash", command: "sleep 1" });
+    await w.clock.settle();
+    await endTurn($, w, "t1");
+    await $.turn.start({ text: "second", turnId: "t2" });
+    await w.clock.advance(1000);
+    await late;
+    await endTurn($, w, "t2");
+    const entries = w.timeline();
+    expect(entries).toHaveLength(2);
+    for (const entry of entries) {
+      expect(entry.kind === "turn" && entry.commands).toBe(0);
+    }
+  });
+
+  test("an end with no start heard still makes an entry", async ($, on) => {
+    const w = world(on);
+    await start($);
+    await endTurn($, w, "unheard", { answer: "Reloaded and finished." });
+    const entry = onlyTurn(w.timeline());
+    expect(entry.prompt).toBe("");
+    expect(entry.summaryBy).toBe("model");
+  });
+
+  test("turn.start and turn.complete hand back what came back", async ($, on) => {
+    const w = world(on);
+    await start($);
+    expect(await $.turn.start({ text: "hi", turnId: "t1" })).toEqual({
+      turnId: "t1",
+    });
+    expect(
+      await $.turn.complete({
+        answer: "hello",
+        durationMs: 10,
+        isAborted: false,
+        reason: "answer",
+        turnId: "t1",
+      })
+    ).toEqual({ text: "hello" });
+    await w.clock.settle();
   });
 
   test("the prompt keeps its first 200 characters", async ($, on) => {
@@ -251,6 +323,17 @@ describe("the summary line", () => {
     expect(call.prompt).toContain("auth.ts");
     expect(call.prompt).not.toContain(`${REPO}/src`);
     expect(call.prompt).toContain("I changed the expiry comparison.");
+  });
+
+  test("the entry is in the file before the model is asked", async ($, on) => {
+    const w = world(on);
+    await start($);
+    await runTurn($, w, { text: "Fix the login bug" });
+    expect(w.modelSaw).toHaveLength(1);
+    const before = onlyTurn(w.modelSaw[0]!);
+    expect(before.summary).toBe("Fix the login bug");
+    expect(before.summaryBy).toBe("prompt");
+    expect(onlyTurn(w.timeline()).summaryBy).toBe("model");
   });
 
   test("the pane shows the turn's own line until the model answers", async ($, on) => {
@@ -398,6 +481,72 @@ describe("the timeline file", () => {
     expect(w.logs.some((line) => /not recorded/.test(line))).toBe(true);
   });
 
+  test("JSON that isn't a timeline is set aside, not overwritten", async ($, on) => {
+    const w = world(on, { files: { [timelineFile()]: '{"v": 2}' } });
+    await start($);
+    await runTurn($, w);
+    expect(onlyTurn(w.timeline()).prompt).toBe("Fix the login bug");
+    expect(w.files.get(`${timelineFile()}.corrupt-${NOW}`)).toBe('{"v": 2}');
+  });
+
+  test("entries that can't be read are kept aside before the rest is rewritten", async ($, on) => {
+    const kept = markEntry(NOW - 5000, "kept");
+    const text = `[${JSON.stringify(kept)}, {"kind": "future"}]`;
+    const w = world(on, { files: { [timelineFile()]: text } });
+    await start($);
+    await runTurn($, w);
+    expect(w.timeline().map((entry) => entry.kind)).toEqual(["mark", "turn"]);
+    expect(w.files.get(`${timelineFile()}.corrupt-${NOW}`)).toBe(text);
+  });
+
+  test("if the copy set aside can't be written, the file is left alone", async ($, on) => {
+    const w = world(on, { files: { [timelineFile()]: "{not json" } });
+    w.writeFails = (path) => path.includes(".corrupt-");
+    await start($);
+    await runTurn($, w);
+    expect(w.files.get(timelineFile())).toBe("{not json");
+  });
+
+  test("a timeline that can't be read is said once, as a toast", async ($, on) => {
+    const w = world(on, {
+      files: { [timelineFile()]: timelineText([markEntry(NOW, "x")]) },
+    });
+    await start($);
+    w.readFails = true;
+    await runTurn($, w);
+    await runTurn($, w);
+    const said = w.toasts.filter((text) => /aren't being added/.test(text));
+    expect(said).toHaveLength(1);
+  });
+
+  test("the file stays within its byte budget, dropping the oldest", () => {
+    const entries = Array.from({ length: 10 }, (_, i) =>
+      markEntry(i, "é".repeat(40))
+    );
+    const line = utf8Length(JSON.stringify(entries[0])) + 2;
+    const kept = fitEntries(entries, 4 + line * 3);
+    expect(kept.map((entry) => entry.at)).toEqual([7, 8, 9]);
+    expect(utf8Length(timelineText(kept))).toBeLessThanOrEqual(4 + line * 3);
+    expect(fitEntries(entries)).toHaveLength(10);
+    expect(FILE_BUDGET).toBeLessThan(4 * 1024 * 1024);
+  });
+
+  test("UTF-8 lengths count bytes", () => {
+    expect(utf8Length("a")).toBe(1);
+    expect(utf8Length("é")).toBe(2);
+    expect(utf8Length("→")).toBe(3);
+    expect(utf8Length("😀")).toBe(4);
+  });
+
+  test("a very long path keeps its end", () => {
+    const long = `/${"d/".repeat(400)}name.ts`;
+    const short = shortPath(long);
+    expect(short).toHaveLength(MAX_PATH_LENGTH);
+    expect(short.startsWith("…")).toBe(true);
+    expect(short.endsWith("name.ts")).toBe(true);
+    expect(shortPath("/a.ts")).toBe("/a.ts");
+  });
+
   test("a session id is made safe as a file name", () => {
     expect(fileName("../../etc/passwd")).toBe("______etc_passwd");
     expect(fileName("")).toBe("_");
@@ -424,6 +573,7 @@ describe("moving between session ids", () => {
     await runTurn($, w, { text: "before the clear" });
     w.sessionId = NEW_ID;
     await $.classic.SessionStart({ source: "clear", session_id: NEW_ID });
+    await w.clock.advance(1000);
     await runTurn($, w, { text: "after the clear" });
     const entries = w.timeline(NEW_ID);
     expect(entries.map((entry) => entry.kind)).toEqual([
@@ -440,6 +590,47 @@ describe("moving between session ids", () => {
     w.sessionId = NEW_ID;
     await $.classic.SessionStart({ source: "clear", session_id: NEW_ID });
     expect(w.files.size).toBe(0);
+  });
+
+  test("a /clear before the turn's work runs still carries that turn", async ($, on) => {
+    const w = world(on);
+    await start($);
+    await runTurn($, w, { text: "first" });
+    await $.turn.start({ text: "second", turnId: "t2" });
+    await $.turn.complete({
+      answer: "",
+      durationMs: 9000,
+      isAborted: false,
+      reason: "answer",
+      turnId: "t2",
+    });
+    // /clear runs before the timer for the second turn has fired.
+    w.sessionId = NEW_ID;
+    await $.classic.SessionStart({ source: "clear", session_id: NEW_ID });
+    await w.clock.settle();
+    await w.clock.settle();
+    const carried = w.timeline(NEW_ID);
+    const prompts = carried.map((entry) =>
+      entry.kind === "turn" ? entry.prompt : entry.text
+    );
+    expect(prompts).toEqual([
+      "first",
+      "second",
+      "The conversation was cleared.",
+    ]);
+    const second = carried[1]!;
+    expect(second.kind === "turn" && second.summaryBy).toBe("model");
+    expect(w.timeline(SESSION)).toHaveLength(2);
+  });
+
+  test("followers run through each /clear in turn, and stop at a loop", () => {
+    const moves = new Map([
+      ["a", "b"],
+      ["b", "c"],
+      ["c", "a"],
+    ]);
+    expect(followersOf(moves, "a")).toEqual(["b", "c"]);
+    expect(followersOf(moves, "z")).toEqual([]);
   });
 
   test("a turn that ends after a /clear is filed under its own session", async ($, on) => {

@@ -62,6 +62,10 @@ export type World = {
   files: Map<string, string>;
   /** While true, every `$.fs.read` is refused. */
   readFails: boolean;
+  /** A write to a path this answers true for is refused. */
+  writeFails: (path: string) => boolean;
+  /** Folders `$.fs.stat` answers as folders. */
+  dirs: Set<string>;
   /** The variables `$.env.get` answers. */
   env: Record<string, string>;
   /** What `git` answers, or "fails" for git that won't start. */
@@ -71,8 +75,12 @@ export type World = {
   /** The model's reply, null for an empty reply, "refused" to reject. */
   modelReply: string | null | "refused";
   modelCalls: ModelCall[];
+  /** The timeline file as it stood at each model call. */
+  modelSaw: TimelineEntry[][];
   /** What a tool call beneath the plugin answers. */
   toolAnswer: ToolCallResult;
+  /** How long, on the test's clock, a tool call takes to answer. */
+  toolDelayMs: number;
   /** The timeline file written for a session id, this one's by default. */
   timeline: (sessionId?: string) => TimelineEntry[];
 };
@@ -117,12 +125,16 @@ export function world(on: On, options: WorldOptions = {}): World {
     clock: mock.clock(on, { now: NOW }),
     files,
     readFails: false,
+    writeFails: () => false,
+    dirs: new Set(),
     env: { HOME },
     git: { top: REPO, branch: "main", sha: "abc1234" },
     processes: [],
     modelReply: "Fixed the token expiry check",
     modelCalls: [],
+    modelSaw: [],
     toolAnswer: { result: "done" } as ToolCallResult,
+    toolDelayMs: 0,
     timeline: (sessionId = state.sessionId) => {
       const text = files.get(timelineFile(sessionId));
       return text === undefined ? [] : parseTimeline(JSON.parse(text));
@@ -156,20 +168,35 @@ export function world(on: On, options: WorldOptions = {}): World {
 
   on("turn.start", (_, e) => ({ turnId: e.turnId }));
   on("turn.complete", (_, e) => ({ text: e.answer }));
-  on("tool.call", () => state.toolAnswer);
+  on("tool.call", async () => {
+    if (state.toolDelayMs > 0) await state.clock.sleep(state.toolDelayMs);
+    return state.toolAnswer;
+  });
 
   on("env.get", (_, e) => ({ value: state.env[e.name] }));
   on("fs.exists", (_, e) => ({ value: files.has(e.path) }));
   on("fs.read", (_, e) => {
     if (state.readFails) return { deny: "EACCES: permission denied" };
     const text = files.get(e.path);
-    return text === undefined
-      ? { deny: `ENOENT: no such file, ${e.path}` }
-      : { value: text };
+    if (text === undefined) return { deny: `ENOENT: no such file, ${e.path}` };
+    // As the engine does: a read over 4 MiB is refused.
+    if (text.length > 4 * 1024 * 1024) return { deny: "over 4 MiB" };
+    return { value: text };
   });
   on("fs.write", (_, e) => {
+    if (state.writeFails(e.path)) return { deny: "EROFS: read-only" };
     files.set(e.path, e.text);
     return { value: undefined };
+  });
+  on("fs.stat", (_, e) => {
+    const path = e.path.replace(/\/+$/, "");
+    const kind = state.dirs.has(path)
+      ? ("dir" as const)
+      : files.has(e.path)
+        ? ("file" as const)
+        : undefined;
+    if (kind === undefined) return { deny: `ENOENT: ${e.path}` };
+    return { value: { kind, size: 0, mtimeMs: NOW, isLink: false } };
   });
 
   on("process.run", (_, e) => {
@@ -200,6 +227,7 @@ export function world(on: On, options: WorldOptions = {}): World {
       prompt: e.prompt,
       system: e.system,
     });
+    state.modelSaw.push(state.timeline());
     const usage = {
       input_tokens: 0,
       output_tokens: 0,

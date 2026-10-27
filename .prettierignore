@@ -36,3 +36,6 @@ priv/
 
 *.bak
 TANK/
+
+# types Claude Code writes when it loads the mod
+sessionpad/.claude-plugin/types/
