@@ -51,6 +51,8 @@ Everything stays on your machine. The mod makes no network calls.
 - The headline and notes for each session live in the mod's key-value store, a JSON file under `~/.claude/plugins/store/`, under the key `notes:<session id>`.
 - A small index, `index`, records each session's working directory, repository root and when it was last seen. Later milestones use it for pruning and an all-sessions view.
 
+The store holds at most 4 MiB for all sessions together, so a pad keeps at most 100 notes of up to 4,000 characters each, and a headline is one line of up to 200 characters. Text past a limit is cut, and the mod says so. Pruning of sessions you haven't opened in a while (`retentionDays`) arrives in milestone 4. If the store ever refuses a write, the command or pane says the note wasn't saved rather than dropping it silently.
+
 To delete everything, remove the mod and delete its file in `~/.claude/plugins/store/`.
 
 ## Development
@@ -73,7 +75,9 @@ Decisions made while building, and places where this build of Claude Code (2.1.3
 - **Session ids.** `/clear` ends the session (`session.end` with reason `clear`) and continues under a new id with no `session.start`; the mod sees it as `classic.SessionStart` with source `clear`. `/resume` reports source `resume`. `/branch` reports source `fork` there (and `resume` at `session.end`). The mod tracks the id it loaded and carries the pad from that id. A pad the new id already has is never overwritten. This comes from the docs and the types; a manual check in a live session is still to do.
 - **Pane width.** `bodyColumns` already leaves out the pane's close mark, which sits on the frame, so the first row is not drawn two cells shorter.
 - **Promoting a note** moves it into the headline. An existing headline is not lost: it takes the note's place in the list, marked as written by `sessionpad`. That added a third author, `sessionpad`, beside `user` and `claude`, also used for the back-pointer note after `/branch`.
-- **Fallback names.** Besides `/note` falling back to `/pad-note`, `/headline` falls back to `/pad-headline` and `/pad` to `/sessionpad`. A fallback prints one line saying which name to use.
+- **Fallback names.** Besides `/note` falling back to `/pad-note`, `/headline` falls back to `/pad-headline` and `/pad` to `/sessionpad`. A fallback prints one line saying which name to use. A name the mod fell back from belongs to whoever has it: the mod passes that command's runs on and never answers them.
+- **Writes run one at a time.** Every change re-reads the pad right before writing, and the changes made in one session wait for each other, so a `/note` typed while Claude calls the note tool keeps both notes. Two processes writing the same session's pad at the same moment can still race; a session id normally lives in one process.
+- **`notes_read` sends the newest notes that fit**: at most 50, and about 20,000 characters, with a line counting the older ones left out.
 - **The input field sits under the headline**, above the notes, so it stays in view however many notes there are.
 - **The tools wait behind tool search**, as MCP tools do, so they cost nothing on requests that don't use them. Their names (`mcp__sessionpad__note`, `mcp__sessionpad__notes_read`) are enough for Claude to find them.
 - **Bold text uses `bold`**, not the newer `weight`, which needs 2.1.299 and would stop the tree drawing on the 2.1.286 Desktop minimum.

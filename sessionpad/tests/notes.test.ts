@@ -4,7 +4,10 @@ import type { Pad } from "../types";
 import {
   addNote,
   branchedPad,
+  MAX_HEADLINE_LENGTH,
+  MAX_NOTE_LENGTH,
   cleanHeadline,
+  cleanNote,
   deleteNote,
   emptyPad,
   makeNote,
@@ -114,5 +117,91 @@ describe("persistence", () => {
     await start($);
     const index = w.store.get("index") as Record<string, unknown>;
     expect(index[SESSION]).toEqual({ cwd: "/repo", repo: null, lastSeen: NOW });
+  });
+});
+
+describe("limits and edge cases", () => {
+  test("promote of an unknown id changes nothing", async () => {
+    const pad = padWith("one");
+    expect(promoteNote(pad, "no-such-id", NOW)).toBe(pad);
+  });
+
+  test("promote of a note that cleans to nothing changes nothing", async () => {
+    const pad = addNote(emptyPad(), makeNote(" \n\t ", NOW, "user"));
+    expect(promoteNote(pad, pad.notes[0]!.id, NOW)).toBe(pad);
+  });
+
+  test("promote keeps a note with line breaks in the list", async () => {
+    const pad = padWith("Fix login\n\n- step one\n- step two");
+    const after = promoteNote(pad, pad.notes[0]!.id, NOW);
+    expect(after.headline).toBe("Fix login - step one - step two");
+    expect(after.notes).toEqual(pad.notes);
+  });
+
+  test("promote keeps a note too long for the headline", async () => {
+    const pad = setHeadline(
+      padWith("z".repeat(MAX_HEADLINE_LENGTH + 50)),
+      "Old"
+    );
+    const after = promoteNote(pad, pad.notes[0]!.id, NOW);
+    expect(after.headline).toHaveLength(MAX_HEADLINE_LENGTH);
+    expect(after.notes.map((note) => note.text)).toEqual([
+      "Old",
+      pad.notes[0]!.text,
+    ]);
+  });
+
+  test("notes and headlines are cut at their limits", async () => {
+    expect(cleanNote("n".repeat(MAX_NOTE_LENGTH + 10))).toHaveLength(
+      MAX_NOTE_LENGTH
+    );
+    expect(cleanHeadline("h".repeat(MAX_HEADLINE_LENGTH + 10))).toHaveLength(
+      MAX_HEADLINE_LENGTH
+    );
+  });
+
+  test("a stored headline with line breaks reads as one line", async () => {
+    expect(parsePad({ headline: "two\nlines", notes: [] }).headline).toBe(
+      "two lines"
+    );
+  });
+});
+
+describe("the shared store", () => {
+  test("touching the index keeps other sessions' entries", async ($, on) => {
+    const other = { cwd: "/other", repo: null, lastSeen: 1 };
+    const w = world(on, { store: { index: { "other-session": other } } });
+    await start($);
+    const index = w.store.get("index") as Record<string, unknown>;
+    expect(index["other-session"]).toEqual(other);
+    expect(index[SESSION]).toBeDefined();
+  });
+
+  test("overlapping writes in one session both land", async ($, on) => {
+    const w = world(on);
+    await start($);
+    await Promise.all([
+      $.tool.call({ tool: "mcp__sessionpad__note", text: "A" }),
+      $.tool.call({ tool: "mcp__sessionpad__note", text: "B" }),
+      runCommand($, "note", "C"),
+      runCommand($, "headline", "H"),
+    ]);
+    expect(
+      w
+        .pad()
+        .notes.map((note) => note.text)
+        .sort()
+    ).toEqual(["A", "B", "C"]);
+    expect(w.pad().headline).toBe("H");
+  });
+
+  test("a write after a failed one still runs", async ($, on) => {
+    const w = world(on);
+    await start($);
+    w.storeFull = true;
+    await runCommand($, "note", "refused");
+    w.storeFull = false;
+    await runCommand($, "note", "kept");
+    expect(w.pad().notes.map((note) => note.text)).toEqual(["kept"]);
   });
 });

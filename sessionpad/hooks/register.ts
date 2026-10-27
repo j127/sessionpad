@@ -8,6 +8,8 @@ import type { Pad } from "../types";
 import {
   addThisNote,
   carryPad,
+  describeAdd,
+  describeHeadline,
   loadSession,
   readThisPad,
   setThisHeadline,
@@ -30,19 +32,36 @@ const NOTE_TOOL_DESCRIPTION = [
 const NOTES_READ_DESCRIPTION =
   "Reads this session's sessionpad: its headline and notes, oldest first. Use it when the user asks what this session is about, what was being done here, or what the notes say.";
 
-/** The pad as the model reads it from notes_read. */
+/** notes_read shows at most this many of the newest notes... */
+const READ_MAX_NOTES = 50;
+/** ...and stops adding older ones past this many characters. */
+const READ_MAX_CHARS = 20_000;
+
+/** The pad as the model reads it from notes_read: the newest notes that fit. */
 export function describePad(pad: Pad): string {
   const lines = [
     pad.headline === "" ? "No headline is set." : `Headline: ${pad.headline}`,
   ];
   if (pad.notes.length === 0) {
     lines.push("No notes yet.");
-  } else {
-    lines.push(`Notes (${pad.notes.length}, oldest first):`);
-    for (const note of pad.notes) {
-      lines.push(`- [${formatTime(note.at)}, ${note.by}] ${note.text}`);
-    }
+    return lines.join("\n");
   }
+  const shown: string[] = [];
+  let size = 0;
+  for (let i = pad.notes.length - 1; i >= 0; i--) {
+    const note = pad.notes[i]!;
+    const line = `- [${formatTime(note.at)}, ${note.by}] ${note.text}`;
+    const isRoomy =
+      shown.length < READ_MAX_NOTES && size + line.length <= READ_MAX_CHARS;
+    // The newest note always shows; one note is never longer than the cap.
+    if (shown.length > 0 && !isRoomy) break;
+    shown.unshift(line);
+    size += line.length;
+  }
+  lines.push(`Notes (${pad.notes.length}, oldest first):`);
+  const hidden = pad.notes.length - shown.length;
+  if (hidden > 0) lines.push(`(${hidden} older notes are not shown)`);
+  lines.push(...shown);
   return lines.join("\n");
 }
 
@@ -75,73 +94,89 @@ async function tryRegister(
   }
 }
 
-async function registerCommands($: EngineInterface): Promise<void> {
+/** Registers the commands and answers the names that registered. */
+async function registerCommands($: EngineInterface): Promise<Set<string>> {
   const taken = await takenCommands($);
+  const served = new Set<string>();
   const fellBack: string[] = [];
 
-  const pad = await tryRegister(taken, "pad", () =>
-    $.command.register({
-      name: "pad",
-      description:
-        "Open the sessionpad pane: this session's headline and notes",
-      immediate: true,
-    })
-  );
-  if (!pad) {
-    const used = await tryRegister(taken, "sessionpad", () =>
+  if (
+    await tryRegister(taken, "pad", () =>
+      $.command.register({
+        name: "pad",
+        description:
+          "Open the sessionpad pane: this session's headline and notes",
+        immediate: true,
+      })
+    )
+  ) {
+    served.add("pad");
+  } else if (
+    await tryRegister(taken, "sessionpad", () =>
       $.command.register({
         name: "sessionpad",
         description:
           "Open the sessionpad pane: this session's headline and notes",
         immediate: true,
       })
-    );
-    if (used)
-      fellBack.push("/pad is taken, so the pane opens with /sessionpad");
+    )
+  ) {
+    served.add("sessionpad");
+    fellBack.push("/pad is taken, so the pane opens with /sessionpad");
   }
 
-  const note = await tryRegister(taken, "note", () =>
-    $.command.register({
-      name: "note",
-      description: "Add a note to this session's pad",
-      argumentHint: "<text>",
-      immediate: true,
-    })
-  );
-  if (!note) {
-    const used = await tryRegister(taken, "pad-note", () =>
+  if (
+    await tryRegister(taken, "note", () =>
+      $.command.register({
+        name: "note",
+        description: "Add a note to this session's pad",
+        argumentHint: "<text>",
+        immediate: true,
+      })
+    )
+  ) {
+    served.add("note");
+  } else if (
+    await tryRegister(taken, "pad-note", () =>
       $.command.register({
         name: "pad-note",
         description: "Add a note to this session's pad",
         argumentHint: "<text>",
         immediate: true,
       })
-    );
-    if (used)
-      fellBack.push("/note is taken, so notes are added with /pad-note");
+    )
+  ) {
+    served.add("pad-note");
+    fellBack.push("/note is taken, so notes are added with /pad-note");
   }
 
-  const headline = await tryRegister(taken, "headline", () =>
-    $.command.register({
-      name: "headline",
-      description: "Set this session's headline; with no text, clear it",
-      argumentHint: "[text]",
-      immediate: true,
-    })
-  );
-  if (!headline) {
-    const used = await tryRegister(taken, "pad-headline", () =>
+  if (
+    await tryRegister(taken, "headline", () =>
+      $.command.register({
+        name: "headline",
+        description: "Set this session's headline; with no text, clear it",
+        argumentHint: "[text]",
+        immediate: true,
+      })
+    )
+  ) {
+    served.add("headline");
+  } else if (
+    await tryRegister(taken, "pad-headline", () =>
       $.command.register({
         name: "pad-headline",
         description: "Set this session's headline; with no text, clear it",
         argumentHint: "[text]",
         immediate: true,
       })
-    );
-    if (used) fellBack.push("/headline is taken, so use /pad-headline");
+    )
+  ) {
+    served.add("pad-headline");
+    fellBack.push("/headline is taken, so use /pad-headline");
   }
 
   for (const line of fellBack) $.ui.log(`sessionpad: ${line}.`);
+  return served;
 }
 
 async function registerTools($: EngineInterface): Promise<void> {
@@ -205,22 +240,27 @@ async function openPane($: EngineInterface): Promise<{ text?: string }> {
 
 async function noteCommand(
   $: EngineInterface,
+  command: string,
   args: string
 ): Promise<{ text: string }> {
-  const note = await addThisNote($, args, "user");
-  return {
-    text: note === undefined ? "Usage: /note <text>" : "Added to the pad.",
-  };
+  try {
+    const added = await addThisNote($, args, "user");
+    if (added.status === "blank") return { text: `Usage: /${command} <text>` };
+    return { text: describeAdd(added) };
+  } catch (error) {
+    return { text: `sessionpad: the note was not saved: ${String(error)}` };
+  }
 }
 
 async function headlineCommand(
   $: EngineInterface,
   args: string
 ): Promise<{ text: string }> {
-  const headline = await setThisHeadline($, args);
-  return {
-    text: headline === "" ? "Headline cleared." : `Headline: ${headline}`,
-  };
+  try {
+    return { text: describeHeadline(await setThisHeadline($, args)) };
+  } catch (error) {
+    return { text: `sessionpad: the headline was not saved: ${String(error)}` };
+  }
 }
 
 export const register: Register = (on, options) => {
@@ -231,6 +271,9 @@ export const register: Register = (on, options) => {
   // The id session.end last reported: the one /clear or /branch just left.
   // A fallback for when the load at session.start could not read the id.
   let endedId: string | undefined;
+  // The command names this mod registered. A name it fell back from belongs
+  // to someone else, so its run is passed on, never answered here.
+  let served = new Set<string>();
 
   on("session.start", async ($, e, next) => {
     try {
@@ -243,7 +286,7 @@ export const register: Register = (on, options) => {
     }
     await registerTools($);
     // Commands go last: a name clash there must not stop the rest.
-    await registerCommands($);
+    served = await registerCommands($);
     return next(e);
   });
 
@@ -256,11 +299,18 @@ export const register: Register = (on, options) => {
       try {
         const id = e.session_id || (await $.session.id());
         const previous = loadedId ?? endedId;
-        if (previous !== undefined && previous !== id) {
-          if (e.source === "clear") await carryPad($, previous, id, "clear");
-          if (e.source === "fork") await carryPad($, previous, id, "branch");
-        }
         loadedId = id;
+        if (previous !== undefined && previous !== id) {
+          // A failed carry must not keep the new id's pad from loading.
+          try {
+            if (e.source === "clear") await carryPad($, previous, id, "clear");
+            if (e.source === "fork") await carryPad($, previous, id, "branch");
+          } catch (error) {
+            $.ui.log(`sessionpad: could not carry the pad: ${String(error)}`, {
+              to: "debug",
+            });
+          }
+        }
         await loadSession($, id, e.cwd);
       } catch (error) {
         $.ui.log(`sessionpad: could not reload the pad: ${String(error)}`, {
@@ -277,34 +327,60 @@ export const register: Register = (on, options) => {
     return next(e);
   });
 
-  on("command.run", { command: "pad" }, ($) => openPane($));
-  on("command.run", { command: "sessionpad" }, ($) => openPane($));
-  on("command.run", { command: "note" }, ($, e) => noteCommand($, e.args));
-  on("command.run", { command: "pad-note" }, ($, e) => noteCommand($, e.args));
-  on("command.run", { command: "headline" }, ($, e) =>
-    headlineCommand($, e.args)
+  on("command.run", { command: ["pad", "sessionpad"] }, ($, e, next) =>
+    served.has(e.command) ? openPane($) : next(e)
+  ).catch(($, e, next) =>
+    next.called || !served.has(e.command)
+      ? next(e)
+      : { text: "sessionpad: the pane could not be opened." }
   );
-  on("command.run", { command: "pad-headline" }, ($, e) =>
-    headlineCommand($, e.args)
+
+  on("command.run", { command: ["note", "pad-note"] }, ($, e, next) =>
+    served.has(e.command) ? noteCommand($, e.command, e.args) : next(e)
+  ).catch(($, e, next) =>
+    next.called || !served.has(e.command)
+      ? next(e)
+      : { text: "sessionpad: the note was not saved." }
+  );
+
+  on("command.run", { command: ["headline", "pad-headline"] }, ($, e, next) =>
+    served.has(e.command) ? headlineCommand($, e.args) : next(e)
+  ).catch(($, e, next) =>
+    next.called || !served.has(e.command)
+      ? next(e)
+      : { text: "sessionpad: the headline was not saved." }
   );
 
   on("tool.call", { tool: "mcp__sessionpad__note" }, async ($, e) => {
-    const input = e as unknown as { text?: unknown; kind?: unknown };
+    // Read loosely: the schema says what Claude should send, not what it did.
+    const input: { text?: unknown; kind?: unknown } = e;
     const text = typeof input.text === "string" ? input.text : "";
     if (text.trim() === "") {
       return { deny: "sessionpad: `text` must be a non-empty string." };
     }
     if (input.kind === "headline") {
-      const headline = await setThisHeadline($, text);
-      return { result: `Headline set: ${headline}` };
+      return { result: describeHeadline(await setThisHeadline($, text)) };
     }
-    await addThisNote($, text, "claude");
-    return { result: "Added the note to this session's pad." };
-  }).catch(() => ({ deny: "sessionpad: the note could not be saved." }));
+    const added = await addThisNote($, text, "claude");
+    if (added.status !== "added") return { deny: describeAdd(added) };
+    return { result: describeAdd(added) };
+  }).catch(($, e, next) => {
+    $.ui.log(
+      `sessionpad: the note tool failed: ${next.error?.message ?? "unknown error"}`,
+      { to: "debug" }
+    );
+    return { deny: "sessionpad: the note could not be saved." };
+  });
 
   on("tool.call", { tool: "mcp__sessionpad__notes_read" }, async ($) => ({
     result: describePad(await readThisPad($)),
-  })).catch(() => ({ deny: "sessionpad: the notes could not be read." }));
+  })).catch(($, e, next) => {
+    $.ui.log(
+      `sessionpad: notes_read failed: ${next.error?.message ?? "unknown error"}`,
+      { to: "debug" }
+    );
+    return { deny: "sessionpad: the notes could not be read." };
+  });
 
   on("ui.render", { component: "Pane", requestId: "sessionpad" }, ($, e) =>
     renderPane($, e)

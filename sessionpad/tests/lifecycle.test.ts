@@ -91,3 +91,44 @@ describe("moving between session ids", () => {
     expect(w.pad(NEW_ID)).toEqual(savedPad);
   });
 });
+
+describe("branching edge cases", () => {
+  test("/branch keeps a pad the new id already has", async ($, on) => {
+    const existing = setHeadline(emptyPad(), "Mine already");
+    const w = world(on, {
+      store: { [notesKey(SESSION)]: savedPad, [notesKey(NEW_ID)]: existing },
+    });
+    await start($);
+    w.sessionId = NEW_ID;
+    await $.classic.SessionStart({ source: "fork", session_id: NEW_ID });
+    expect(w.pad(NEW_ID)).toEqual(existing);
+  });
+
+  test("/branch from an empty pad leaves only the pointer back", async ($, on) => {
+    const w = world(on);
+    await start($);
+    w.sessionId = NEW_ID;
+    await $.classic.SessionStart({ source: "fork", session_id: NEW_ID });
+    expect(w.pad(NEW_ID).notes.map((note) => note.text)).toEqual([
+      `Branched from session \`${SESSION}\`.`,
+    ]);
+  });
+
+  test("a failed carry still loads the new id's pad", async ($, on) => {
+    const other = setHeadline(emptyPad(), "Resumed one");
+    const w = world(on, {
+      store: { [notesKey(SESSION)]: savedPad, [notesKey(OTHER_ID)]: other },
+    });
+    await start($);
+    w.storeFull = true;
+    w.sessionId = NEW_ID;
+    await $.classic.SessionStart({ source: "clear", session_id: NEW_ID });
+    w.storeFull = false;
+    expect(w.logs.join("\n")).toContain("could not carry the pad");
+    // The id moved on: a later /resume loads from the right place.
+    w.sessionId = OTHER_ID;
+    await $.classic.SessionStart({ source: "resume", session_id: OTHER_ID });
+    const read = await $.tool.call({ tool: "mcp__sessionpad__notes_read" });
+    expect(String(read.result)).toContain("Resumed one");
+  });
+});

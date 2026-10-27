@@ -31,6 +31,10 @@ export type World = {
   opened: string[];
   /** Lines the plugin logged. */
   logs: string[];
+  /** Toasts the plugin raised. */
+  toasts: string[];
+  /** While true, every `$.store.set` is refused, as a full store does. */
+  storeFull: boolean;
   /** The pad stored for a session id, this one's by default. */
   pad: (sessionId?: string) => Pad;
 };
@@ -43,7 +47,12 @@ export type WorldOptions = {
   refused?: string[];
   /** Text the engine (or another mod) draws at every render site. */
   beneath?: string;
+  /** False: `$.ui.open` answers that the pane waits undrawn. */
+  placed?: boolean;
 };
+
+/** What the engine answers for a command no plugin hook answered. */
+export const engineRan = (command: string): string => `engine ran /${command}`;
 
 export function world(on: On, options: WorldOptions = {}): World {
   const immediate: boolean[] = [];
@@ -57,6 +66,8 @@ export function world(on: On, options: WorldOptions = {}): World {
     tools: new Map(),
     opened: [],
     logs: [],
+    toasts: [],
+    storeFull: false,
     pad: (sessionId = state.sessionId) =>
       parsePad(store.get(notesKey(sessionId))),
   };
@@ -64,6 +75,7 @@ export function world(on: On, options: WorldOptions = {}): World {
   mock.clock(on, { now: NOW });
   on("store.get", (_, e) => ({ value: store.get(e.key) }));
   on("store.set", (_, e) => {
+    if (state.storeFull) return { deny: "the store is full" };
     store.set(e.key, JSON.parse(JSON.stringify(e.value)));
     return { value: undefined };
   });
@@ -81,6 +93,7 @@ export function world(on: On, options: WorldOptions = {}): World {
   on("session.end", (_, e) => ({ sessionId: e.sessionId }));
   on("session.repo", () => ({ value: null }));
 
+  on("command.run", (_, e) => ({ text: engineRan(e.command) }));
   on("command.list", () => ({ value: options.existing ?? [] }));
   on("command.register", (_, e) => {
     if (options.refused?.includes(e.name))
@@ -96,10 +109,18 @@ export function world(on: On, options: WorldOptions = {}): World {
 
   on("ui.open", (_, e) => {
     state.opened.push(e.id);
-    return { value: { isPlaced: true } };
+    return options.placed === false
+      ? {
+          value: { isPlaced: false, reason: "the terminal is 80 columns wide" },
+        }
+      : { value: { isPlaced: true } };
   });
   on("ui.log", (_, e) => {
     state.logs.push(e.text);
+    return { value: undefined };
+  });
+  on("ui.toast", (_, e) => {
+    state.toasts.push(e.text);
     return { value: undefined };
   });
   on("ui.render", ($, e) => {

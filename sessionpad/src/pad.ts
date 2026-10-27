@@ -6,6 +6,9 @@ import type { EngineInterface } from "claude-code";
 import type { Note, NoteAuthor, Pad } from "../types";
 import { showPad } from "./state";
 import {
+  MAX_HEADLINE_LENGTH,
+  MAX_NOTES,
+  MAX_NOTE_LENGTH,
   addNote,
   branchedPad,
   changePad,
@@ -18,8 +21,16 @@ import {
   readPad,
   setHeadline,
   touchIndex,
-  writePad,
 } from "./store";
+
+/** What became of a note someone tried to add. */
+export type AddResult =
+  | { status: "added"; note: Note; isShortened: boolean }
+  | { status: "blank" }
+  | { status: "full" };
+
+/** What became of a headline someone tried to set. */
+export type HeadlineResult = { headline: string; isShortened: boolean };
 
 /** Loads the session's pad into $.state and marks the session as seen. */
 export async function loadSession(
@@ -47,34 +58,46 @@ export async function carryPad(
   toId: string,
   how: "clear" | "branch"
 ): Promise<void> {
-  const target = await readPad($, toId);
-  if (!isEmptyPad(target)) return;
-  const source = await readPad($, fromId);
-  if (how === "clear") {
-    if (!isEmptyPad(source)) await writePad($, toId, source);
-    return;
-  }
-  await writePad($, toId, branchedPad(source, fromId, await $.clock.now()));
+  const at = await $.clock.now();
+  await changePad($, toId, async (target) => {
+    if (!isEmptyPad(target)) return target;
+    const source = await readPad($, fromId);
+    return how === "clear" ? source : branchedPad(source, fromId, at);
+  });
 }
 
 export async function readThisPad($: EngineInterface): Promise<Pad> {
   return readPad($, await $.session.id());
 }
 
-/** Adds a note to this session's pad; undefined when the text is blank. */
+/** Adds a note to this session's pad, unless it is blank or the pad is full. */
 export async function addThisNote(
   $: EngineInterface,
   text: string,
   by: NoteAuthor
-): Promise<Note | undefined> {
+): Promise<AddResult> {
   const clean = cleanNote(text);
-  if (clean === "") return undefined;
+  if (clean === "") return { status: "blank" };
   const note = makeNote(clean, await $.clock.now(), by);
-  const pad = await changePad($, await $.session.id(), (pad) =>
-    addNote(pad, note)
-  );
+  let isFull = false;
+  const pad = await changePad($, await $.session.id(), (pad) => {
+    isFull = pad.notes.length >= MAX_NOTES;
+    return isFull ? pad : addNote(pad, note);
+  });
   await showPad($, pad);
-  return note;
+  if (isFull) return { status: "full" };
+  return { status: "added", note, isShortened: clean !== text.trim() };
+}
+
+/** One line saying what became of a note, for a person or for Claude. */
+export function describeAdd(result: AddResult): string {
+  if (result.status === "blank") return "Nothing to add: the note was empty.";
+  if (result.status === "full") {
+    return `The pad already holds ${MAX_NOTES} notes, so this one was not added. Delete some in the pane to make room.`;
+  }
+  return result.isShortened
+    ? `Added to the pad, cut to its first ${MAX_NOTE_LENGTH} characters.`
+    : "Added to the pad.";
 }
 
 export async function deleteThisNote(
@@ -102,11 +125,24 @@ export async function promoteThisNote(
 export async function setThisHeadline(
   $: EngineInterface,
   text: string
-): Promise<string> {
+): Promise<HeadlineResult> {
   const headline = cleanHeadline(text);
   const pad = await changePad($, await $.session.id(), (pad) =>
     setHeadline(pad, headline)
   );
   await showPad($, pad);
-  return pad.headline;
+  const whole = text.replace(/\s+/g, " ").trim();
+  return {
+    headline: pad.headline,
+    isShortened: whole.length > headline.length,
+  };
+}
+
+/** One line saying what became of a headline. */
+export function describeHeadline(result: HeadlineResult): string {
+  if (result.headline === "") return "Headline cleared.";
+  const cut = result.isShortened
+    ? ` (cut to ${MAX_HEADLINE_LENGTH} characters)`
+    : "";
+  return `Headline: ${result.headline}${cut}`;
 }

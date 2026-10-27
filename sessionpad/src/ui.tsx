@@ -9,7 +9,12 @@ import type {
 } from "claude-code";
 
 import type { Note, NoteAuthor, Tab } from "../types";
-import { addThisNote, deleteThisNote, promoteThisNote } from "./pad";
+import {
+  addThisNote,
+  deleteThisNote,
+  describeAdd,
+  promoteThisNote,
+} from "./pad";
 import { readHeadline, readNotes, readTab, showTab } from "./state";
 
 export const PANE_ID = "sessionpad";
@@ -39,6 +44,33 @@ export function formatTime(at: number): string {
   return `${date} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
 
+/**
+ * Runs a press or submit's work, telling the person when it fails (a full
+ * store rejects every write) instead of losing it without a word.
+ */
+async function guarded(
+  $: EngineInterface,
+  what: string,
+  work: () => Promise<unknown>
+): Promise<void> {
+  try {
+    await work();
+  } catch (error) {
+    $.ui.toast(`sessionpad: ${what} failed: ${String(error)}`);
+  }
+}
+
+/** Adds the field's note; says so only when it was cut short or refused. */
+async function submitNote($: EngineInterface, value: string): Promise<void> {
+  await guarded($, "adding the note", async () => {
+    const added = await addThisNote($, value, "user");
+    const isQuiet =
+      added.status === "blank" ||
+      (added.status === "added" && !added.isShortened);
+    if (!isQuiet) $.ui.toast(describeAdd(added));
+  });
+}
+
 export async function renderPane(
   $: EngineInterface,
   e: PaneInput
@@ -57,7 +89,7 @@ export async function renderPane(
           hotkey={one.hotkey}
           plain
           dimColor={tab !== one.id}
-          onPress={() => showTab($, one.id)}
+          onPress={() => guarded($, "switching tabs", () => showTab($, one.id))}
         />
       ))}
     </Box>
@@ -106,14 +138,20 @@ async function renderNotesTab(
         label="h"
         plain
         dimColor
-        onPress={() => promoteThisNote($, note.id)}
+        onPress={() =>
+          guarded($, "making it the headline", () =>
+            promoteThisNote($, note.id)
+          )
+        }
       />
       <Button
         key={`delete-${note.id}`}
         label="x"
         plain
         dimColor
-        onPress={() => deleteThisNote($, note.id)}
+        onPress={() =>
+          guarded($, "deleting the note", () => deleteThisNote($, note.id))
+        }
       />
     </Box>
   );
@@ -122,7 +160,7 @@ async function renderNotesTab(
     <Box flexDirection="column" width={width}>
       {headline === "" ? (
         <Text dimColor>
-          No headline yet. Use /headline, or press h beside a note.
+          No headline yet. Press h beside a note, or ask Claude to set one.
         </Text>
       ) : (
         <Text bold>{headline}</Text>
@@ -135,14 +173,14 @@ async function renderNotesTab(
             placeholder="type a note, Enter adds it"
             value=""
             submitLabel="add"
-            onSubmit={(value) => addThisNote($, value, "user")}
+            onSubmit={(value) => submitNote($, value)}
           />
         </Box>
       )}
       <Box marginTop={1} flexDirection="column" rowGap={1}>
         {notes.length === 0 ? (
           <Text dimColor>
-            No notes yet. Use /note, or ask Claude to note something.
+            No notes yet. Type one above, or ask Claude to note something.
           </Text>
         ) : (
           notes.map(noteRow)

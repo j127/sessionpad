@@ -160,3 +160,55 @@ describe("the headline band", () => {
     await ui.unmount();
   });
 });
+
+describe("the pane when things go wrong", () => {
+  test("a blank submit adds nothing and says nothing", async ($, on) => {
+    const w = world(on);
+    await start($);
+    const ui = await $.ui.mount(paneTarget("terminal"));
+    await ui.input({ key: "add-note", text: "   " });
+    expect(w.pad().notes).toEqual([]);
+    expect(w.toasts).toEqual([]);
+    await ui.unmount();
+  });
+
+  test("a refused write shows a toast instead of vanishing", async ($, on) => {
+    const w = world(on);
+    await start($);
+    await runCommand($, "note", "existing");
+    // Two notes, so the delete rewrites the pad rather than removing its key.
+    await runCommand($, "note", "another");
+    const ui = await $.ui.mount(paneTarget("desktop"));
+    w.storeFull = true;
+    await ui.input({ key: "add-note", text: "will not save" });
+    await ui.press({ key: `delete-${w.pad().notes[0]!.id}` });
+    expect(w.toasts.join("\n")).toContain("adding the note failed");
+    expect(w.toasts.join("\n")).toContain("deleting the note failed");
+    await ui.unmount();
+  });
+
+  test("a long typed note is kept, cut, with a toast", async ($, on) => {
+    const w = world(on);
+    await start($);
+    const ui = await $.ui.mount(paneTarget("terminal"));
+    await ui.input({ key: "add-note", text: "q".repeat(5000) });
+    expect(w.pad().notes[0]!.text).toHaveLength(4000);
+    expect(w.toasts.join("\n")).toContain("cut to its first");
+    await ui.unmount();
+  });
+});
+
+describe("the band with nothing else in it", () => {
+  test("shows the headline over an empty band", async ($, on) => {
+    world(on);
+    await start($);
+    await runCommand($, "headline", "Alone up here");
+    for (const surface of SURFACES) {
+      const ui = await $.ui.mount(bandTarget(surface));
+      expect((await ui.find({ type: "Text", text: /^pad:/ }))?.text).toBe(
+        "pad: Alone up here"
+      );
+      await ui.unmount();
+    }
+  });
+});

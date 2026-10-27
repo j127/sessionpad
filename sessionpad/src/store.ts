@@ -1,6 +1,10 @@
 // The pad's data: pure operations on a Pad, and reading and writing it in
 // $.store. Every session on the machine shares one store, so each session's
 // pad has its own key, and a change re-reads the key right before writing.
+// Within this session, changes run one at a time (see oneAtATime), so two
+// that overlap, such as a /note typed while Claude calls the note tool, both
+// land. Two processes writing the same key can still race; each session id
+// normally lives in one process.
 
 import type { EngineInterface } from "claude-code";
 
@@ -8,6 +12,8 @@ import type { Note, NoteAuthor, Pad } from "../types";
 
 export const MAX_HEADLINE_LENGTH = 200;
 export const MAX_NOTE_LENGTH = 4000;
+/** A pad holds at most this many notes, which keeps the shared store small. */
+export const MAX_NOTES = 100;
 export const INDEX_KEY = "index";
 
 const AUTHORS: readonly NoteAuthor[] = ["user", "claude", "sessionpad"];
@@ -37,7 +43,8 @@ function parseNote(value: unknown): Note | undefined {
 /** Reads a stored value as a Pad, dropping anything malformed. */
 export function parsePad(value: unknown): Pad {
   if (!isRecord(value)) return emptyPad();
-  const headline = typeof value.headline === "string" ? value.headline : "";
+  const headline =
+    typeof value.headline === "string" ? cleanHeadline(value.headline) : "";
   const notes = Array.isArray(value.notes)
     ? value.notes
         .map(parseNote)
@@ -79,8 +86,10 @@ export const setHeadline = (pad: Pad, text: string): Pad => ({
 });
 
 /**
- * Moves a note into the headline. A headline already there is not lost: it
- * takes the note's place in the list.
+ * Makes a note the headline. Nothing is lost: a headline already there takes
+ * the note's place in the list, and a note that does not fit on one line (it
+ * holds line breaks or runs past the headline's length) stays in the list too,
+ * since the headline holds only its first part.
  */
 export function promoteNote(pad: Pad, id: string, at: number): Pad {
   const index = pad.notes.findIndex((note) => note.id === id);
@@ -88,12 +97,11 @@ export function promoteNote(pad: Pad, id: string, at: number): Pad {
   if (note === undefined) return pad;
   const headline = cleanHeadline(note.text);
   if (headline === "") return pad;
+  const kept: Note[] = [];
+  if (pad.headline !== "") kept.push(makeNote(pad.headline, at, "sessionpad"));
+  if (headline !== note.text.trim()) kept.push(note);
   const notes = [...pad.notes];
-  if (pad.headline === "") {
-    notes.splice(index, 1);
-  } else {
-    notes[index] = makeNote(pad.headline, at, "sessionpad");
-  }
+  notes.splice(index, 1, ...kept);
   return { headline, notes };
 }
 
@@ -124,15 +132,31 @@ export async function writePad(
   }
 }
 
-/** Re-reads the pad, applies `change`, and writes the result back. */
+// The tail of this module's queue of store changes. Each change waits for the
+// one before it, so a read-change-write never interleaves with another.
+let changes: Promise<unknown> = Promise.resolve();
+
+function oneAtATime<T>(work: () => Promise<T>): Promise<T> {
+  const run = changes.then(work);
+  changes = run.catch(() => undefined);
+  return run;
+}
+
+/**
+ * Re-reads the pad, applies `change`, and writes the result back, after any
+ * change already under way in this session has finished. `change` must not
+ * call changePad itself, which would wait on itself.
+ */
 export async function changePad(
   $: EngineInterface,
   sessionId: string,
-  change: (pad: Pad) => Pad
+  change: (pad: Pad) => Pad | Promise<Pad>
 ): Promise<Pad> {
-  const changed = change(await readPad($, sessionId));
-  await writePad($, sessionId, changed);
-  return changed;
+  return oneAtATime(async () => {
+    const changed = await change(await readPad($, sessionId));
+    await writePad($, sessionId, changed);
+    return changed;
+  });
 }
 
 /** Records that a session was seen, re-reading the shared index first. */
@@ -141,7 +165,9 @@ export async function touchIndex(
   sessionId: string,
   entry: IndexEntry
 ): Promise<void> {
-  const stored = await $.store.get(INDEX_KEY);
-  const index = isRecord(stored) ? stored : {};
-  await $.store.set(INDEX_KEY, { ...index, [sessionId]: entry });
+  await oneAtATime(async () => {
+    const stored = await $.store.get(INDEX_KEY);
+    const index = isRecord(stored) ? stored : {};
+    await $.store.set(INDEX_KEY, { ...index, [sessionId]: entry });
+  });
 }
