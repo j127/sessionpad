@@ -354,6 +354,16 @@ function withSize(
  * start (missing, as on Windows) or was refused is shown in this session
  * only: another may well manage.
  */
+/** A folder to run `du` in that no project chose: home, else the root. */
+async function safeFolder($: EngineInterface): Promise<string | undefined> {
+  const home = (await $.env.get("HOME")) || (await $.env.get("USERPROFILE"));
+  for (const folder of [home, "/"]) {
+    if (folder === undefined || folder === "") continue;
+    if (await $.fs.exists(folder).catch(() => false)) return folder;
+  }
+  return undefined;
+}
+
 async function runDu(
   $: EngineInterface,
   path: string
@@ -363,15 +373,14 @@ async function runDu(
     // Run from the home folder, not the session's: a project could ship a
     // program named du, which some systems find there before the PATH.
     // A home folder that isn't there (in some containers) would stop the
-    // run; then it runs where the session does.
-    const home = (await $.env.get("HOME")) || (await $.env.get("USERPROFILE"));
-    const isHome =
-      home !== undefined &&
-      home !== "" &&
-      (await $.fs.exists(home).catch(() => false));
+    // run; then it runs from the root folder, and with neither, not at all.
+    const cwd = await safeFolder($);
+    if (cwd === undefined) {
+      return { record: { kb: null, at: await $.clock.now() }, isKept: false };
+    }
     const ran = await $.process.run(["du", "-sk", path], {
       timeoutMs: DU_TIMEOUT_MS,
-      ...(isHome ? { cwd: home } : {}),
+      cwd,
     });
     const kb = parseDu(ran.stdout);
     const at = await $.clock.now();

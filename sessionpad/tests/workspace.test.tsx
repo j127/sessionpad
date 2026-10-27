@@ -702,14 +702,29 @@ describe("where du runs", () => {
     await ui.unmount();
   });
 
-  test("where the session runs when the home folder isn't there", async ($, on) => {
+  test("from the root folder when the home folder isn't there", async ($, on) => {
     const w = world(on);
     w.env = { HOME: "/home/gone" };
     await start($);
     const ui = await openTab($, w);
     const at = w.processes.findIndex((argv) => argv[0] === "du");
-    expect(w.processCwds[at]).toBeUndefined();
+    expect(w.processCwds[at]).toBe("/");
     expect(await texts(ui)).toContain(`1 MB, measured ${formatClock(NOW)}`);
+    await ui.unmount();
+  });
+
+  test("never from the session's folder: with nowhere else, not at all", async ($, on) => {
+    const w = world(on);
+    w.env = { HOME: "/home/gone" };
+    w.dirs.delete("/");
+    await start($);
+    const ui = await openTab($, w);
+    expect(w.duRuns).toEqual([]);
+    expect(await texts(ui)).toContain(
+      `size unavailable, tried ${formatClock(NOW)}`
+    );
+    // Not kept for other sessions, which may have a home folder.
+    expect(w.store.has(sizeKey(REPO))).toBe(false);
     await ui.unmount();
   });
 });

@@ -194,7 +194,7 @@ export function world(on: On, options: WorldOptions = {}): World {
     unreadable: new Set(),
     vanishing: new Set(),
     writeFails: () => false,
-    dirs: new Set([HOME]),
+    dirs: new Set([HOME, "/"]),
     mtimes: new Map(),
     rmMissing: false,
     rmFails: false,
@@ -271,7 +271,9 @@ export function world(on: On, options: WorldOptions = {}): World {
 
   on("env.get", (_, e) => ({ value: state.env[e.name] }));
   on("fs.exists", (_, e) => ({
-    value: files.has(e.path) || state.dirs.has(e.path.replace(/\/+$/, "")),
+    value:
+      files.has(e.path) ||
+      state.dirs.has(e.path === "/" ? "/" : e.path.replace(/\/+$/, "")),
   }));
   on("fs.read", (_, e) => {
     if (state.readFails || state.unreadable.has(e.path)) {
