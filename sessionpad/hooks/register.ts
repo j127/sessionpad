@@ -334,9 +334,8 @@ export const register: Register = (on, options) => {
   // Prompts submitted while idle, each waiting for the turn it starts, which
   // takes it at turn.start: the engine starts that turn before the
   // submission resolves. Matched by text, so two waiting at once can't swap.
-  // One queued behind a running turn (`isQueued`) waits for the next turn
-  // only: if that turn isn't its own, it is dropped, never kept stale.
-  const waiting: (Submission & { isQueued: boolean })[] = [];
+  // None outlives its submission, so none can be matched to a later turn.
+  const waiting: Submission[] = [];
   // Each /clear's move, from the id it left to the one it went to and when,
   // so a turn that ended just before still reaches the timeline carried on.
   const clearedTo = new Map<string, ClearMove>();
@@ -455,34 +454,28 @@ export const register: Register = (on, options) => {
   // while a turn runs (turnId set) joins it, and starts none.
   on("prompt.submit", async ($, e, next) => {
     if (e.turnId !== undefined) return next(e);
-    const mine = {
+    const mine: Submission = {
       text: e.text,
       origin: e.origin,
       command: e.command,
-      isQueued: false,
     };
     waiting.push(mine);
     if (waiting.length > MAX_WAITING) waiting.shift();
     try {
-      const result = await next(e);
-      // Queued behind a running turn, a prompt waits for its own. A slash
-      // command that started no turn (a local one) never will.
-      mine.isQueued = result.drop === undefined && e.command === undefined;
-      return result;
+      return await next(e);
     } finally {
+      // Taken by its turn, refused, or resolved with no turn of its own (a
+      // local command, or one queued behind a running turn, which its text
+      // then judges): either way it is spent.
       const at = waiting.indexOf(mine);
-      if (at !== -1 && !mine.isQueued) waiting.splice(at, 1);
+      if (at !== -1) waiting.splice(at, 1);
     }
   }).catch(($, e, next) => next(e)); // replays the result next settled to
 
   on("turn.start", ($, e, next) => {
     if (e.agentId === undefined) {
       const from = submissionFor(waiting, e.text);
-      // The taken one is spent, and so is any queued: this was their turn.
-      for (let at = waiting.length - 1; at >= 0; at--) {
-        if (waiting[at] === from || waiting[at]!.isQueued)
-          waiting.splice(at, 1);
-      }
+      if (from !== undefined) waiting.splice(waiting.indexOf(from), 1);
       const opening = openingOf(e.text, from?.origin, from?.command);
       turn = newTurnLog(e.turnId, opening.prompt, opening.startedBy);
     } else if (turn !== undefined) {

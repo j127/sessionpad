@@ -97,9 +97,24 @@ export function originPhrase(origin: PromptOrigin): string | null | undefined {
   }
 }
 
-/** Text with the reminders Claude Code adds for the model taken out. */
-const withoutReminders = (text: string): string =>
-  text.replace(/<system-reminder>[\s\S]*?(?:<\/system-reminder>|$)/g, "");
+/**
+ * Text with the reminders Claude Code adds for the model taken out: each
+ * `<system-reminder>` with its closing tag. One with none is left as
+ * written, since a person may type the tag's name in a question.
+ */
+function withoutReminders(text: string): string {
+  const open = "<system-reminder>";
+  const close = "</system-reminder>";
+  let kept = "";
+  let from = 0;
+  for (;;) {
+    const start = text.indexOf(open, from);
+    const end = start === -1 ? -1 : text.indexOf(close, start + open.length);
+    if (end === -1) return kept + text.slice(from);
+    kept += text.slice(from, start);
+    from = end + close.length;
+  }
+}
 
 /** The name of the tag a text opens with, if it opens with one. */
 const openingTag = (text: string): string | undefined =>
@@ -172,22 +187,28 @@ function inside(text: string, tag: string): string | undefined {
   return end === -1 ? undefined : text.slice(start + tag.length + 2, end);
 }
 
+/** The name of the slash command a text holds as Claude Code writes one. */
+function commandNameIn(text: string): string | undefined {
+  if (!openingTag(text)?.startsWith("command-")) return undefined;
+  const name = inside(text, "command-name")?.trim().replace(/^\//, "");
+  return name === "" ? undefined : name;
+}
+
 /** The slash command a text holds as Claude Code writes one, as typed. */
 function commandInText(text: string): string | null {
-  if (!openingTag(text)?.startsWith("command-")) return null;
-  const name = inside(text, "command-name")?.trim().replace(/^\//, "");
-  if (name === undefined || name === "") return null;
+  const name = commandNameIn(text);
+  if (name === undefined) return null;
   return commandLine(name, inside(text, "command-args") ?? "");
 }
 
 /**
  * How a turn began, from its text and, when `prompt.submit` was seen, the
  * prompt's origin and slash command. What the origin says stands, the
- * person's prompt staying theirs whatever it opens with: the engine sets
- * the origin, while anyone who sends a message writes its text. Only where
- * the origin doesn't say does the opening tag decide. A slash command keeps
- * the line typed; a message someone else wrote keeps its words without the
- * markup.
+ * person's prompt staying theirs, as typed, whatever it opens with: the
+ * engine sets the origin, while anyone who sends a message writes its text.
+ * Only where the origin doesn't say does the opening tag decide. A slash
+ * command keeps the line typed; a message someone else wrote keeps its words
+ * without the markup.
  */
 export function openingOf(
   text: string,
@@ -196,11 +217,13 @@ export function openingOf(
 ): TurnOpening {
   const bare = withoutReminders(text).trim();
   const head = bare.slice(0, EXAMINED_LENGTH);
-  const typed =
-    command === undefined
-      ? commandInText(head)
-      : commandLine(command.name, command.args);
   const fromOrigin = origin === undefined ? undefined : originPhrase(origin);
+  const typed =
+    command !== undefined
+      ? commandLine(command.name, command.args)
+      : fromOrigin === null
+        ? null
+        : commandInText(head);
   const startedBy = fromOrigin !== undefined ? fromOrigin : markupPhrase(head);
   const prompt = typed ?? (startedBy === null ? bare : plainText(head));
   return { prompt, startedBy };
@@ -208,10 +231,9 @@ export function openingOf(
 
 /**
  * The waiting submission a turn that starts with `text` began from: the
- * oldest with that text. A slash command's turn starts with the command's
- * expanded text instead, so a lone command waiting is taken by a turn that
- * has text, unless that text is a Claude Code message. Undefined when none
- * fits, and the text decides.
+ * oldest with that text, or, for a slash command's turn, whose text is the
+ * command as Claude Code writes it, the oldest command of that name.
+ * Undefined when none fits, and the text decides.
  */
 export function submissionFor(
   waiting: readonly Submission[],
@@ -220,11 +242,18 @@ export function submissionFor(
   const typed = text.trim();
   const same = waiting.find((one) => one.text.trim() === typed);
   if (same !== undefined) return same;
-  const [only] = waiting;
-  if (typed === "" || waiting.length !== 1 || only?.command === undefined) {
-    return undefined;
-  }
-  return markupPhrase(typed.slice(0, EXAMINED_LENGTH)) === null
-    ? only
-    : undefined;
+  const name = commandNameIn(typed.slice(0, EXAMINED_LENGTH));
+  if (name === undefined) return undefined;
+  return waiting.find((one) => one.command?.name === name);
+}
+
+/**
+ * How an entry written before `startedBy` was kept began, read again from
+ * its prompt; null to leave it as written. Only a Claude Code message or a
+ * slash command's markup is read again, never a prompt a person typed.
+ */
+export function oldOpening(stored: string): TurnOpening | null {
+  const opening = openingOf(stored);
+  const isCommand = commandNameIn(stored.trim()) !== undefined;
+  return opening.startedBy !== null || isCommand ? opening : null;
 }

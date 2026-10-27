@@ -6,7 +6,7 @@
 import type { EngineInterface } from "claude-code";
 
 import type { MarkEntry, TimelineEntry, TurnEntry, TurnTokens } from "../types";
-import { openingOf } from "./origin";
+import { oldOpening } from "./origin";
 import { oneAtATime } from "./store";
 
 /** A turn keeps this much of its prompt. */
@@ -264,8 +264,8 @@ function parseEntry(value: unknown): TimelineEntry | undefined {
   if (!("startedBy" in value)) {
     // Written before turns said how they began: a message Claude Code wrote,
     // or a slash command, was kept as markup, and its line made from that.
-    const opening = openingOf(stored);
-    if (opening.startedBy !== null || opening.prompt !== stored.trim()) {
+    const opening = oldOpening(stored);
+    if (opening !== null) {
       prompt = excerpt(opening.prompt);
       startedBy = opening.startedBy;
       if (summaryBy === "prompt") {

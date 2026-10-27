@@ -403,6 +403,8 @@ export type TurnOptions = {
    */
   origin?: PromptOrigin;
   command?: PromptSubmitCommand;
+  /** The text submitted, when a hook beneath changed it before the turn. */
+  submitted?: string;
 };
 
 /** Runs one whole turn and lets the work after it finish. */
@@ -415,12 +417,18 @@ export async function runTurn(
   const agent = turn.agentId === undefined ? {} : { agentId: turn.agentId };
   const text = turn.text ?? "Fix the login bug";
   const begin = () => $.turn.start({ text, turnId, ...agent });
-  if (turn.origin === undefined && turn.command === undefined) {
+  if (
+    turn.origin === undefined &&
+    turn.command === undefined &&
+    turn.submitted === undefined
+  ) {
     await begin();
   } else {
     w.onSubmit = begin;
     await $.prompt.submit({
-      text: turn.command === undefined ? text : `/${turn.command.name}`,
+      text:
+        turn.submitted ??
+        (turn.command === undefined ? text : `/${turn.command.name}`),
       origin: turn.origin ?? { kind: "composer" },
       wait: false,
       ...(turn.command === undefined ? {} : { command: turn.command }),
