@@ -8,7 +8,7 @@
 import { atom, read, update } from "claude-code";
 import type { EngineInterface } from "claude-code";
 
-import type { Note, Pad, Tab, TimelineEntry } from "../types";
+import type { Note, Pad, Tab, TimelineEntry, WorkspaceView } from "../types";
 import { recentEntries } from "./timeline";
 
 const tabAtom = atom(
@@ -31,6 +31,24 @@ const recentAtom = atom(
   [] as TimelineEntry[]
 );
 
+/** The Workspace tab before git has answered. */
+export const EMPTY_WORKSPACE: WorkspaceView = {
+  status: "unread",
+  cwd: "",
+  branch: null,
+  worktree: null,
+  worktrees: [],
+  sizes: {},
+  measuring: [],
+  measureDisk: true,
+  readAt: null,
+};
+
+const workspaceAtom = atom(
+  { plugin: "sessionpad", key: "workspace" } as const,
+  EMPTY_WORKSPACE
+);
+
 /** Read while drawing, these subscribe the site to later writes. */
 export function readTab($: EngineInterface): Promise<Tab> {
   return read($, tabAtom);
@@ -46,6 +64,10 @@ export function readNotes($: EngineInterface): Promise<Note[]> {
 
 export function readRecent($: EngineInterface): Promise<TimelineEntry[]> {
   return read($, recentAtom);
+}
+
+export function readWorkspace($: EngineInterface): Promise<WorkspaceView> {
+  return read($, workspaceAtom);
 }
 
 /** Never call these while drawing: write from a handler or another event. */
@@ -65,4 +87,12 @@ export async function showTimeline(
   entries: readonly TimelineEntry[]
 ): Promise<void> {
   await update($, recentAtom, () => recentEntries(entries));
+}
+
+/** Changes what the Workspace tab shows; `change` may run more than once. */
+export async function changeWorkspace(
+  $: EngineInterface,
+  change: (view: WorkspaceView) => WorkspaceView
+): Promise<void> {
+  await update($, workspaceAtom, change);
 }

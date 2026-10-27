@@ -81,15 +81,14 @@ describe("the pane", () => {
   });
 
   test("the tab buttons switch tabs", async ($, on) => {
-    world(on);
+    const w = world(on);
     await start($);
     const ui = await $.ui.mount(paneTarget("terminal"));
     await ui.press({ key: "tab-timeline" });
     expect(await ui.find({ type: "Text", text: /No turns yet/ })).toBeDefined();
     await ui.press({ key: "tab-workspace" });
-    expect(
-      await ui.find({ type: "Text", text: /Workspace details/ })
-    ).toBeDefined();
+    await w.clock.settle();
+    expect(await ui.find({ key: "refresh-sizes" })).toBeDefined();
     await ui.press({ key: "tab-notes" });
     expect(await ui.find({ key: "add-note" })).toBeDefined();
     await ui.unmount();

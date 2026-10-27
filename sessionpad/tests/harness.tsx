@@ -27,12 +27,27 @@ export const REPO = "/repo";
 export const timelineFile = (sessionId = SESSION): string =>
   `${HOME}/.claude/sessionpad/timeline/${sessionId}.json`;
 
+/** One working tree `git worktree list` names besides the session's own. */
+export type GitTree = {
+  path: string;
+  /** The branch, or null for a detached HEAD. */
+  branch: string | null;
+  isBare?: boolean;
+  isPrunable?: boolean;
+};
+
 /** The repository `git` answers for: null fields read as git failing. */
 export type GitWorld = {
   top: string | null;
   branch: string | null;
   sha: string | null;
+  /** The other working trees, after the session's own; null: the list fails. */
+  others?: GitTree[] | null;
 };
+
+/** What `du -sk` answers for a path: kibibytes, or how it fails. */
+export type DuAnswer =
+  number | "fails" | "missing" | "garbage" | { partial: number };
 
 /** One call the plugin made of `$.model.complete`. */
 export type ModelCall = { model: string; prompt: string; system?: string };
@@ -82,6 +97,12 @@ export type World = {
   git: GitWorld | "fails";
   /** Every argv `$.process.run` was asked to run. */
   processes: string[][];
+  /** What `du` answers for each path; a path not here measures 1024 KB. */
+  du: Map<string, DuAnswer>;
+  /** How long, on the test's clock, each `du` takes. */
+  duDelayMs: number;
+  /** Each `du` run: its path and the time it was given. */
+  duRuns: { path: string; timeoutMs: number | undefined }[];
   /** The model's reply, null for an empty reply, "refused" to reject. */
   modelReply: string | null | "refused";
   modelCalls: ModelCall[];
@@ -151,6 +172,9 @@ export function world(on: On, options: WorldOptions = {}): World {
     env: { HOME },
     git: { top: REPO, branch: "main", sha: "abc1234" },
     processes: [],
+    du: new Map(),
+    duDelayMs: 0,
+    duRuns: [],
     modelReply: "Fixed the token expiry check",
     modelCalls: [],
     modelSaw: [],
@@ -236,9 +260,30 @@ export function world(on: On, options: WorldOptions = {}): World {
     return { value: { kind, size: 0, mtimeMs: NOW, isLink: false } };
   });
 
-  on("process.run", (_, e) => {
+  on("process.run", async (_, e) => {
     const argv = [...e.argv];
     state.processes.push(argv);
+    if (argv[0] === "du") {
+      const path = argv[argv.length - 1]!;
+      state.duRuns.push({ path, timeoutMs: e.init?.timeoutMs });
+      if (state.duDelayMs > 0) await state.clock.sleep(state.duDelayMs);
+      const answer = state.du.get(path) ?? 1024;
+      if (answer === "missing") return { deny: "spawn du ENOENT" };
+      const ran = (exitCode: number, stdout: string) => ({
+        value: {
+          exitCode,
+          stdout,
+          stderr: exitCode === 0 ? "" : "du: cannot read",
+          isStdoutTruncated: false,
+          isStderrTruncated: false,
+        },
+      });
+      if (answer === "fails") return ran(1, "");
+      if (answer === "garbage") return ran(0, "du: what?\n");
+      if (typeof answer === "object")
+        return ran(1, `${answer.partial}\t${path}\n`);
+      return ran(0, `${answer}\t${path}\n`);
+    }
     const git = state.git;
     if (git === "fails") return { deny: "spawn git ENOENT" };
     const answer = (out: string | null, failCode = 128) => ({
@@ -255,6 +300,27 @@ export function world(on: On, options: WorldOptions = {}): World {
     if (git.top === null) return answer(null);
     if (args === "symbolic-ref --short -q HEAD") return answer(git.branch, 1);
     if (args === "rev-parse --short HEAD") return answer(git.sha);
+    if (args === "worktree list --porcelain") {
+      if (git.others === null) return answer(null);
+      const blocks = [
+        `worktree ${git.top}\nHEAD ${git.sha ?? "0"}abcdef\n` +
+          (git.branch === null
+            ? "detached"
+            : `branch refs/heads/${git.branch}`),
+        ...(git.others ?? []).map((tree) =>
+          tree.isBare
+            ? `worktree ${tree.path}\nbare`
+            : `worktree ${tree.path}\nHEAD 9f8e7d6c5b4a\n` +
+              (tree.branch === null
+                ? "detached"
+                : `branch refs/heads/${tree.branch}`) +
+              (tree.isPrunable
+                ? "\nprunable gitdir file points to non-existent location"
+                : "")
+        ),
+      ];
+      return answer(blocks.join("\n\n"));
+    }
     return answer(null);
   });
 

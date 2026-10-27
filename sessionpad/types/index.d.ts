@@ -76,6 +76,55 @@ export type MarkEntry = {
 
 export type TimelineEntry = TurnEntry | MarkEntry;
 
+/** One working tree of the repository, as `git worktree list` names it. */
+export type Worktree = {
+  /** The tree's top folder. */
+  path: string;
+  /** The branch checked out, `detached at <sha>`, or null in a bare repository. */
+  branch: string | null;
+  /** The working tree this session runs in. */
+  isCurrent: boolean;
+  /** The repository's bare entry: no files checked out, so nothing to measure. */
+  isBare: boolean;
+  /** Its folder is gone, and `git worktree prune` would drop it. */
+  isPrunable: boolean;
+};
+
+/**
+ * A working tree's measured size, as the store keeps it under `size:<path>`
+ * (shared by every session) and the Workspace tab shows it.
+ */
+export type SizeRecord = {
+  /** Kibibytes, as `du -sk` counts them; null when `du` gave no size. */
+  kb: number | null;
+  /** When it was measured, in milliseconds since the epoch. */
+  at: number;
+  /** `du` could not read every file, so the size is a lower bound. */
+  isPartial?: boolean;
+};
+
+/** What the Workspace tab draws. */
+export type WorkspaceView = {
+  /** "unread" until git has answered once; "none" outside a git repository. */
+  status: "unread" | "repo" | "none";
+  /** The session's working directory. */
+  cwd: string;
+  /** The current branch, or `detached at <sha>`. */
+  branch: string | null;
+  /** The current working tree's top folder. */
+  worktree: string | null;
+  /** Every working tree of the repository, the current one first. */
+  worktrees: Worktree[];
+  /** The newest size known for each path. */
+  sizes: Record<string, SizeRecord>;
+  /** Paths waiting for `du`, or being measured. */
+  measuring: string[];
+  /** The `measureDisk` setting: false, no `du` runs. */
+  measureDisk: boolean;
+  /** When git was last read, to tell today's times from older ones. */
+  readAt: number | null;
+};
+
 /** What Claude passes to the note tool, as its input schema says. */
 export type NoteToolInput = { text: string; kind?: "note" | "headline" };
 
@@ -94,6 +143,7 @@ declare module "claude-code" {
       notes: Note[];
       /** The timeline's newest entries, oldest first, at most 50. */
       recent: TimelineEntry[];
+      workspace: WorkspaceView;
     };
   }
 }

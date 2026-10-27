@@ -16,6 +16,12 @@
       "description": "Draw the session's headline as one dim line in the band above the prompt.",
       "default": true
     },
+    "measureDisk": {
+      "type": "boolean",
+      "title": "Measure disk use",
+      "description": "Run du on the repository's worktrees to show their sizes in the Workspace tab, at most every 10 minutes unless you press Refresh sizes.",
+      "default": true
+    },
     "summaryModel": {
       "type": "string",
       "title": "Model for each turn's summary line",

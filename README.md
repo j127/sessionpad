@@ -2,12 +2,13 @@
 
 A Claude Code mod that gives every session a small notepad: a one-line headline that says what the session is for, plus notes written by you or by Claude. Open any session after a few days away and see at a glance what it was doing and what is left to do.
 
-Status: milestone 2 of 4 (notes and timeline). The workspace view with branch, worktrees and disk use (milestone 3) is not built yet.
+Status: milestone 3 of 4 (notes, timeline and workspace). Pruning old sessions and the release (milestone 4) are still to come.
 
 ## What it does
 
 - **`/pad`** opens a pane with three tabs. The Notes tab shows the headline, a field to add a note, and every note, newest last. Each note has an `h` button that makes it the headline and an `x` button that deletes it. Notes are Markdown. Press `1`, `2` or `3` to switch tabs while the pane has focus.
 - **The Timeline tab** has one line for each turn of the conversation, newest first under its date: the time it ended, how long it ran, a one-line summary, and marks for files written, commands run, a stopped turn, and the branch when it changed. It shows the newest 50; the file keeps more (`timelineCap`).
+- **The Workspace tab** shows where the session's work lives: the branch (or `detached at <commit>`), the worktree's folder, and how much disk it takes with when that was measured, then the repository's other worktrees with their branches and sizes. Sizes come from `du`, run in the background one tree at a time, and show `measuring…` meanwhile. Opening the tab measures any size older than 10 minutes, a turn that wrote files or ran commands measures this tree at most every 10 minutes, and **Refresh sizes** measures every tree again. Outside a git repository the tab says `not a git repo`; where `du` is missing (as on Windows), fails or runs past 10 minutes, it says `size unavailable`.
 - **`/pad-export [path]`** writes the headline, the notes and the whole timeline as Markdown and prints where. With no path it goes to `~/.claude/sessionpad/exports/<session id>.md`, replacing the last export; a relative path is under the session's folder, and a folder gets `<session id>.md` inside it. It never overwrites a file that isn't an earlier export: each export starts with the line `<!-- sessionpad export -->`, which Markdown viewers don't show, and a file without it is left alone. The Timeline tab's Export button does the same.
 - **The band above the prompt** shows `pad: <headline>` in one dim line whenever the session has a headline, so you see what a session is for without opening the pane.
 - **`/note <text>`** adds a note. **`/headline <text>`** sets the headline, and `/headline` with no text clears it. Both work while Claude is busy.
@@ -43,10 +44,11 @@ For the Desktop app, add the folder to `CLAUDE_CODE_PLUGIN_DIRS` in the `env` bl
 | Key            | Type                 | Default | Effect                                                       |
 | -------------- | -------------------- | ------- | ------------------------------------------------------------ |
 | `showBand`     | boolean              | `true`  | Show the headline above the prompt                           |
+| `measureDisk`  | boolean              | `true`  | Run `du` on the repository's worktrees for the Workspace tab |
 | `summaryModel` | `"haiku"` or `"off"` | `haiku` | The model that writes each turn's summary line               |
 | `timelineCap`  | number, 1 to 1000    | `500`   | Entries a session's timeline file keeps; the oldest go first |
 
-More settings (`measureDisk`, `retentionDays`) arrive with the milestones that use them.
+`retentionDays`, for pruning, arrives in milestone 4.
 
 ## What is stored, and where
 
@@ -55,6 +57,7 @@ Everything stays on your machine, with one exception: the summary line. The mod 
 - The headline and notes for each session live in the mod's key-value store, a JSON file under `~/.claude/plugins/store/`, under the key `notes:<session id>`.
 - A small index, `index`, records each session's working directory, repository root and when it was last seen. Later milestones use it for pruning and an all-sessions view.
 - Each session's timeline is a file, `~/.claude/sessionpad/timeline/<session id>.json` (under `CLAUDE_CONFIG_DIR` instead when that is set), one entry a line. An entry holds the prompt's first 200 characters, the summary line, up to 25 paths written, the branch, the worktree's path and the token counts. The file is kept under 3.5 MiB (the oldest entries go first), since Claude Code won't read a file over 4 MiB. A file that isn't a timeline, or holds entries the mod can't read, is copied beside the new one as `<id>.json.corrupt-<time>` before it is rewritten. One it can't read at all is left alone, the turn goes unrecorded, and a toast says so once per session.
+- Each worktree's measured size is in the same store under `size:<worktree path>`, as `{ kb, at }`, shared by every session, so sessions in one repository use each other's measurements.
 - Exports go to `~/.claude/sessionpad/exports/` unless you name a path.
 
 **The summary line costs a small model call.** After a turn, the mod sends Haiku (on your own plan or API key, like any request of the session) the prompt's first 200 characters, the start of Claude's final answer (1,500 characters at most), the names of the files written (not their paths or contents) and the number of commands run, and asks for one line of at most 15 words, capped at 60 tokens. Stopped turns, and turns under 5 seconds that wrote no files and ran no commands, skip the call. Set `summaryModel` to `off` to make no calls at all; the line is then the prompt's first line.
@@ -105,6 +108,12 @@ Decisions made while building, and places where this build of Claude Code (2.1.3
 - **The day is a heading.** Lines show only the time of day, so the Timeline tab puts the date above each day's first line; after a few days away that is what tells "this morning" from "last week".
 - **Narrow panes.** Below 50 columns a turn's marks go on a dim line under it, so the summary keeps its row. A branch name in the marks is cut to 24 characters.
 - **The export escapes what the pad shows as plain text** (the headline, summaries and prompts), so a `<tag>` or `[link](…)` in them reads as written. Notes are Markdown already and go in as they are. Paths, branches and the session id are code spans that hold any backticks.
+- **No size timer.** The spec has `session.start` start a 10-minute size timer. The 10-minute limit is checked when a turn ends instead: a turn that wrote files or ran commands measures this tree when its size is 10 minutes old or more. A timer would run `du` in a session left idle, where nothing changed. A change made inside the 10 minutes is measured by the next such turn, by opening the tab once the size is old, or by **Refresh sizes**.
+- **One `du` at a time.** A session queues its measurements and runs them in turn, so refreshing a repository with many worktrees doesn't start them all at once, and a tree already waiting isn't queued twice. Before each run the mod reads the store again and uses a size another session stored meanwhile, unless you pressed **Refresh sizes**. Two sessions that start measuring the same tree at the same moment can still both run `du`.
+- **`du -sk`, given 10 minutes**, the most `$.process.run` allows. A size `du` reports with an error exit (files it couldn't read) shows as `at least …`. No size at all, from a missing `du`, a failure or the time running out, is stored as unavailable, so the next try waits the same 10 minutes.
+- **A worktree inside another is counted in both.** Claude Code's own worktrees live under the main checkout's `.claude/worktrees/`, so the main checkout's size includes theirs. `du` has no portable way to leave them out.
+- **Git is read again** when the session starts, when the tab opens, after every turn (the branch may have moved) and on **Refresh sizes**: `rev-parse --show-toplevel`, `symbolic-ref`, and `worktree list --porcelain`. A bare entry and a worktree whose folder is gone (`prunable`) are listed but not measured. Where the worktree list can't be read, the tab shows this tree alone.
+- **Size keys aren't pruned yet.** Every worktree ever measured keeps its `size:` key, a few dozen bytes each, until pruning arrives in milestone 4.
 
 ## License
 

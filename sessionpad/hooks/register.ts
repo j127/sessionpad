@@ -18,7 +18,7 @@ import {
   readThisPad,
   setThisHeadline,
 } from "../src/pad";
-import { readHeadline } from "../src/state";
+import { readHeadline, readTab } from "../src/state";
 import { summaryModel } from "../src/summary";
 import {
   carryTimeline,
@@ -37,6 +37,11 @@ import {
 } from "../src/turns";
 import type { ClearMove, TimelineSettings } from "../src/turns";
 import { PANE_ID, PANE_TITLE, renderBand, renderPane } from "../src/ui";
+import {
+  forgetMeasuring,
+  scheduleRefresh,
+  startWorkspace,
+} from "../src/workspace";
 
 const NOTE_TOOL_DESCRIPTION = [
   "Writes to this session's sessionpad, a notepad the user reads to remember what this session is for when they come back to it.",
@@ -264,6 +269,10 @@ async function openPane($: EngineInterface): Promise<{ text?: string }> {
     title: PANE_TITLE,
     focus: true,
   });
+  // Opening on the Workspace tab is opening the tab.
+  if ((await readTab($).catch(() => "notes")) === "workspace") {
+    scheduleRefresh($, "stale");
+  }
   return opened.isPlaced
     ? {}
     : { text: `The pad is open but not drawn yet: ${opened.reason}` };
@@ -313,8 +322,24 @@ async function exportCommand(
  */
 const MAX_WAITING = 8;
 
+/** Sets the Workspace tab up and reads git into it, never failing the caller. */
+async function showWorkspace(
+  $: EngineInterface,
+  measureDisk: boolean
+): Promise<void> {
+  try {
+    await startWorkspace($, measureDisk);
+    scheduleRefresh($, "none");
+  } catch (error) {
+    $.ui.log(`sessionpad: could not read the workspace: ${String(error)}`, {
+      to: "debug",
+    });
+  }
+}
+
 export const register: Register = (on, options) => {
   const showBand = options.showBand !== false;
+  const measureDisk = options.measureDisk !== false;
   const timeline: TimelineSettings = {
     summaryModel: summaryModel(options.summaryModel),
     cap: timelineCap(options.timelineCap),
@@ -351,6 +376,9 @@ export const register: Register = (on, options) => {
         to: "debug",
       });
     }
+    // A new session or a reload: no `du` from before is still this module's.
+    forgetMeasuring();
+    await showWorkspace($, measureDisk);
     await registerTools($);
     // Commands go last: a name clash there must not stop the rest.
     served = await registerCommands($);
@@ -399,6 +427,8 @@ export const register: Register = (on, options) => {
           }
         }
         await loadSession($, id, e.cwd);
+        // $.state was reset, the Workspace tab's with it.
+        await showWorkspace($, measureDisk);
       } catch (error) {
         $.ui.log(`sessionpad: could not reload the pad: ${String(error)}`, {
           to: "debug",
@@ -522,7 +552,11 @@ export const register: Register = (on, options) => {
         answer: e.answer,
         tokens: turnTokens(e.usage),
       };
+      // A turn that wrote files or ran commands may have changed the tree's
+      // size; any turn may have moved the branch.
+      const isChanged = log.fileCount > 0 || log.commands > 0;
       $.clock.after(0, () => {
+        scheduleRefresh($, isChanged ? "current" : "none");
         const followers = (id: string) =>
           followersOf(clearedTo, id, finished.at);
         finishTurn($, finished, timeline, followers).catch((error: unknown) => {

@@ -8,7 +8,15 @@ import type {
   RenderSurface,
 } from "claude-code";
 
-import type { Note, NoteAuthor, Tab, TimelineEntry, TurnEntry } from "../types";
+import type {
+  Note,
+  NoteAuthor,
+  Tab,
+  TimelineEntry,
+  TurnEntry,
+  Worktree,
+  WorkspaceView,
+} from "../types";
 import { exportThisSession } from "./export";
 import { formatClock, formatDay, formatDuration, formatTime } from "./format";
 import {
@@ -17,8 +25,16 @@ import {
   describeAdd,
   promoteThisNote,
 } from "./pad";
-import { readHeadline, readNotes, readRecent, readTab, showTab } from "./state";
+import {
+  readHeadline,
+  readNotes,
+  readRecent,
+  readTab,
+  readWorkspace,
+  showTab,
+} from "./state";
 import { RECENT_COUNT } from "./timeline";
+import { formatSize, scheduleRefresh } from "./workspace";
 
 export const PANE_ID = "sessionpad";
 export const PANE_TITLE = "sessionpad";
@@ -70,7 +86,7 @@ export async function renderPane(
   e: PaneInput
 ): Promise<RenderElement> {
   const elements = $.ui.resolve(e);
-  const { Box, Text, Button } = elements;
+  const { Box, Button } = elements;
   const tab = await readTab($);
   const width = Math.max(10, e.props.bodyColumns);
 
@@ -83,7 +99,13 @@ export async function renderPane(
           hotkey={one.hotkey}
           plain
           dimColor={tab !== one.id}
-          onPress={() => guarded($, "switching tabs", () => showTab($, one.id))}
+          onPress={() =>
+            guarded($, "switching tabs", async () => {
+              await showTab($, one.id);
+              // Opening the tab measures what is more than 10 minutes old.
+              if (one.id === "workspace") scheduleRefresh($, "stale");
+            })
+          }
         />
       ))}
     </Box>
@@ -95,7 +117,7 @@ export async function renderPane(
   } else if (tab === "timeline") {
     body = await renderTimelineTab($, e, width);
   } else {
-    body = <Text dimColor>Workspace details arrive in a later milestone.</Text>;
+    body = await renderWorkspaceTab($, e, width);
   }
 
   return (
@@ -367,6 +389,151 @@ export function renderBand(
         pad: {headline}
       </Text>
       {beneath}
+    </Box>
+  );
+}
+
+/** What a tree's size reads as, measured or not. */
+export function sizeText(view: WorkspaceView, path: string): string {
+  if (!view.measureDisk) return "not measured";
+  if (view.measuring.includes(path)) return "measuring…";
+  const size = view.sizes[path];
+  if (size === undefined) return "not measured yet";
+  if (size.kb === null) return "size unavailable";
+  return size.isPartial === true
+    ? `at least ${formatSize(size.kb)}`
+    : formatSize(size.kb);
+}
+
+/** When a tree was measured: the time if today, else the date and time. */
+export function measuredText(view: WorkspaceView, path: string): string {
+  const size = view.sizes[path];
+  if (
+    !view.measureDisk ||
+    size === undefined ||
+    view.measuring.includes(path)
+  ) {
+    return "";
+  }
+  const isToday =
+    view.readAt !== null && formatDay(view.readAt) === formatDay(size.at);
+  return `measured ${isToday ? formatClock(size.at) : formatTime(size.at)}`;
+}
+
+/** What a tree other than this one shows in place of a size. */
+function otherSize(view: WorkspaceView, tree: Worktree): string {
+  if (tree.isBare) return "bare";
+  if (tree.isPrunable) return "folder missing";
+  return sizeText(view, tree.path);
+}
+
+async function renderWorkspaceTab(
+  $: EngineInterface,
+  e: PaneInput,
+  width: number
+): Promise<RenderElement> {
+  const { Box, Text, Button } = $.ui.resolve(e);
+  const view = await readWorkspace($);
+  if (view.status === "unread") {
+    return <Text dimColor>Reading the workspace…</Text>;
+  }
+  if (view.status === "none") {
+    return (
+      <Box flexDirection="column" width={width}>
+        <Text>Not a git repo</Text>
+        <Text dimColor wrap="truncate-start">
+          {view.cwd}
+        </Text>
+      </Box>
+    );
+  }
+  const isNarrow = width < NARROW_COLUMNS;
+  const path = view.worktree ?? "";
+  const field = (
+    key: string,
+    name: string,
+    value: string,
+    wrap: "truncate-end" | "truncate-start"
+  ): RenderElement => (
+    <Box key={key} flexDirection="row" columnGap={1}>
+      <Box flexShrink={0} width={8}>
+        <Text dimColor>{name}</Text>
+      </Box>
+      <Box flexGrow={1} flexShrink={1}>
+        <Text wrap={wrap}>{value}</Text>
+      </Box>
+    </Box>
+  );
+  const measured = measuredText(view, path);
+  const size =
+    measured === ""
+      ? sizeText(view, path)
+      : `${sizeText(view, path)}, ${measured}`;
+
+  const others = view.worktrees.filter((tree) => !tree.isCurrent);
+  const otherRow = (tree: Worktree): RenderElement => {
+    const branch = (
+      <Box flexShrink={1}>
+        <Text wrap="truncate-end">{tree.branch ?? "(no branch)"}</Text>
+      </Box>
+    );
+    const where = (
+      <Box flexGrow={1} flexShrink={1}>
+        <Text dimColor wrap="truncate-start">
+          {tree.path}
+        </Text>
+      </Box>
+    );
+    const amount = (
+      <Box flexShrink={0}>
+        <Text dimColor>{otherSize(view, tree)}</Text>
+      </Box>
+    );
+    if (isNarrow) {
+      // Narrow: branch and size on one line, the path under them.
+      return (
+        <Box key={`tree-${tree.path}`} flexDirection="column">
+          <Box flexDirection="row" columnGap={1}>
+            {branch}
+            <Box flexGrow={1} />
+            {amount}
+          </Box>
+          <Box paddingLeft={2}>{where}</Box>
+        </Box>
+      );
+    }
+    return (
+      <Box key={`tree-${tree.path}`} flexDirection="row" columnGap={2}>
+        {branch}
+        {where}
+        {amount}
+      </Box>
+    );
+  };
+
+  return (
+    <Box flexDirection="column" width={width}>
+      {field("branch", "Branch", view.branch ?? "", "truncate-end")}
+      {field("worktree", "Worktree", path, "truncate-start")}
+      {field("size", "Size", size, "truncate-end")}
+      {view.measureDisk ? (
+        <Box marginTop={1}>
+          <Button
+            key="refresh-sizes"
+            label="Refresh sizes"
+            plain
+            onPress={() => scheduleRefresh($, "all")}
+          />
+        </Box>
+      ) : null}
+      <Box marginTop={1}>
+        <Text bold>
+          {others.length === 0
+            ? "No other worktrees"
+            : `Other worktrees (${others.length})`}
+        </Text>
+      </Box>
+      {others.map(otherRow)}
     </Box>
   );
 }
