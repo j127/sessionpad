@@ -5,7 +5,9 @@ import {
   openingOf,
   originPhrase,
   plainText,
+  submissionFor,
 } from "../src/origin";
+import type { Submission } from "../src/origin";
 import {
   NOW,
   SESSION,
@@ -77,12 +79,43 @@ describe("how a turn began", () => {
       "a subagent's report"
     );
     expect(openingOf("<side-sessions-event>x").startedBy).toBe(
-      "a message from Claude Code"
+      "a side session's update"
     );
     expect(openingOf("Fix it", { kind: "auto-continuation" }).startedBy).toBe(
       null
     );
     expect(openingOf("<div> won't center").startedBy).toBe(null);
+  });
+
+  test("only Claude Code's own tags count, never a tag a person may type", () => {
+    const component = "<my-button>\n click\n</my-button> why no style?";
+    expect(openingOf(component)).toEqual({
+      prompt: component,
+      startedBy: null,
+    });
+    expect(openingOf("<bash-input>ls</bash-input>").startedBy).toBe(null);
+    expect(openingOf("<constructor> what is this?").startedBy).toBe(null);
+    expect(markupPhrase("<toString>")).toBe(null);
+  });
+
+  test("for anyone but the person, a Claude Code tag says more", () => {
+    expect(openingOf(AGENT_REPORT, { kind: "peer" }).startedBy).toBe(
+      "a subagent's report"
+    );
+    expect(openingOf("Ship it", { kind: "peer" })).toEqual({
+      prompt: "Ship it",
+      startedBy: "a message from another session",
+    });
+    expect(
+      openingOf(
+        "Review the diff.",
+        { kind: "scheduled-trigger" },
+        { name: "review", args: "the diff" }
+      )
+    ).toEqual({
+      prompt: "/review the diff",
+      startedBy: "a scheduled task's prompt",
+    });
   });
 
   test("a slash command keeps the line typed", () => {
@@ -101,16 +134,29 @@ describe("how a turn began", () => {
         "<command-message>review</command-message>\n<command-name>/review</command-name>\n<command-args></command-args>"
       )
     ).toEqual({ prompt: "/review", startedBy: null });
+    expect(
+      openingOf(
+        "<command-message>note</command-message>\n<command-name>/note</command-name>\n<command-args>use Array<T> here</command-args>"
+      ).prompt
+    ).toBe("/note use Array<T> here");
   });
 
   test("reminders for the model are not part of the prompt", () => {
     expect(
       openingOf("<system-reminder>be brief</system-reminder>\nFix it").prompt
     ).toBe("Fix it");
-    expect(plainText("a <b>bold</b>\n\n<br/> line")).toBe("a bold line");
+    expect(plainText("a <b>bold</b>\n\n line")).toBe("a bold line");
     expect(markupPhrase("<system-reminder>x</system-reminder>Fix it")).toBe(
       null
     );
+  });
+
+  test("markup goes, but text that only looks like it stays", () => {
+    expect(plainText("Return Array<string> when x<y && z>w")).toBe(
+      "Return Array<string> when x<y && z>w"
+    );
+    expect(plainText('<agent-message from="a>b">\nhi')).toBe("hi");
+    expect(plainText("<task-notification><a><b>deep</b></a>")).toBe("deep");
   });
 
   test("each origin that isn't the person has a phrase", () => {
@@ -131,6 +177,37 @@ describe("how a turn began", () => {
     );
     expect(originPhrase({ kind: "bridge" })).toBe(null);
     expect(originPhrase({ kind: "unclassified" })).toBe(undefined);
+  });
+});
+
+describe("which submission a turn began from", () => {
+  const typed = (text: string): Submission => ({
+    text,
+    origin: { kind: "composer" },
+    command: undefined,
+  });
+  const peer: Submission = {
+    text: "Ship it",
+    origin: { kind: "peer" },
+    command: undefined,
+  };
+  const review: Submission = {
+    text: "/review",
+    origin: { kind: "composer" },
+    command: { name: "review", args: "" },
+  };
+
+  test("the oldest with the turn's text", () => {
+    const first = typed("Ship it");
+    expect(submissionFor([typed("a"), first, peer], " Ship it\n")).toBe(first);
+  });
+
+  test("a lone slash command, whose turn has the command's own text", () => {
+    expect(submissionFor([review], "Review the diff for bugs.")).toBe(review);
+    expect(submissionFor([review, peer], "Review the diff.")).toBeUndefined();
+    expect(submissionFor([review], "")).toBeUndefined();
+    expect(submissionFor([peer], "Fix it")).toBeUndefined();
+    expect(submissionFor([], "Fix it")).toBeUndefined();
   });
 });
 
@@ -239,6 +316,100 @@ describe("turns Claude Code started", () => {
     });
   });
 
+  test("the origin is what decides, not only the tag", async ($, on) => {
+    const w = world(on);
+    await start($);
+    w.modelReply = null;
+    await runTurn($, w, { text: "Ship it", origin: { kind: "peer" } });
+    const typed = "<task-notification> what does this tag mean?";
+    await runTurn($, w, { text: typed, origin: { kind: "composer" } });
+    // w.timeline() reads the file again, as a later session would.
+    expect(w.timeline()).toMatchObject([
+      { prompt: "Ship it", startedBy: "a message from another session" },
+      { prompt: typed, startedBy: null, summary: typed },
+    ]);
+  });
+
+  test("two prompts waiting at once each go to their own turn", async ($, on) => {
+    const w = world(on);
+    await start($);
+    let release = () => {};
+    w.holdSubmit = new Promise<void>((resolve) => (release = resolve));
+    const first = $.prompt.submit({
+      text: "Fix the login bug",
+      origin: { kind: "composer" },
+      wait: false,
+    });
+    const second = $.prompt.submit({
+      text: "Ship it",
+      origin: { kind: "peer" },
+      wait: false,
+    });
+    await runTurn($, w, { turnId: "a", text: "Fix the login bug" });
+    await runTurn($, w, { turnId: "b", text: "Ship it" });
+    release();
+    await Promise.all([first, second]);
+    expect(w.timeline()).toMatchObject([
+      { turnId: "a", startedBy: null },
+      { turnId: "b", startedBy: "a message from another session" },
+    ]);
+  });
+
+  test("a prompt queued behind a turn keeps its origin for its own", async ($, on) => {
+    const w = world(on);
+    await start($);
+    // Resolves without its turn starting, as one queued behind another does.
+    await $.prompt.submit({
+      text: "Ship it",
+      origin: { kind: "peer" },
+      wait: false,
+    });
+    await runTurn($, w, { text: "Ship it" });
+    expect(w.timeline()[0]).toMatchObject({
+      startedBy: "a message from another session",
+    });
+  });
+
+  test("a local command, which starts no turn, leaves nothing behind", async ($, on) => {
+    const w = world(on);
+    await start($);
+    await $.prompt.submit({
+      text: "/pad",
+      origin: { kind: "composer" },
+      command: { name: "pad", args: "" },
+      wait: false,
+    });
+    await runTurn($, w, { text: TASK_REPORT });
+    expect(w.timeline()[0]).toMatchObject({
+      startedBy: "a background task's report",
+      prompt: expect.stringContaining("b1 completed"),
+    });
+  });
+
+  test("a message delivered into a turn is never kept for a later one", async ($, on) => {
+    const w = world(on);
+    await start($);
+    await $.turn.start({ text: "Fix the login bug", turnId: "t1" });
+    await $.prompt.submit({
+      text: "Ship it",
+      origin: { kind: "peer" },
+      turnId: "t1",
+      wait: false,
+    });
+    await $.turn.complete({
+      answer: "Fixed.",
+      durationMs: 65_000,
+      isAborted: false,
+      reason: "answer",
+      turnId: "t1",
+    });
+    await runTurn($, w, { turnId: "t2", text: "Ship it" });
+    expect(w.timeline()).toMatchObject([
+      { turnId: "t1", startedBy: null },
+      { turnId: "t2", startedBy: null },
+    ]);
+  });
+
   test("the export says what prompted the turn", async ($, on) => {
     const w = world(on);
     await start($);
@@ -249,7 +420,9 @@ describe("turns Claude Code started", () => {
     await runCommand($, "pad-export");
     const markdown =
       w.files.get(`${HOME}/.claude/sessionpad/exports/${SESSION}.md`) ?? "";
-    expect(markdown).toContain("  - Prompted by a background task's report");
+    expect(markdown).toContain(
+      "  - Prompted by a background task's report: b1 completed Background command"
+    );
     expect(markdown).not.toContain("Asked:");
   });
 });
@@ -277,6 +450,24 @@ describe("entries written before turns said how they began", () => {
     await ui.unmount();
   });
 
+  test("a slash command's markup becomes the line typed", async ($, on) => {
+    const markup =
+      "<command-message>review</command-message>\n<command-name>/review</command-name>\n<command-args>the diff</command-args>";
+    const w = world(on, {
+      files: {
+        [timelineFile()]: oldFile(
+          oldEntry({ prompt: markup, summary: "<command-message>review" })
+        ),
+      },
+    });
+    await start($);
+    expect(w.timeline()[0]).toMatchObject({
+      prompt: "/review the diff",
+      startedBy: null,
+      summary: "/review the diff",
+    });
+  });
+
   test("a model's line stays, and a typed prompt is left as it was", async ($, on) => {
     const w = world(on, {
       files: {
@@ -287,6 +478,12 @@ describe("entries written before turns said how they began", () => {
             at: NOW + 1,
             prompt: "Fix the login bug",
             summary: "Fix the login bug",
+          }),
+          oldEntry({
+            turnId: "component",
+            at: NOW + 2,
+            prompt: "<my-button> why no style?",
+            summary: "<my-button> why no style?",
           })
         ),
       },
@@ -297,6 +494,11 @@ describe("entries written before turns said how they began", () => {
       {
         prompt: "Fix the login bug",
         summary: "Fix the login bug",
+        startedBy: null,
+      },
+      {
+        prompt: "<my-button> why no style?",
+        summary: "<my-button> why no style?",
         startedBy: null,
       },
     ]);

@@ -100,6 +100,8 @@ export type World = {
    * submission resolves, as the engine does; `runTurn` sets it.
    */
   onSubmit: (() => Promise<unknown>) | undefined;
+  /** Set: every submission waits for this before it resolves. */
+  holdSubmit: Promise<void> | undefined;
 };
 
 export type WorldOptions = {
@@ -160,6 +162,7 @@ export function world(on: On, options: WorldOptions = {}): World {
     },
     submitDrop: undefined,
     onSubmit: undefined,
+    holdSubmit: undefined,
   };
 
   on("store.get", (_, e) =>
@@ -191,6 +194,7 @@ export function world(on: On, options: WorldOptions = {}): World {
     if (state.submitDrop !== undefined) return { drop: state.submitDrop };
     // Idle, the prompt's turn starts before the submission resolves.
     if (e.turnId === undefined) await state.onSubmit?.();
+    await state.holdSubmit;
     return { text: e.text, origin: e.origin };
   });
   on("turn.start", (_, e) => ({ turnId: e.turnId }));

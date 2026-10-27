@@ -57,7 +57,9 @@ function turnItem(entry: TurnEntry): string {
     `- **${head.join(" · ")}** · ${escapeMarkdown(oneLine(entry.summary))}`,
   ];
   if (entry.startedBy !== null) {
-    lines.push(`  - Prompted by ${escapeMarkdown(entry.startedBy)}`);
+    const words =
+      entry.prompt === "" ? "" : `: ${escapeMarkdown(oneLine(entry.prompt))}`;
+    lines.push(`  - Prompted by ${escapeMarkdown(entry.startedBy)}${words}`);
   } else if (entry.prompt !== "") {
     lines.push(`  - Asked: ${escapeMarkdown(oneLine(entry.prompt))}`);
   }

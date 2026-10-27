@@ -17,20 +17,36 @@ export type TurnOpening = {
   startedBy: string | null;
 };
 
-/** The opening tags of messages Claude Code writes, and what they are. */
-const TAG_PHRASES: Record<string, string> = {
-  "agent-message": "a subagent's report",
-  "task-notification": "a background task's report",
+/** A prompt submitted while idle, waiting for the turn it starts. */
+export type Submission = {
+  text: string;
+  origin: PromptOrigin;
+  command: PromptSubmitCommand | undefined;
 };
 
-/** Any other message Claude Code writes, said plainly. */
-const ENGINE_MESSAGE = "a message from Claude Code";
-
 /**
- * The tag a text opens with, when it is one Claude Code writes: lower case
- * with a hyphen (`task-notification`), which HTML a person types rarely is.
+ * The tags Claude Code opens its own messages with, and what each is. Only
+ * these count: a person may type any other tag, a web component's
+ * `<my-button>` among them.
  */
-const OPENING_TAG = /^<([a-z]+(?:-[a-z]+)+)[\s>]/;
+const ENGINE_TAGS = new Map<string, string>([
+  ["agent-message", "a subagent's report"],
+  ["task-notification", "a background task's report"],
+  ["side-sessions-event", "a side session's update"],
+  ["ci-monitor-event", "a pull request update"],
+]);
+
+/** The name of the tag a text opens with. */
+const OPENING_TAG = /^<([a-z]+(?:-[a-z]+)*)[\s>]/;
+
+/** A tag's attributes, quoted values holding any `>`. */
+const ATTRIBUTES = String.raw`(?:\s+[\w:-]+(?:\s*=\s*(?:"[^"]*"|'[^']*'))?)*\s*`;
+
+/** An element with its closing tag: only then is it read as markup. */
+const ELEMENT = new RegExp(
+  String.raw`<([a-z][a-z0-9]*(?:-[a-z0-9]+)*)${ATTRIBUTES}>([\s\S]*?)</\1\s*>`,
+  "g"
+);
 
 /**
  * What an origin says about who started the turn: null for the person,
@@ -73,23 +89,35 @@ export function originPhrase(origin: PromptOrigin): string | null | undefined {
 const withoutReminders = (text: string): string =>
   text.replace(/<system-reminder>[\s\S]*?(?:<\/system-reminder>|$)/g, "");
 
-/** The tag a text opens with, if Claude Code wrote it. */
+/** The name of the tag a text opens with, if it opens with one. */
 const openingTag = (text: string): string | undefined =>
   OPENING_TAG.exec(text.trimStart())?.[1];
 
-/** Who wrote a text, judged by its opening tag: null when no tag says. */
+/** What Claude Code message a text is, by its opening tag: null when none. */
 export function markupPhrase(text: string): string | null {
-  const tag = openingTag(withoutReminders(text));
-  if (tag === undefined || tag.startsWith("command-")) return null;
-  return TAG_PHRASES[tag] ?? ENGINE_MESSAGE;
+  return ENGINE_TAGS.get(openingTag(withoutReminders(text)) ?? "") ?? null;
 }
 
-/** Text with its tags taken out and its spacing made one line. */
+/**
+ * A message's words without its markup, on one line. The opening tag of a
+ * Claude Code message goes even when its end was cut off; any other tag goes
+ * only with its closing tag, so `Array<string>` or `x<y` stay as written.
+ */
 export function plainText(text: string): string {
-  return withoutReminders(text)
-    .replace(/<\/?[A-Za-z][\w-]*(?:\s[^<>]*)?\/?>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  let plain = withoutReminders(text);
+  const tag = openingTag(plain);
+  if (tag !== undefined && ENGINE_TAGS.has(tag)) {
+    plain = plain
+      .replace(new RegExp(String.raw`^\s*<${tag}${ATTRIBUTES}>`), " ")
+      .replace(new RegExp(String.raw`</${tag}\s*>`, "g"), " ");
+  }
+  // Inside out, a few levels deep: no message nests more.
+  for (let depth = 0; depth < 8; depth++) {
+    const outer = plain.replace(ELEMENT, " $2 ");
+    if (outer === plain) break;
+    plain = outer;
+  }
+  return plain.replace(/\s+/g, " ").trim();
 }
 
 const commandLine = (name: string, args: string): string =>
@@ -98,16 +126,19 @@ const commandLine = (name: string, args: string): string =>
 /** The slash command a text holds as Claude Code writes one, as typed. */
 function commandInText(text: string): string | null {
   if (!openingTag(text)?.startsWith("command-")) return null;
-  const name = /<command-name>\/?([^<]*)<\/command-name>/.exec(text)?.[1];
+  const name = /<command-name>\s*\/?([\s\S]*?)<\/command-name>/.exec(text)?.[1];
   if (name === undefined || name.trim() === "") return null;
-  const args = /<command-args>([^<]*)<\/command-args>/.exec(text)?.[1] ?? "";
-  return commandLine(name.trim(), args);
+  const args = /<command-args>([\s\S]*?)<\/command-args>/.exec(text)?.[1];
+  return commandLine(name.trim(), args ?? "");
 }
 
 /**
  * How a turn began, from its text and, when `prompt.submit` was seen, the
- * prompt's origin and slash command. A slash command keeps the line typed;
- * a message Claude Code wrote keeps its words without the markup.
+ * prompt's origin and slash command. A prompt the origin says the person
+ * gave is theirs whatever it opens with. For anyone else, a Claude Code tag
+ * says more than the origin does ("a subagent's report" rather than "a
+ * message from another session"). A slash command keeps the line typed; a
+ * message someone else wrote keeps its words without the markup.
  */
 export function openingOf(
   text: string,
@@ -121,11 +152,27 @@ export function openingOf(
       : commandLine(command.name, command.args);
   const fromOrigin = origin === undefined ? undefined : originPhrase(origin);
   const startedBy =
-    fromOrigin !== undefined
-      ? fromOrigin
-      : typed !== null
-        ? null
-        : markupPhrase(bare);
+    fromOrigin === null ? null : (markupPhrase(bare) ?? fromOrigin ?? null);
   const prompt = typed ?? (startedBy === null ? bare : plainText(bare));
   return { prompt, startedBy };
+}
+
+/**
+ * The waiting submission a turn that starts with `text` began from: the
+ * oldest with that text. A slash command's turn starts with the command's
+ * expanded text instead, so a lone command waiting is taken by any turn
+ * that has text. Undefined when none fits, and the text decides.
+ */
+export function submissionFor(
+  waiting: readonly Submission[],
+  text: string
+): Submission | undefined {
+  const typed = text.trim();
+  const same = waiting.find((one) => one.text.trim() === typed);
+  if (same !== undefined) return same;
+  const [only] = waiting;
+  if (typed === "" || waiting.length !== 1 || only?.command === undefined) {
+    return undefined;
+  }
+  return only;
 }

@@ -2,17 +2,13 @@
 // pieces live in ../src (data in store.ts, $.state in state.ts, actions in
 // pad.ts, drawing in ui.tsx).
 
-import type {
-  EngineInterface,
-  PromptOrigin,
-  PromptSubmitCommand,
-  Register,
-} from "claude-code";
+import type { EngineInterface, Register } from "claude-code";
 
 import type { Pad } from "../types";
 import { exportThisSession } from "../src/export";
 import { formatTime } from "../src/format";
-import { openingOf } from "../src/origin";
+import { openingOf, submissionFor } from "../src/origin";
+import type { Submission } from "../src/origin";
 import {
   addThisNote,
   carryPad,
@@ -311,6 +307,12 @@ async function exportCommand(
   }
 }
 
+/**
+ * The most prompts kept waiting for their turns. Past it the oldest goes,
+ * and its turn, if it ever starts, is judged by its text.
+ */
+const MAX_WAITING = 8;
+
 export const register: Register = (on, options) => {
   const showBand = options.showBand !== false;
   const timeline: TimelineSettings = {
@@ -329,12 +331,10 @@ export const register: Register = (on, options) => {
   // What the main conversation's running turn has done so far. A reload
   // mid-turn loses it, and that turn's entry has no prompt or files.
   let turn: TurnLog | undefined;
-  // Where the prompt starting a turn came from, held while prompt.submit
-  // passes it on: the engine starts that turn, and turn.start takes this,
-  // before the submission resolves.
-  let submitted:
-    | { origin: PromptOrigin; command: PromptSubmitCommand | undefined }
-    | undefined;
+  // Prompts submitted while idle, each waiting for the turn it starts, which
+  // takes it at turn.start: the engine starts that turn before the
+  // submission resolves. Matched by text, so two waiting at once can't swap.
+  const waiting: Submission[] = [];
   // Each /clear's move, from the id it left to the one it went to and when,
   // so a turn that ended just before still reaches the timeline carried on.
   const clearedTo = new Map<string, ClearMove>();
@@ -453,20 +453,30 @@ export const register: Register = (on, options) => {
   // while a turn runs (turnId set) joins it, and starts none.
   on("prompt.submit", async ($, e, next) => {
     if (e.turnId !== undefined) return next(e);
-    const mine = { origin: e.origin, command: e.command };
-    submitted = mine;
+    const mine: Submission = {
+      text: e.text,
+      origin: e.origin,
+      command: e.command,
+    };
+    waiting.push(mine);
+    if (waiting.length > MAX_WAITING) waiting.shift();
+    let isQueued = false;
     try {
-      return await next(e);
+      const result = await next(e);
+      // Queued behind a running turn, a prompt waits for its own. A slash
+      // command that started no turn (a local one) never will.
+      isQueued = result.drop === undefined && e.command === undefined;
+      return result;
     } finally {
-      // Refused, or the turn already took it: either way it is spent.
-      if (submitted === mine) submitted = undefined;
+      const at = waiting.indexOf(mine);
+      if (at !== -1 && !isQueued) waiting.splice(at, 1);
     }
   }).catch(($, e, next) => next(e)); // replays the result next settled to
 
   on("turn.start", ($, e, next) => {
     if (e.agentId === undefined) {
-      const from = submitted;
-      submitted = undefined;
+      const from = submissionFor(waiting, e.text);
+      if (from !== undefined) waiting.splice(waiting.indexOf(from), 1);
       const opening = openingOf(e.text, from?.origin, from?.command);
       turn = newTurnLog(e.turnId, opening.prompt, opening.startedBy);
     } else if (turn !== undefined) {
