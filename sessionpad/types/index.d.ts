@@ -46,6 +46,11 @@ export type TurnEntry = {
   isAborted: boolean;
   /** The prompt's first 200 characters; "" for a turn with no prompt. */
   prompt: string;
+  /**
+   * What started the turn when the person didn't, such as "a background
+   * task's report"; null for the person's own prompt.
+   */
+  startedBy: string | null;
   /** One line: the model's, or one made from the prompt (`summaryBy`). */
   summary: string;
   summaryBy: "model" | "prompt";

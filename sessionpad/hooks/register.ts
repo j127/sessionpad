@@ -2,11 +2,17 @@
 // pieces live in ../src (data in store.ts, $.state in state.ts, actions in
 // pad.ts, drawing in ui.tsx).
 
-import type { EngineInterface, Register } from "claude-code";
+import type {
+  EngineInterface,
+  PromptOrigin,
+  PromptSubmitCommand,
+  Register,
+} from "claude-code";
 
 import type { Pad } from "../types";
 import { exportThisSession } from "../src/export";
 import { formatTime } from "../src/format";
+import { openingOf } from "../src/origin";
 import {
   addThisNote,
   carryPad,
@@ -323,6 +329,12 @@ export const register: Register = (on, options) => {
   // What the main conversation's running turn has done so far. A reload
   // mid-turn loses it, and that turn's entry has no prompt or files.
   let turn: TurnLog | undefined;
+  // Where the prompt starting a turn came from, held while prompt.submit
+  // passes it on: the engine starts that turn, and turn.start takes this,
+  // before the submission resolves.
+  let submitted:
+    | { origin: PromptOrigin; command: PromptSubmitCommand | undefined }
+    | undefined;
   // Each /clear's move, from the id it left to the one it went to and when,
   // so a turn that ended just before still reaches the timeline carried on.
   const clearedTo = new Map<string, ClearMove>();
@@ -437,9 +449,26 @@ export const register: Register = (on, options) => {
 
   // The timeline. Every hook here only watches: it passes the event on and
   // hands back what came back, untouched.
+  // A prompt submitted while idle starts a turn; one typed or delivered
+  // while a turn runs (turnId set) joins it, and starts none.
+  on("prompt.submit", async ($, e, next) => {
+    if (e.turnId !== undefined) return next(e);
+    const mine = { origin: e.origin, command: e.command };
+    submitted = mine;
+    try {
+      return await next(e);
+    } finally {
+      // Refused, or the turn already took it: either way it is spent.
+      if (submitted === mine) submitted = undefined;
+    }
+  }).catch(($, e, next) => next(e)); // replays the result next settled to
+
   on("turn.start", ($, e, next) => {
     if (e.agentId === undefined) {
-      turn = newTurnLog(e.turnId, e.text);
+      const from = submitted;
+      submitted = undefined;
+      const opening = openingOf(e.text, from?.origin, from?.command);
+      turn = newTurnLog(e.turnId, opening.prompt, opening.startedBy);
     } else if (turn !== undefined) {
       turn = withAgent(turn, e.agentId);
     }

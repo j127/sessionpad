@@ -25,6 +25,7 @@ const turn = (over: Partial<TurnEntry>): TurnEntry => ({
   durationMs: 1000,
   isAborted: false,
   prompt: "p",
+  startedBy: null,
   summary: "s",
   summaryBy: "prompt",
   files: [],

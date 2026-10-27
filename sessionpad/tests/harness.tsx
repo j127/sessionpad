@@ -5,7 +5,13 @@
 
 import { mock } from "claude-code/testing";
 import type { Engine, MockClock } from "claude-code/testing";
-import type { CommandInfo, On, ToolCallResult } from "claude-code";
+import type {
+  CommandInfo,
+  On,
+  PromptOrigin,
+  PromptSubmitCommand,
+  ToolCallResult,
+} from "claude-code";
 
 import type { Pad, TimelineEntry } from "../types";
 import { notesKey, parsePad } from "../src/store";
@@ -87,6 +93,13 @@ export type World = {
   toolDelayMs: number;
   /** The timeline file written for a session id, this one's by default. */
   timeline: (sessionId?: string) => TimelineEntry[];
+  /** Set: a prompt submitted is refused beneath the plugin, with this reason. */
+  submitDrop: string | undefined;
+  /**
+   * Starts the turn a prompt submitted while idle begins, before the
+   * submission resolves, as the engine does; `runTurn` sets it.
+   */
+  onSubmit: (() => Promise<unknown>) | undefined;
 };
 
 export type WorldOptions = {
@@ -145,6 +158,8 @@ export function world(on: On, options: WorldOptions = {}): World {
       const text = files.get(timelineFile(sessionId));
       return text === undefined ? [] : parseTimeline(JSON.parse(text));
     },
+    submitDrop: undefined,
+    onSubmit: undefined,
   };
 
   on("store.get", (_, e) =>
@@ -172,6 +187,12 @@ export function world(on: On, options: WorldOptions = {}): World {
   on("session.repo", () => ({ value: null }));
   on("session.cwd", () => ({ value: REPO }));
 
+  on("prompt.submit", async (_, e) => {
+    if (state.submitDrop !== undefined) return { drop: state.submitDrop };
+    // Idle, the prompt's turn starts before the submission resolves.
+    if (e.turnId === undefined) await state.onSubmit?.();
+    return { text: e.text, origin: e.origin };
+  });
   on("turn.start", (_, e) => ({ turnId: e.turnId }));
   on("turn.complete", (_, e) => ({ text: e.answer }));
   on("tool.call", async () => {
@@ -372,6 +393,12 @@ export type TurnOptions = {
   answer?: string;
   calls?: TurnCall[];
   agentId?: string;
+  /**
+   * Set: the turn begins as a prompt submitted with this origin (and slash
+   * command), as the engine raises one; otherwise it simply starts.
+   */
+  origin?: PromptOrigin;
+  command?: PromptSubmitCommand;
 };
 
 /** Runs one whole turn and lets the work after it finish. */
@@ -382,11 +409,20 @@ export async function runTurn(
 ): Promise<void> {
   const turnId = turn.turnId ?? `turn-${Math.random().toString(36).slice(2)}`;
   const agent = turn.agentId === undefined ? {} : { agentId: turn.agentId };
-  await $.turn.start({
-    text: turn.text ?? "Fix the login bug",
-    turnId,
-    ...agent,
-  });
+  const text = turn.text ?? "Fix the login bug";
+  const begin = () => $.turn.start({ text, turnId, ...agent });
+  if (turn.origin === undefined && turn.command === undefined) {
+    await begin();
+  } else {
+    w.onSubmit = begin;
+    await $.prompt.submit({
+      text: turn.command === undefined ? text : `/${turn.command.name}`,
+      origin: turn.origin ?? { kind: "composer" },
+      wait: false,
+      ...(turn.command === undefined ? {} : { command: turn.command }),
+    });
+    w.onSubmit = undefined;
+  }
   for (const call of turn.calls ?? []) await callTool($, call, agent);
   await $.turn.complete({
     answer: turn.answer ?? "I fixed it.",

@@ -6,6 +6,7 @@
 import type { EngineInterface } from "claude-code";
 
 import type { MarkEntry, TimelineEntry, TurnEntry, TurnTokens } from "../types";
+import { markupPhrase, openingOf } from "./origin";
 import { oneAtATime } from "./store";
 
 /** A turn keeps this much of its prompt. */
@@ -33,6 +34,8 @@ export const MAX_PATH_LENGTH = 512;
 export type TurnLog = {
   turnId: string;
   prompt: string;
+  /** What started the turn when the person didn't (TurnEntry's). */
+  startedBy: string | null;
   files: string[];
   fileCount: number;
   commands: number;
@@ -57,9 +60,14 @@ export type FinishedTurn = {
 export const excerpt = (text: string): string =>
   text.trim().slice(0, PROMPT_LENGTH);
 
-export const newTurnLog = (turnId: string, prompt: string): TurnLog => ({
+export const newTurnLog = (
+  turnId: string,
+  prompt: string,
+  startedBy: string | null = null
+): TurnLog => ({
   turnId,
   prompt: excerpt(prompt),
+  startedBy,
   files: [],
   fileCount: 0,
   commands: 0,
@@ -121,14 +129,20 @@ export function cleanSummary(text: string): string {
   return bare.slice(0, SUMMARY_LENGTH);
 }
 
-/** The line a turn gets when no model writes one: what was asked, and how much was written. */
+/**
+ * The line a turn gets when no model writes one: what was asked, or what
+ * started it when the person didn't, and how much was written.
+ */
 export function fallbackSummary(
   prompt: string,
   answer: string,
-  fileCount: number
+  fileCount: number,
+  startedBy: string | null = null
 ): string {
   const line =
-    cleanSummary(prompt) || cleanSummary(answer) || "A turn with no prompt";
+    startedBy !== null
+      ? `Followed up on ${startedBy}`.slice(0, SUMMARY_LENGTH)
+      : cleanSummary(prompt) || cleanSummary(answer) || "A turn with no prompt";
   if (fileCount === 0) return line;
   const files = fileCount === 1 ? "1 file" : `${fileCount} files`;
   return `${line.slice(0, SUMMARY_LENGTH - files.length - 3)} (${files})`;
@@ -146,7 +160,13 @@ export function turnEntry(
     durationMs: turn.durationMs,
     isAborted: turn.isAborted,
     prompt: turn.log.prompt,
-    summary: fallbackSummary(turn.log.prompt, turn.answer, turn.log.fileCount),
+    startedBy: turn.log.startedBy,
+    summary: fallbackSummary(
+      turn.log.prompt,
+      turn.answer,
+      turn.log.fileCount,
+      turn.log.startedBy
+    ),
     summaryBy: "prompt",
     files: turn.log.files,
     fileCount: turn.log.fileCount,
@@ -233,19 +253,35 @@ function parseEntry(value: unknown): TimelineEntry | undefined {
   }
   if (value.kind !== "turn" || !isText(value.turnId)) return undefined;
   const files = Array.isArray(value.files) ? value.files.filter(isText) : [];
+  const fileCount = isCount(value.fileCount)
+    ? Math.max(value.fileCount, files.length)
+    : files.length;
+  const stored = isText(value.prompt) ? value.prompt : "";
+  const summaryBy = value.summaryBy === "model" ? "model" : "prompt";
+  let prompt = stored;
+  let startedBy = isText(value.startedBy) ? value.startedBy : null;
+  let summary = isText(value.summary) ? cleanSummary(value.summary) : "";
+  if (!("startedBy" in value) && markupPhrase(stored) !== null) {
+    // Written before turns said how they began: a message Claude Code wrote
+    // was kept as markup, and its line made from that markup.
+    ({ prompt, startedBy } = openingOf(stored));
+    prompt = excerpt(prompt);
+    if (summaryBy === "prompt") {
+      summary = fallbackSummary(prompt, "", fileCount, startedBy);
+    }
+  }
   return {
     kind: "turn",
     turnId: value.turnId,
     at: value.at,
     durationMs: isCount(value.durationMs) ? value.durationMs : 0,
     isAborted: value.isAborted === true,
-    prompt: isText(value.prompt) ? value.prompt : "",
-    summary: isText(value.summary) ? cleanSummary(value.summary) : "",
-    summaryBy: value.summaryBy === "model" ? "model" : "prompt",
+    prompt,
+    startedBy,
+    summary,
+    summaryBy,
     files,
-    fileCount: isCount(value.fileCount)
-      ? Math.max(value.fileCount, files.length)
-      : files.length,
+    fileCount,
     commands: isCount(value.commands) ? value.commands : 0,
     branch: isText(value.branch) ? value.branch : null,
     worktree: isText(value.worktree) ? value.worktree : null,

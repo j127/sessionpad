@@ -47,6 +47,7 @@ const turnAt = (at: number, turnId: string): TurnEntry => ({
   durationMs: 0,
   isAborted: false,
   prompt: "",
+  startedBy: null,
   summary: "",
   summaryBy: "prompt",
   files: [],

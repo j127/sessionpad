@@ -44,8 +44,13 @@ export function summaryPrompt(entry: TurnEntry, answer: string): string {
     entry.fileCount > files.length
       ? ` and ${entry.fileCount - files.length} more`
       : "";
+  const request =
+    entry.startedBy !== null
+      ? `none typed; the turn began with ${entry.startedBy}` +
+        (entry.prompt === "" ? "" : `: ${entry.prompt}`)
+      : entry.prompt || "(none: the turn continued earlier work)";
   return [
-    `Request: ${entry.prompt || "(none: the turn continued earlier work)"}`,
+    `Request: ${request}`,
     `Files written: ${files.length === 0 ? "none" : files.join(", ") + more}`,
     `Shell commands run: ${entry.commands}`,
     `Final answer: ${answer.trim().slice(0, ANSWER_LENGTH) || "(none)"}`,
