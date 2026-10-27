@@ -99,7 +99,9 @@ export function promoteNote(pad: Pad, id: string, at: number): Pad {
   if (headline === "") return pad;
   const kept: Note[] = [];
   if (pad.headline !== "") kept.push(makeNote(pad.headline, at, "sessionpad"));
-  if (headline !== note.text.trim()) kept.push(note);
+  const isOneLine = !/[\r\n]/.test(note.text.trim());
+  const fitsWhole = headline === note.text.replace(/\s+/g, " ").trim();
+  if (!isOneLine || !fitsWhole) kept.push(note);
   const notes = [...pad.notes];
   notes.splice(index, 1, ...kept);
   return { headline, notes };
@@ -136,8 +138,20 @@ export async function writePad(
 // one before it, so a read-change-write never interleaves with another.
 let changes: Promise<unknown> = Promise.resolve();
 
-function oneAtATime<T>(work: () => Promise<T>): Promise<T> {
-  const run = changes.then(work);
+/**
+ * Runs `work` once every change queued before it has settled. A change whose
+ * hook was abandoned meanwhile (`signal` aborted: it timed out, or the person
+ * interrupted) is skipped rather than run late, since its caller has already
+ * answered that nothing was saved.
+ */
+export function oneAtATime<T>(
+  work: () => Promise<T>,
+  signal?: AbortSignal
+): Promise<T> {
+  const run = changes.then(() => {
+    if (signal?.aborted) throw new Error("abandoned before it ran");
+    return work();
+  });
   changes = run.catch(() => undefined);
   return run;
 }
@@ -150,13 +164,14 @@ function oneAtATime<T>(work: () => Promise<T>): Promise<T> {
 export async function changePad(
   $: EngineInterface,
   sessionId: string,
-  change: (pad: Pad) => Pad | Promise<Pad>
+  change: (pad: Pad) => Pad | Promise<Pad>,
+  signal?: AbortSignal
 ): Promise<Pad> {
   return oneAtATime(async () => {
     const changed = await change(await readPad($, sessionId));
     await writePad($, sessionId, changed);
     return changed;
-  });
+  }, signal);
 }
 
 /** Records that a session was seen, re-reading the shared index first. */

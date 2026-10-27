@@ -74,16 +74,22 @@ export async function readThisPad($: EngineInterface): Promise<Pad> {
 export async function addThisNote(
   $: EngineInterface,
   text: string,
-  by: NoteAuthor
+  by: NoteAuthor,
+  signal?: AbortSignal
 ): Promise<AddResult> {
   const clean = cleanNote(text);
   if (clean === "") return { status: "blank" };
   const note = makeNote(clean, await $.clock.now(), by);
   let isFull = false;
-  const pad = await changePad($, await $.session.id(), (pad) => {
-    isFull = pad.notes.length >= MAX_NOTES;
-    return isFull ? pad : addNote(pad, note);
-  });
+  const pad = await changePad(
+    $,
+    await $.session.id(),
+    (pad) => {
+      isFull = pad.notes.length >= MAX_NOTES;
+      return isFull ? pad : addNote(pad, note);
+    },
+    signal
+  );
   await showPad($, pad);
   if (isFull) return { status: "full" };
   return { status: "added", note, isShortened: clean !== text.trim() };
@@ -124,11 +130,15 @@ export async function promoteThisNote(
 /** Sets this session's headline, or clears it for blank text. */
 export async function setThisHeadline(
   $: EngineInterface,
-  text: string
+  text: string,
+  signal?: AbortSignal
 ): Promise<HeadlineResult> {
   const headline = cleanHeadline(text);
-  const pad = await changePad($, await $.session.id(), (pad) =>
-    setHeadline(pad, headline)
+  const pad = await changePad(
+    $,
+    await $.session.id(),
+    (pad) => setHeadline(pad, headline),
+    signal
   );
   await showPad($, pad);
   const whole = text.replace(/\s+/g, " ").trim();

@@ -140,3 +140,14 @@ describe("tools when things go wrong", () => {
     expect(text).toContain("older notes are not shown");
   });
 });
+
+describe("reading when the store fails", () => {
+  test("notes_read reports a store it cannot read", async ($, on) => {
+    const w = world(on);
+    await start($);
+    w.storeBroken = true;
+    const read = await $.tool.call({ tool: "mcp__sessionpad__notes_read" });
+    expect(read.deny).toBe("sessionpad: the notes could not be read.");
+    expect(w.logs.join("\n")).toContain("notes_read failed");
+  });
+});

@@ -11,6 +11,7 @@ import {
   deleteNote,
   emptyPad,
   makeNote,
+  oneAtATime,
   notesKey,
   parsePad,
   promoteNote,
@@ -203,5 +204,48 @@ describe("the shared store", () => {
     w.storeFull = false;
     await runCommand($, "note", "kept");
     expect(w.pad().notes.map((note) => note.text)).toEqual(["kept"]);
+  });
+});
+
+describe("promote and the write queue, after review", () => {
+  test("a one-line note with doubled spaces or a tab still moves", async () => {
+    for (const text of ["fix  the build", "fix\tthe build"]) {
+      const pad = padWith(text);
+      const after = promoteNote(pad, pad.notes[0]!.id, NOW);
+      expect(after.headline).toBe("fix the build");
+      expect(after.notes).toEqual([]);
+    }
+  });
+
+  test("an abandoned change is skipped and the queue goes on", async () => {
+    const ran: string[] = [];
+    const gone = new AbortController();
+    gone.abort();
+    const skipped = oneAtATime(async () => {
+      ran.push("abandoned");
+    }, gone.signal);
+    const kept = oneAtATime(async () => {
+      ran.push("kept");
+      return "ok";
+    });
+    await expect(skipped).rejects.toThrow("abandoned");
+    expect(await kept).toBe("ok");
+    expect(ran).toEqual(["kept"]);
+  });
+
+  test("changes run in the order they were queued", async () => {
+    const order: number[] = [];
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const first = oneAtATime(async () => {
+      await gate;
+      order.push(1);
+    });
+    const second = oneAtATime(async () => {
+      order.push(2);
+    });
+    release();
+    await Promise.all([first, second]);
+    expect(order).toEqual([1, 2]);
   });
 });

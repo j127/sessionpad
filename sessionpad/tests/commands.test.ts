@@ -163,3 +163,13 @@ describe("commands when things go wrong", () => {
     expect(w.pad().headline).toHaveLength(MAX_HEADLINE_LENGTH);
   });
 });
+
+describe("command failures the hook cannot answer itself", () => {
+  test("/pad says so when the pane cannot be opened at all", async ($, on) => {
+    world(on, { openFails: true });
+    await start($);
+    expect((await runCommand($, "pad")).text).toBe(
+      "sessionpad: the pane could not be opened."
+    );
+  });
+});

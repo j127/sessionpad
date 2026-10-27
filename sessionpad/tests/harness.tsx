@@ -35,6 +35,8 @@ export type World = {
   toasts: string[];
   /** While true, every `$.store.set` is refused, as a full store does. */
   storeFull: boolean;
+  /** While true, every `$.store.get` is refused, as a broken store does. */
+  storeBroken: boolean;
   /** The pad stored for a session id, this one's by default. */
   pad: (sessionId?: string) => Pad;
 };
@@ -49,6 +51,8 @@ export type WorldOptions = {
   beneath?: string;
   /** False: `$.ui.open` answers that the pane waits undrawn. */
   placed?: boolean;
+  /** True: `$.ui.open` is refused outright. */
+  openFails?: boolean;
 };
 
 /** What the engine answers for a command no plugin hook answered. */
@@ -68,12 +72,17 @@ export function world(on: On, options: WorldOptions = {}): World {
     logs: [],
     toasts: [],
     storeFull: false,
+    storeBroken: false,
     pad: (sessionId = state.sessionId) =>
       parsePad(store.get(notesKey(sessionId))),
   };
 
   mock.clock(on, { now: NOW });
-  on("store.get", (_, e) => ({ value: store.get(e.key) }));
+  on("store.get", (_, e) =>
+    state.storeBroken
+      ? { deny: "the store cannot be read" }
+      : { value: store.get(e.key) }
+  );
   on("store.set", (_, e) => {
     if (state.storeFull) return { deny: "the store is full" };
     store.set(e.key, JSON.parse(JSON.stringify(e.value)));
@@ -108,6 +117,7 @@ export function world(on: On, options: WorldOptions = {}): World {
   });
 
   on("ui.open", (_, e) => {
+    if (options.openFails) return { deny: "no surface" };
     state.opened.push(e.id);
     return options.placed === false
       ? {

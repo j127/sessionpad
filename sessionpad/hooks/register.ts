@@ -241,10 +241,11 @@ async function openPane($: EngineInterface): Promise<{ text?: string }> {
 async function noteCommand(
   $: EngineInterface,
   command: string,
-  args: string
+  args: string,
+  signal: AbortSignal
 ): Promise<{ text: string }> {
   try {
-    const added = await addThisNote($, args, "user");
+    const added = await addThisNote($, args, "user", signal);
     if (added.status === "blank") return { text: `Usage: /${command} <text>` };
     return { text: describeAdd(added) };
   } catch (error) {
@@ -254,10 +255,11 @@ async function noteCommand(
 
 async function headlineCommand(
   $: EngineInterface,
-  args: string
+  args: string,
+  signal: AbortSignal
 ): Promise<{ text: string }> {
   try {
-    return { text: describeHeadline(await setThisHeadline($, args)) };
+    return { text: describeHeadline(await setThisHeadline($, args, signal)) };
   } catch (error) {
     return { text: `sessionpad: the headline was not saved: ${String(error)}` };
   }
@@ -336,7 +338,9 @@ export const register: Register = (on, options) => {
   );
 
   on("command.run", { command: ["note", "pad-note"] }, ($, e, next) =>
-    served.has(e.command) ? noteCommand($, e.command, e.args) : next(e)
+    served.has(e.command)
+      ? noteCommand($, e.command, e.args, next.signal)
+      : next(e)
   ).catch(($, e, next) =>
     next.called || !served.has(e.command)
       ? next(e)
@@ -344,14 +348,14 @@ export const register: Register = (on, options) => {
   );
 
   on("command.run", { command: ["headline", "pad-headline"] }, ($, e, next) =>
-    served.has(e.command) ? headlineCommand($, e.args) : next(e)
+    served.has(e.command) ? headlineCommand($, e.args, next.signal) : next(e)
   ).catch(($, e, next) =>
     next.called || !served.has(e.command)
       ? next(e)
       : { text: "sessionpad: the headline was not saved." }
   );
 
-  on("tool.call", { tool: "mcp__sessionpad__note" }, async ($, e) => {
+  on("tool.call", { tool: "mcp__sessionpad__note" }, async ($, e, next) => {
     // Read loosely: the schema says what Claude should send, not what it did.
     const input: { text?: unknown; kind?: unknown } = e;
     const text = typeof input.text === "string" ? input.text : "";
@@ -359,9 +363,10 @@ export const register: Register = (on, options) => {
       return { deny: "sessionpad: `text` must be a non-empty string." };
     }
     if (input.kind === "headline") {
-      return { result: describeHeadline(await setThisHeadline($, text)) };
+      const set = await setThisHeadline($, text, next.signal);
+      return { result: describeHeadline(set) };
     }
-    const added = await addThisNote($, text, "claude");
+    const added = await addThisNote($, text, "claude", next.signal);
     if (added.status !== "added") return { deny: describeAdd(added) };
     return { result: describeAdd(added) };
   }).catch(($, e, next) => {
