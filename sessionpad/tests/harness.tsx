@@ -17,6 +17,8 @@ export const SURFACES = ["terminal", "desktop"] as const;
 export type World = {
   /** The session id `$.session.id()` answers; change it to move sessions. */
   sessionId: string;
+  /** While true, `$.session.id()` is refused, as before a session binds. */
+  idUnavailable: boolean;
   /** What `$.store` holds, as JSON round-trips it. */
   store: Map<string, unknown>;
   /** Command names registered, in order. */
@@ -48,6 +50,7 @@ export function world(on: On, options: WorldOptions = {}): World {
   const store = new Map<string, unknown>(Object.entries(options.store ?? {}));
   const state: World = {
     sessionId: SESSION,
+    idUnavailable: false,
     store,
     commands: [],
     allImmediate: () => immediate.every(Boolean),
@@ -72,7 +75,10 @@ export function world(on: On, options: WorldOptions = {}): World {
 
   on("session.start", (_, e) => ({ cwd: e.cwd }));
   on("classic.SessionStart", () => ({}));
-  on("session.id", () => ({ value: state.sessionId }));
+  on("session.id", () =>
+    state.idUnavailable ? { deny: "not bound yet" } : { value: state.sessionId }
+  );
+  on("session.end", (_, e) => ({ sessionId: e.sessionId }));
   on("session.repo", () => ({ value: null }));
 
   on("command.list", () => ({ value: options.existing ?? [] }));

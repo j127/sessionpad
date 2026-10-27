@@ -228,6 +228,9 @@ export const register: Register = (on, options) => {
   // The session id whose pad is loaded, to carry the pad across /clear and
   // /branch, which give the conversation a new id without a session.start.
   let loadedId: string | undefined;
+  // The id session.end last reported: the one /clear or /branch just left.
+  // A fallback for when the load at session.start could not read the id.
+  let endedId: string | undefined;
 
   on("session.start", async ($, e, next) => {
     try {
@@ -252,7 +255,7 @@ export const register: Register = (on, options) => {
     async ($, e, next) => {
       try {
         const id = e.session_id || (await $.session.id());
-        const previous = loadedId;
+        const previous = loadedId ?? endedId;
         if (previous !== undefined && previous !== id) {
           if (e.source === "clear") await carryPad($, previous, id, "clear");
           if (e.source === "fork") await carryPad($, previous, id, "branch");
@@ -267,6 +270,12 @@ export const register: Register = (on, options) => {
       return next(e);
     }
   ).catch(($, e, next) => next(e));
+
+  // Observe only, and instant: every session.end hook shares 1.5 seconds.
+  on("session.end", ($, e, next) => {
+    endedId = e.sessionId;
+    return next(e);
+  });
 
   on("command.run", { command: "pad" }, ($) => openPane($));
   on("command.run", { command: "sessionpad" }, ($) => openPane($));

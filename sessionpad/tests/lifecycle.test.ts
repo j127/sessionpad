@@ -75,4 +75,19 @@ describe("moving between session ids", () => {
     const read = await $.tool.call({ tool: "mcp__sessionpad__notes_read" });
     expect(String(read.result)).toContain("carry me");
   });
+
+  test("/clear still carries the pad when the start could not read the id", async ($, on) => {
+    const w = world(on, { store: { [notesKey(SESSION)]: savedPad } });
+    w.idUnavailable = true;
+    await start($);
+    w.idUnavailable = false;
+    await $.session.end({
+      reason: "clear",
+      sessionId: SESSION,
+      resume: { id: SESSION },
+    });
+    w.sessionId = NEW_ID;
+    await $.classic.SessionStart({ source: "clear", session_id: NEW_ID });
+    expect(w.pad(NEW_ID)).toEqual(savedPad);
+  });
 });
