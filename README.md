@@ -134,6 +134,7 @@ That runs `format_check` (Prettier), `validate` (`claude plugin validate --stric
 
 Decisions made while building, and places where this build of Claude Code (2.1.308) differs from the original spec. Where they disagree, the types Claude Code writes for the mod win.
 
+- **Name and label.** The name is `sessionpad`, which installs and updates go by, so it won't change. The label the plugin lists show is its `displayName`, `Session Pad`.
 - **The mod is in a subfolder, not the repository root.** `claude plugin validate` warns that a `CLAUDE.md` at a plugin root isn't loaded, and `--strict` turns that into an error; the subfolder also keeps the repository's tooling out of what users install. The marketplace file sits at the repository root, `.claude-plugin/marketplace.json`, with `"source": "./sessionpad"` rather than `"./"`.
 - **The hooks module imports sibling files**, with three rules the validator enforces: a hook is written inline or as a function declared at the top of its file; a function in another file that receives `$` is a `function` declaration, not an arrow; and every read and write of a `$.state` value happens in the file that declares it, which is why all of it goes through `src/state.ts`.
 - **Drawing is in `src/ui.tsx`**, not `src/ui.ts`, because it uses JSX.
