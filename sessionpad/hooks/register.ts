@@ -5,6 +5,8 @@
 import type { EngineInterface, Register } from "claude-code";
 
 import type { Pad } from "../types";
+import { exportThisSession } from "../src/export";
+import { formatTime } from "../src/format";
 import {
   addThisNote,
   carryPad,
@@ -15,13 +17,12 @@ import {
   setThisHeadline,
 } from "../src/pad";
 import { readHeadline } from "../src/state";
-import {
-  PANE_ID,
-  PANE_TITLE,
-  formatTime,
-  renderBand,
-  renderPane,
-} from "../src/ui";
+import { summaryModel } from "../src/summary";
+import { carryTimeline, newTurnLog, timelineCap } from "../src/timeline";
+import type { TurnLog } from "../src/timeline";
+import { finishTurn, isSucceeded, turnTokens, withCall } from "../src/turns";
+import type { TimelineSettings } from "../src/turns";
+import { PANE_ID, PANE_TITLE, renderBand, renderPane } from "../src/ui";
 
 const NOTE_TOOL_DESCRIPTION = [
   "Writes to this session's sessionpad, a notepad the user reads to remember what this session is for when they come back to it.",
@@ -175,6 +176,22 @@ async function registerCommands($: EngineInterface): Promise<Set<string>> {
     fellBack.push("/headline is taken, so use /pad-headline");
   }
 
+  if (
+    await tryRegister(taken, "pad-export", () =>
+      $.command.register({
+        name: "pad-export",
+        description:
+          "Write this session's notes and timeline to a Markdown file",
+        argumentHint: "[path]",
+        immediate: true,
+      })
+    )
+  ) {
+    served.add("pad-export");
+  } else {
+    fellBack.push("/pad-export is taken, so export from the Timeline tab");
+  }
+
   for (const line of fellBack) $.ui.log(`sessionpad: ${line}.`);
   return served;
 }
@@ -265,8 +282,23 @@ async function headlineCommand(
   }
 }
 
+async function exportCommand(
+  $: EngineInterface,
+  args: string
+): Promise<{ text: string }> {
+  try {
+    return { text: `Exported to ${await exportThisSession($, args)}` };
+  } catch (error) {
+    return { text: `sessionpad: the export failed: ${String(error)}` };
+  }
+}
+
 export const register: Register = (on, options) => {
   const showBand = options.showBand !== false;
+  const timeline: TimelineSettings = {
+    summaryModel: summaryModel(options.summaryModel),
+    cap: timelineCap(options.timelineCap),
+  };
   // The session id whose pad is loaded, to carry the pad across /clear and
   // /branch, which give the conversation a new id without a session.start.
   let loadedId: string | undefined;
@@ -276,6 +308,9 @@ export const register: Register = (on, options) => {
   // The command names this mod registered. A name it fell back from belongs
   // to someone else, so its run is passed on, never answered here.
   let served = new Set<string>();
+  // What the main conversation's running turn has done so far. A reload
+  // mid-turn loses it, and that turn's entry has no prompt or files.
+  let turn: TurnLog | undefined;
 
   on("session.start", async ($, e, next) => {
     try {
@@ -304,13 +339,26 @@ export const register: Register = (on, options) => {
         loadedId = id;
         if (previous !== undefined && previous !== id) {
           // A failed carry must not keep the new id's pad from loading.
+          const how =
+            e.source === "clear"
+              ? "clear"
+              : e.source === "fork"
+                ? "branch"
+                : undefined;
           try {
-            if (e.source === "clear") await carryPad($, previous, id, "clear");
-            if (e.source === "fork") await carryPad($, previous, id, "branch");
+            if (how !== undefined) await carryPad($, previous, id, how);
           } catch (error) {
             $.ui.log(`sessionpad: could not carry the pad: ${String(error)}`, {
               to: "debug",
             });
+          }
+          try {
+            if (how !== undefined) await carryTimeline($, previous, id, how);
+          } catch (error) {
+            $.ui.log(
+              `sessionpad: could not carry the timeline: ${String(error)}`,
+              { to: "debug" }
+            );
           }
         }
         await loadSession($, id, e.cwd);
@@ -354,6 +402,69 @@ export const register: Register = (on, options) => {
       ? next(e)
       : { text: "sessionpad: the headline was not saved." }
   );
+
+  on("command.run", { command: "pad-export" }, ($, e, next) =>
+    served.has(e.command) ? exportCommand($, e.args) : next(e)
+  ).catch(($, e, next) =>
+    next.called || !served.has(e.command)
+      ? next(e)
+      : { text: "sessionpad: the export failed." }
+  );
+
+  // The timeline. Every hook here only watches: it passes the event on and
+  // hands back what came back, untouched.
+  on("turn.start", ($, e, next) => {
+    if (e.agentId === undefined) turn = newTurnLog(e.turnId, e.text);
+    return next(e);
+  });
+
+  // Counted while the main conversation's turn runs, a subagent's calls too:
+  // they are part of what the turn did.
+  // The matcher is spelled out, not COUNTED_TOOLS, so validate can read it.
+  on(
+    "tool.call",
+    { tool: ["Edit", "Write", "NotebookEdit", "Bash"] },
+    async ($, e, next) => {
+      const result = await next(e);
+      try {
+        if (turn !== undefined && isSucceeded(result)) {
+          turn = withCall(turn, e);
+        }
+      } catch {
+        // Counting is best effort; the call's result stands either way.
+      }
+      return result;
+    }
+  ).catch(($, e, next) => next(e)); // replays the result next settled to
+
+  on("turn.complete", async ($, e, next) => {
+    if (e.agentId !== undefined) return next(e);
+    const log = turn?.turnId === e.turnId ? turn : newTurnLog(e.turnId, "");
+    turn = undefined;
+    try {
+      const finished = {
+        sessionId: await $.session.id(),
+        at: await $.clock.now(),
+        log,
+        durationMs: e.durationMs,
+        isAborted: e.isAborted,
+        answer: e.answer,
+        tokens: turnTokens(e.usage),
+      };
+      $.clock.after(0, () => {
+        finishTurn($, finished, timeline).catch((error: unknown) =>
+          $.ui.log(`sessionpad: the turn was not recorded: ${String(error)}`, {
+            to: "debug",
+          })
+        );
+      });
+    } catch (error) {
+      $.ui.log(`sessionpad: the turn was not recorded: ${String(error)}`, {
+        to: "debug",
+      });
+    }
+    return next(e);
+  });
 
   on("tool.call", { tool: "mcp__sessionpad__note" }, async ($, e, next) => {
     // Read loosely: the schema says what Claude should send, not what it did.

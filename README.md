@@ -2,15 +2,17 @@
 
 A Claude Code mod that gives every session a small notepad: a one-line headline that says what the session is for, plus notes written by you or by Claude. Open any session after a few days away and see at a glance what it was doing and what is left to do.
 
-Status: milestone 1 of 4 (notes). The timeline of what happened each turn (milestone 2) and the workspace view with branch, worktree and disk use (milestone 3) are not built yet.
+Status: milestone 2 of 4 (notes and timeline). The workspace view with branch, worktrees and disk use (milestone 3) is not built yet.
 
 ## What it does
 
 - **`/pad`** opens a pane with three tabs. The Notes tab shows the headline, a field to add a note, and every note, newest last. Each note has an `h` button that makes it the headline and an `x` button that deletes it. Notes are Markdown. Press `1`, `2` or `3` to switch tabs while the pane has focus.
+- **The Timeline tab** has one line for each turn of the conversation, newest first under its date: the time it ended, how long it ran, a one-line summary, and marks for files written, commands run, a stopped turn, and the branch when it changed. It shows the newest 50; the file keeps more (`timelineCap`).
+- **`/pad-export [path]`** writes the headline, the notes and the whole timeline as Markdown and prints where. With no path it goes to `~/.claude/sessionpad/exports/<session id>.md`, replacing the last export; a relative path is under the session's folder. The Timeline tab's Export button does the same.
 - **The band above the prompt** shows `pad: <headline>` in one dim line whenever the session has a headline, so you see what a session is for without opening the pane.
 - **`/note <text>`** adds a note. **`/headline <text>`** sets the headline, and `/headline` with no text clears it. Both work while Claude is busy.
 - **Claude can take notes when you ask.** Say "note that we chose Postgres" or "set the headline to: migrate auth", and Claude calls the mod's `note` tool. Ask "what were we doing here?" and it reads the pad with `notes_read`. Claude is told to use these only when you ask.
-- **Notes follow the conversation.** After `/clear` the pad carries over to the new session id. After `/branch` the new branch starts with a copy of the notes plus a note pointing back to the parent session. `/resume` shows the resumed session's own pad.
+- **Notes follow the conversation.** After `/clear` the pad and timeline carry over to the new session id, with a timeline line saying the conversation was cleared. After `/branch` the new branch starts with a copy of the notes plus a note pointing back to the parent session, and a timeline with one line pointing back. `/resume` shows the resumed session's own pad and timeline.
 
 ## Requirements
 
@@ -38,22 +40,28 @@ For the Desktop app, add the folder to `CLAUDE_CODE_PLUGIN_DIRS` in the `env` bl
 
 ## Settings
 
-| Key        | Type    | Default | Effect                             |
-| ---------- | ------- | ------- | ---------------------------------- |
-| `showBand` | boolean | `true`  | Show the headline above the prompt |
+| Key            | Type                 | Default | Effect                                                       |
+| -------------- | -------------------- | ------- | ------------------------------------------------------------ |
+| `showBand`     | boolean              | `true`  | Show the headline above the prompt                           |
+| `summaryModel` | `"haiku"` or `"off"` | `haiku` | The model that writes each turn's summary line               |
+| `timelineCap`  | number, 1 to 1000    | `500`   | Entries a session's timeline file keeps; the oldest go first |
 
-More settings (`summaryModel`, `measureDisk`, `retentionDays`, `timelineCap`) arrive with the milestones that use them.
+More settings (`measureDisk`, `retentionDays`) arrive with the milestones that use them.
 
 ## What is stored, and where
 
-Everything stays on your machine. The mod makes no network calls.
+Everything stays on your machine, with one exception: the summary line. The mod makes no network calls of its own.
 
 - The headline and notes for each session live in the mod's key-value store, a JSON file under `~/.claude/plugins/store/`, under the key `notes:<session id>`.
 - A small index, `index`, records each session's working directory, repository root and when it was last seen. Later milestones use it for pruning and an all-sessions view.
+- Each session's timeline is a file, `~/.claude/sessionpad/timeline/<session id>.json` (under `CLAUDE_CONFIG_DIR` instead when that is set), one entry a line. An entry holds the prompt's first 200 characters, the summary line, up to 25 paths written, the branch, the worktree's path and the token counts. A file the mod finds isn't JSON is kept beside the new one as `<id>.json.corrupt-<time>`; one it can't read is left alone and the turn goes unrecorded.
+- Exports go to `~/.claude/sessionpad/exports/` unless you name a path.
+
+**The summary line costs a small model call.** After a turn, the mod sends Haiku (on your own plan or API key, like any request of the session) the prompt's first 200 characters, the start of Claude's final answer (1,500 characters at most), the names of the files written (not their paths or contents) and the number of commands run, and asks for one line of at most 15 words, capped at 60 tokens. Stopped turns, and turns under 5 seconds that wrote no files and ran no commands, skip the call. Set `summaryModel` to `off` to make no calls at all; the line is then the prompt's first line.
 
 The store holds at most 4 MiB for all sessions together, so a pad keeps at most 100 notes of up to 4,000 characters each, and a headline is one line of up to 200 characters. Text past a limit is cut, and the mod says so. Pruning of sessions you haven't opened in a while (`retentionDays`) arrives in milestone 4. If the store ever refuses a write, the command or pane says the note wasn't saved rather than dropping it silently.
 
-To delete everything, remove the mod and delete its file in `~/.claude/plugins/store/`.
+To delete everything, remove the mod, delete its file in `~/.claude/plugins/store/`, and delete `~/.claude/sessionpad/`.
 
 ## Development
 
@@ -82,4 +90,10 @@ Decisions made while building, and places where this build of Claude Code (2.1.3
 - **The tools wait behind tool search**, as MCP tools do, so they cost nothing on requests that don't use them. Their names (`mcp__sessionpad__note`, `mcp__sessionpad__notes_read`) are enough for Claude to find them.
 - **Bold text uses `bold`**, not the newer `weight`, which needs 2.1.299 and would stop the tree drawing on the 2.1.286 Desktop minimum.
 - **The pane opens only when you run `/pad`.** Opening it unasked at the start of a session with notes is still an open question.
-- `$.fs.write` creates missing directories, which the timeline file (milestone 2) relies on.
+- `$.fs.write` creates missing directories, which the timeline file relies on. The home folder comes from `HOME`, else `USERPROFILE` on Windows, and `CLAUDE_CONFIG_DIR` wins over both. With none of them set, no timeline is kept and `/pad-export` asks for a path.
+- **A turn's prompt comes from `turn.start`**, not `prompt.submit` as the spec had it. `turn.start` carries the turn's id, the same one `turn.complete` carries, so the prompt and the end are paired exactly; `prompt.submit` also fires for prompts typed while a turn runs, which join that turn rather than starting one.
+- **The tool calls a turn counts** are Edit, Write and NotebookEdit (files) and Bash (commands), counted when they succeed. A subagent's calls during the turn count too, since they are part of what the turn did; a subagent's own turns add no entry. "Turns with no tool calls" in the skip rule means none of these four.
+- **Two writes per turn.** The entry is written as soon as git has answered, with a line made from the prompt, and the model's line replaces it when it arrives. A slow or failed model call, or a reload, never loses the turn; the tab shows the prompt's line for the second or two before.
+- **A reload mid-turn** (saving a file of the mod) forgets what that turn had counted, so its entry has no prompt or files. That only happens while developing the mod.
+- **No flush at `session.end`.** Every entry is written when its turn ends, so there is nothing left to write, and `session.end` stays instant.
+- **The day is a heading.** Lines show only the time of day, so the Timeline tab puts the date above each day's first line; after a few days away that is what tells "this morning" from "last week".

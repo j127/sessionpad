@@ -4,10 +4,10 @@ import { MAX_HEADLINE_LENGTH, MAX_NOTES } from "../src/store";
 import { SESSION, engineRan, runCommand, start, world } from "./harness";
 
 describe("commands", () => {
-  test("registers /pad, /note and /headline, all immediate", async ($, on) => {
+  test("registers /pad, /note, /headline and /pad-export, all immediate", async ($, on) => {
     const w = world(on);
     await start($);
-    expect(w.commands).toEqual(["pad", "note", "headline"]);
+    expect(w.commands).toEqual(["pad", "note", "headline", "pad-export"]);
     expect(w.allImmediate()).toBe(true);
   });
 
@@ -55,7 +55,12 @@ describe("commands", () => {
       refused: ["headline"],
     });
     await start($);
-    expect(w.commands).toEqual(["pad", "pad-note", "pad-headline"]);
+    expect(w.commands).toEqual([
+      "pad",
+      "pad-note",
+      "pad-headline",
+      "pad-export",
+    ]);
     expect(w.logs.join("\n")).toContain("/pad-note");
     expect(w.logs.join("\n")).toContain("/pad-headline");
     expect((await runCommand($, "pad-note", "fallback works")).text).toBe(
@@ -75,7 +80,7 @@ describe("commands", () => {
       ],
     });
     await start($);
-    expect(w.commands).toEqual(["pad", "note", "headline"]);
+    expect(w.commands).toEqual(["pad", "note", "headline", "pad-export"]);
   });
 });
 

@@ -8,14 +8,17 @@ import type {
   RenderSurface,
 } from "claude-code";
 
-import type { Note, NoteAuthor, Tab } from "../types";
+import type { Note, NoteAuthor, Tab, TimelineEntry, TurnEntry } from "../types";
+import { exportThisSession } from "./export";
+import { formatClock, formatDay, formatDuration, formatTime } from "./format";
 import {
   addThisNote,
   deleteThisNote,
   describeAdd,
   promoteThisNote,
 } from "./pad";
-import { readHeadline, readNotes, readTab, showTab } from "./state";
+import { readHeadline, readNotes, readRecent, readTab, showTab } from "./state";
+import { RECENT_COUNT } from "./timeline";
 
 export const PANE_ID = "sessionpad";
 export const PANE_TITLE = "sessionpad";
@@ -34,15 +37,6 @@ const AUTHOR_LABEL: Record<NoteAuthor, string> = {
   claude: "Claude",
   sessionpad: "sessionpad",
 };
-
-const pad2 = (n: number): string => String(n).padStart(2, "0");
-
-/** Local date and time, `2026-10-26 14:03`. */
-export function formatTime(at: number): string {
-  const d = new Date(at);
-  const date = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-  return `${date} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-}
 
 /**
  * Runs a press or submit's work, telling the person when it fails (a full
@@ -99,7 +93,7 @@ export async function renderPane(
   if (tab === "notes") {
     body = await renderNotesTab($, e, width);
   } else if (tab === "timeline") {
-    body = <Text dimColor>The timeline arrives in the next milestone.</Text>;
+    body = await renderTimelineTab($, e, width);
   } else {
     body = <Text dimColor>Workspace details arrive in a later milestone.</Text>;
   }
@@ -188,6 +182,148 @@ async function renderNotesTab(
       </Box>
     </Box>
   );
+}
+
+/** Writes the export and says where it went. */
+async function pressExport($: EngineInterface): Promise<void> {
+  await guarded($, "the export", async () => {
+    $.ui.toast(`Exported to ${await exportThisSession($)}`);
+  });
+}
+
+const plural = (n: number, one: string, many: string): string =>
+  n === 1 ? `1 ${one}` : `${n} ${many}`;
+
+/**
+ * The short marks after a turn's line: stopped, files written, commands run,
+ * and the branch when it changed since the turn before.
+ */
+export function turnMarks(entry: TurnEntry, before: TurnEntry | undefined) {
+  const marks: string[] = [];
+  if (entry.isAborted) marks.push("stopped");
+  if (entry.fileCount > 0) marks.push(plural(entry.fileCount, "file", "files"));
+  if (entry.commands > 0) marks.push(plural(entry.commands, "cmd", "cmds"));
+  const isMoved =
+    before !== undefined &&
+    entry.branch !== null &&
+    before.branch !== null &&
+    entry.branch !== before.branch;
+  if (isMoved) marks.push(`→ ${entry.branch}`);
+  return marks.join(" · ");
+}
+
+async function renderTimelineTab(
+  $: EngineInterface,
+  e: PaneInput,
+  width: number
+): Promise<RenderElement> {
+  const { Box, Text, Button } = $.ui.resolve(e);
+  const recent = await readRecent($);
+  const turns = recent.filter((entry) => entry.kind === "turn").length;
+
+  const header = (
+    <Box flexDirection="row" columnGap={2}>
+      <Text dimColor wrap="truncate-end">
+        {turns === 0
+          ? "No turns yet."
+          : recent.length >= RECENT_COUNT
+            ? `The last ${RECENT_COUNT} entries, newest first`
+            : `${plural(turns, "turn", "turns")}, newest first`}
+      </Text>
+      <Button
+        key="export"
+        label="Export"
+        plain
+        onPress={() => pressExport($)}
+      />
+    </Box>
+  );
+
+  if (recent.length === 0) {
+    return (
+      <Box flexDirection="column" width={width}>
+        {header}
+        <Box marginTop={1}>
+          <Text dimColor>
+            Each turn in this session adds a line here when it ends.
+          </Text>
+        </Box>
+      </Box>
+    );
+  }
+
+  const timelineRow = (
+    entry: TimelineEntry,
+    before: TurnEntry | undefined,
+    index: number
+  ): RenderElement => {
+    const time = formatClock(entry.at);
+    if (entry.kind === "mark") {
+      return (
+        <Box key={`mark-${index}`}>
+          <Text dimColor wrap="truncate-end">
+            {time} {entry.text}
+          </Text>
+        </Box>
+      );
+    }
+    const marks = turnMarks(entry, before);
+    return (
+      <Box key={`turn-${entry.turnId}`} flexDirection="row" columnGap={1}>
+        <Text dimColor>
+          {time} {formatDuration(entry.durationMs).padStart(5)}
+        </Text>
+        <Box flexGrow={1} flexShrink={1}>
+          <Text wrap="truncate-end" dimColor={entry.isAborted}>
+            {entry.summary}
+          </Text>
+        </Box>
+        {marks === "" ? null : (
+          <Box flexShrink={0}>
+            <Text dimColor>{marks}</Text>
+          </Box>
+        )}
+      </Box>
+    );
+  };
+
+  // Newest first, with the date above each day's first line.
+  const rows: RenderElement[] = [];
+  let day = "";
+  for (let i = recent.length - 1; i >= 0; i--) {
+    const entry = recent[i]!;
+    const entryDay = formatDay(entry.at);
+    if (entryDay !== day) {
+      day = entryDay;
+      rows.push(
+        <Box key={`day-${day}`} marginTop={rows.length === 0 ? 0 : 1}>
+          <Text bold>{day}</Text>
+        </Box>
+      );
+    }
+    rows.push(timelineRow(entry, turnBefore(recent, i), i));
+  }
+
+  return (
+    <Box flexDirection="column" width={width}>
+      {header}
+      <Box marginTop={1} flexDirection="column">
+        {rows}
+      </Box>
+    </Box>
+  );
+}
+
+/** The turn entry just older than `index`, skipping marks. */
+function turnBefore(
+  entries: readonly TimelineEntry[],
+  index: number
+): TurnEntry | undefined {
+  for (let i = index - 1; i >= 0; i--) {
+    const entry = entries[i]!;
+    if (entry.kind === "turn") return entry;
+  }
+  return undefined;
 }
 
 /** One dim line, `pad: <headline>`, above whatever else draws in the band. */

@@ -4,7 +4,7 @@
 import type { EngineInterface } from "claude-code";
 
 import type { Note, NoteAuthor, Pad } from "../types";
-import { showPad } from "./state";
+import { showPad, showTimeline } from "./state";
 import {
   MAX_HEADLINE_LENGTH,
   MAX_NOTES,
@@ -22,6 +22,7 @@ import {
   setHeadline,
   touchIndex,
 } from "./store";
+import { readTimeline } from "./timeline";
 
 /** What became of a note someone tried to add. */
 export type AddResult =
@@ -32,13 +33,17 @@ export type AddResult =
 /** What became of a headline someone tried to set. */
 export type HeadlineResult = { headline: string; isShortened: boolean };
 
-/** Loads the session's pad into $.state and marks the session as seen. */
+/**
+ * Loads the session's pad and timeline into $.state and marks the session
+ * as seen. A timeline that can't be read shows as empty.
+ */
 export async function loadSession(
   $: EngineInterface,
   sessionId: string,
   cwd: string
 ): Promise<void> {
   await showPad($, await readPad($, sessionId));
+  await showTimeline($, await readTimeline($, sessionId).catch(() => []));
   const repo = await $.session.repo().catch(() => null);
   await touchIndex($, sessionId, {
     cwd,

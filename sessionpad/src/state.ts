@@ -8,7 +8,8 @@
 import { atom, read, update } from "claude-code";
 import type { EngineInterface } from "claude-code";
 
-import type { Note, Pad, Tab } from "../types";
+import type { Note, Pad, Tab, TimelineEntry } from "../types";
+import { recentEntries } from "./timeline";
 
 const tabAtom = atom(
   { plugin: "sessionpad", key: "tab" } as const,
@@ -25,6 +26,11 @@ const notesAtom = atom(
   [] as Note[]
 );
 
+const recentAtom = atom(
+  { plugin: "sessionpad", key: "recent" } as const,
+  [] as TimelineEntry[]
+);
+
 /** Read while drawing, these subscribe the site to later writes. */
 export function readTab($: EngineInterface): Promise<Tab> {
   return read($, tabAtom);
@@ -38,6 +44,10 @@ export function readNotes($: EngineInterface): Promise<Note[]> {
   return read($, notesAtom);
 }
 
+export function readRecent($: EngineInterface): Promise<TimelineEntry[]> {
+  return read($, recentAtom);
+}
+
 /** Never call these while drawing: write from a handler or another event. */
 export async function showTab($: EngineInterface, tab: Tab): Promise<void> {
   await update($, tabAtom, () => tab);
@@ -47,4 +57,12 @@ export async function showTab($: EngineInterface, tab: Tab): Promise<void> {
 export async function showPad($: EngineInterface, pad: Pad): Promise<void> {
   await update($, headlineAtom, () => pad.headline);
   await update($, notesAtom, () => pad.notes);
+}
+
+/** Puts a timeline's newest entries where the Timeline tab reads them. */
+export async function showTimeline(
+  $: EngineInterface,
+  entries: readonly TimelineEntry[]
+): Promise<void> {
+  await update($, recentAtom, () => recentEntries(entries));
 }

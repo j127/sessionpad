@@ -85,9 +85,7 @@ describe("the pane", () => {
     await start($);
     const ui = await $.ui.mount(paneTarget("terminal"));
     await ui.press({ key: "tab-timeline" });
-    expect(
-      await ui.find({ type: "Text", text: /timeline arrives/ })
-    ).toBeDefined();
+    expect(await ui.find({ type: "Text", text: /No turns yet/ })).toBeDefined();
     await ui.press({ key: "tab-workspace" });
     expect(
       await ui.find({ type: "Text", text: /Workspace details/ })

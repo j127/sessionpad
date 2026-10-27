@@ -4,15 +4,32 @@
 // these options rather than hooking an event again.
 
 import { mock } from "claude-code/testing";
-import type { Engine } from "claude-code/testing";
-import type { CommandInfo, On } from "claude-code";
+import type { Engine, MockClock } from "claude-code/testing";
+import type { CommandInfo, On, ToolCallResult } from "claude-code";
 
-import type { Pad } from "../types";
+import type { Pad, TimelineEntry } from "../types";
 import { notesKey, parsePad } from "../src/store";
+import { parseTimeline } from "../src/timeline";
 
 export const SESSION = "11111111-aaaa-bbbb-cccc-000000000001";
 export const NOW = Date.UTC(2026, 9, 26, 12, 0);
 export const SURFACES = ["terminal", "desktop"] as const;
+export const HOME = "/home/j";
+export const REPO = "/repo";
+
+/** Where the timeline of a session is written, under HOME. */
+export const timelineFile = (sessionId = SESSION): string =>
+  `${HOME}/.claude/sessionpad/timeline/${sessionId}.json`;
+
+/** The repository `git` answers for: null fields read as git failing. */
+export type GitWorld = {
+  top: string | null;
+  branch: string | null;
+  sha: string | null;
+};
+
+/** One call the plugin made of `$.model.complete`. */
+export type ModelCall = { model: string; prompt: string; system?: string };
 
 export type World = {
   /** The session id `$.session.id()` answers; change it to move sessions. */
@@ -39,6 +56,25 @@ export type World = {
   storeBroken: boolean;
   /** The pad stored for a session id, this one's by default. */
   pad: (sessionId?: string) => Pad;
+  /** The test's clock: settle it to run the work a turn's end scheduled. */
+  clock: MockClock;
+  /** Files by absolute path, as `$.fs` sees them. */
+  files: Map<string, string>;
+  /** While true, every `$.fs.read` is refused. */
+  readFails: boolean;
+  /** The variables `$.env.get` answers. */
+  env: Record<string, string>;
+  /** What `git` answers, or "fails" for git that won't start. */
+  git: GitWorld | "fails";
+  /** Every argv `$.process.run` was asked to run. */
+  processes: string[][];
+  /** The model's reply, null for an empty reply, "refused" to reject. */
+  modelReply: string | null | "refused";
+  modelCalls: ModelCall[];
+  /** What a tool call beneath the plugin answers. */
+  toolAnswer: ToolCallResult;
+  /** The timeline file written for a session id, this one's by default. */
+  timeline: (sessionId?: string) => TimelineEntry[];
 };
 
 export type WorldOptions = {
@@ -53,6 +89,8 @@ export type WorldOptions = {
   placed?: boolean;
   /** True: `$.ui.open` is refused outright. */
   openFails?: boolean;
+  /** Files there at the start, by absolute path. */
+  files?: Record<string, string>;
 };
 
 /** What the engine answers for a command no plugin hook answered. */
@@ -61,6 +99,7 @@ export const engineRan = (command: string): string => `engine ran /${command}`;
 export function world(on: On, options: WorldOptions = {}): World {
   const immediate: boolean[] = [];
   const store = new Map<string, unknown>(Object.entries(options.store ?? {}));
+  const files = new Map<string, string>(Object.entries(options.files ?? {}));
   const state: World = {
     sessionId: SESSION,
     idUnavailable: false,
@@ -75,9 +114,21 @@ export function world(on: On, options: WorldOptions = {}): World {
     storeBroken: false,
     pad: (sessionId = state.sessionId) =>
       parsePad(store.get(notesKey(sessionId))),
+    clock: mock.clock(on, { now: NOW }),
+    files,
+    readFails: false,
+    env: { HOME },
+    git: { top: REPO, branch: "main", sha: "abc1234" },
+    processes: [],
+    modelReply: "Fixed the token expiry check",
+    modelCalls: [],
+    toolAnswer: { result: "done" } as ToolCallResult,
+    timeline: (sessionId = state.sessionId) => {
+      const text = files.get(timelineFile(sessionId));
+      return text === undefined ? [] : parseTimeline(JSON.parse(text));
+    },
   };
 
-  mock.clock(on, { now: NOW });
   on("store.get", (_, e) =>
     state.storeBroken
       ? { deny: "the store cannot be read" }
@@ -101,6 +152,72 @@ export function world(on: On, options: WorldOptions = {}): World {
   );
   on("session.end", (_, e) => ({ sessionId: e.sessionId }));
   on("session.repo", () => ({ value: null }));
+  on("session.cwd", () => ({ value: REPO }));
+
+  on("turn.start", (_, e) => ({ turnId: e.turnId }));
+  on("turn.complete", (_, e) => ({ text: e.answer }));
+  on("tool.call", () => state.toolAnswer);
+
+  on("env.get", (_, e) => ({ value: state.env[e.name] }));
+  on("fs.exists", (_, e) => ({ value: files.has(e.path) }));
+  on("fs.read", (_, e) => {
+    if (state.readFails) return { deny: "EACCES: permission denied" };
+    const text = files.get(e.path);
+    return text === undefined
+      ? { deny: `ENOENT: no such file, ${e.path}` }
+      : { value: text };
+  });
+  on("fs.write", (_, e) => {
+    files.set(e.path, e.text);
+    return { value: undefined };
+  });
+
+  on("process.run", (_, e) => {
+    const argv = [...e.argv];
+    state.processes.push(argv);
+    const git = state.git;
+    if (git === "fails") return { deny: "spawn git ENOENT" };
+    const answer = (out: string | null, failCode = 128) => ({
+      value: {
+        exitCode: out === null ? failCode : 0,
+        stdout: out === null ? "" : `${out}\n`,
+        stderr: out === null ? "fatal: failed" : "",
+        isStdoutTruncated: false,
+        isStderrTruncated: false,
+      },
+    });
+    const args = argv.slice(1).join(" ");
+    if (args === "rev-parse --show-toplevel") return answer(git.top);
+    if (git.top === null) return answer(null);
+    if (args === "symbolic-ref --short -q HEAD") return answer(git.branch, 1);
+    if (args === "rev-parse --short HEAD") return answer(git.sha);
+    return answer(null);
+  });
+
+  on("model.complete", (_, e) => {
+    state.modelCalls.push({
+      model: e.model,
+      prompt: e.prompt,
+      system: e.system,
+    });
+    const usage = {
+      input_tokens: 0,
+      output_tokens: 0,
+      cache_read_input_tokens: 0,
+      cache_creation_input_tokens: 0,
+    };
+    if (state.modelReply === "refused") return { deny: "model not allowed" };
+    return {
+      value:
+        state.modelReply === null
+          ? {
+              isAnswered: false as const,
+              reason: "empty-reply" as const,
+              usage,
+            }
+          : { isAnswered: true as const, text: state.modelReply, usage },
+    };
+  });
 
   on("command.run", (_, e) => ({ text: engineRan(e.command) }));
   on("command.list", () => ({ value: options.existing ?? [] }));
@@ -200,3 +317,85 @@ export const bandTarget = (
       view: {},
     },
   }) as const;
+
+/** One tool call of a turn: a file writer's path, or a Bash command. */
+export type TurnCall =
+  | { tool: "Edit" | "Write"; path: string }
+  | { tool: "NotebookEdit"; path: string }
+  | { tool: "Bash"; command: string };
+
+export type TurnOptions = {
+  text?: string;
+  turnId?: string;
+  durationMs?: number;
+  isAborted?: boolean;
+  answer?: string;
+  calls?: TurnCall[];
+  agentId?: string;
+};
+
+/** Runs one whole turn and lets the work after it finish. */
+export async function runTurn(
+  $: Engine,
+  w: World,
+  turn: TurnOptions = {}
+): Promise<void> {
+  const turnId = turn.turnId ?? `turn-${Math.random().toString(36).slice(2)}`;
+  const agent = turn.agentId === undefined ? {} : { agentId: turn.agentId };
+  await $.turn.start({
+    text: turn.text ?? "Fix the login bug",
+    turnId,
+    ...agent,
+  });
+  for (const call of turn.calls ?? []) await callTool($, call, agent);
+  await $.turn.complete({
+    answer: turn.answer ?? "I fixed it.",
+    durationMs: turn.durationMs ?? 65_000,
+    isAborted: turn.isAborted ?? false,
+    reason: turn.isAborted ? "aborted" : "answer",
+    turnId,
+    usage: {
+      input_tokens: 1200,
+      output_tokens: 300,
+      cache_read_input_tokens: 10_000,
+      cache_creation_input_tokens: 500,
+      model: "claude-opus-5-5",
+    },
+    ...agent,
+  });
+  await w.clock.settle();
+  await w.clock.settle();
+}
+
+export function callTool(
+  $: Engine,
+  call: TurnCall,
+  agent: { agentId?: string } = {}
+) {
+  if (call.tool === "Bash") {
+    return $.tool.call({ tool: "Bash", command: call.command, ...agent });
+  }
+  if (call.tool === "NotebookEdit") {
+    return $.tool.call({
+      tool: "NotebookEdit",
+      notebook_path: call.path,
+      new_source: "x = 1",
+      ...agent,
+    });
+  }
+  if (call.tool === "Write") {
+    return $.tool.call({
+      tool: "Write",
+      file_path: call.path,
+      content: "text",
+      ...agent,
+    });
+  }
+  return $.tool.call({
+    tool: "Edit",
+    file_path: call.path,
+    old_string: "a",
+    new_string: "b",
+    ...agent,
+  });
+}
