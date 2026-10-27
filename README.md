@@ -89,6 +89,7 @@ Decisions made while building, and places where this build of Claude Code (2.1.3
 - **The input field sits under the headline**, above the notes, so it stays in view however many notes there are.
 - **The tools wait behind tool search**, as MCP tools do, so they cost nothing on requests that don't use them. Their names (`mcp__sessionpad__note`, `mcp__sessionpad__notes_read`) are enough for Claude to find them.
 - **Bold text uses `bold`**, not the newer `weight`, which needs 2.1.299 and would stop the tree drawing on the 2.1.286 Desktop minimum.
+- **Summaries are on by default.** `summaryModel` ships as `haiku`: the line it writes is what makes the Timeline worth reading after a few days away, and each call is one small request. `off` turns it off.
 - **The pane opens only when you run `/pad`.** Opening it unasked at the start of a session with notes is still an open question.
 - `$.fs.write` creates missing directories, which the timeline file relies on. The home folder comes from `HOME`, else `USERPROFILE` on Windows, and `CLAUDE_CONFIG_DIR` wins over both. With none of them set, no timeline is kept and `/pad-export` asks for a path.
 - **A turn's prompt comes from `turn.start`**, not `prompt.submit` as the spec had it. `turn.start` carries the turn's id, the same one `turn.complete` carries, so the prompt and the end are paired exactly; `prompt.submit` also fires for prompts typed while a turn runs, which join that turn rather than starting one.
@@ -101,3 +102,7 @@ Decisions made while building, and places where this build of Claude Code (2.1.3
 - **The day is a heading.** Lines show only the time of day, so the Timeline tab puts the date above each day's first line; after a few days away that is what tells "this morning" from "last week".
 - **Narrow panes.** Below 50 columns a turn's marks go on a dim line under it, so the summary keeps its row. A branch name in the marks is cut to 24 characters.
 - **The export escapes what the pad shows as plain text** (the headline, summaries and prompts), so a `<tag>` or `[link](…)` in them reads as written. Notes are Markdown already and go in as they are. Paths, branches and the session id are code spans that hold any backticks.
+
+## License
+
+MIT. See [LICENSE](LICENSE); the same file ships inside `sessionpad/`, the folder people install.

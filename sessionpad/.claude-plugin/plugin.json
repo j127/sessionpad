@@ -6,6 +6,7 @@
     "name": "J"
   },
   "homepage": "https://github.com/j127/sessionpad",
+  "license": "MIT",
   "repository": "https://github.com/j127/sessionpad",
   "types": "./types/index.d.ts",
   "userConfig": {
