@@ -103,8 +103,12 @@ export type World = {
   rmMissing: boolean;
   /** While true, `rm` exits with an error, having removed nothing. */
   rmFails: boolean;
+  /** While true, `rm` removes its first path, then exits with an error. */
+  rmPartial: boolean;
   /** Runs as a folder is listed, before the plugin goes on. */
   onList: (() => void) | undefined;
+  /** Runs as the store's keys are read (pruning reads them after listing). */
+  onKeys: (() => void) | undefined;
   /** Every key `$.store.get` read, in order. */
   storeReads: string[];
   /** Every path `rm` was asked to remove. */
@@ -190,11 +194,13 @@ export function world(on: On, options: WorldOptions = {}): World {
     unreadable: new Set(),
     vanishing: new Set(),
     writeFails: () => false,
-    dirs: new Set(),
+    dirs: new Set([HOME]),
     mtimes: new Map(),
     rmMissing: false,
     rmFails: false,
+    rmPartial: false,
     onList: undefined,
+    onKeys: undefined,
     storeReads: [],
     removed: [],
     onDelete: undefined,
@@ -235,7 +241,10 @@ export function world(on: On, options: WorldOptions = {}): World {
     state.onDelete?.(e.key);
     return { value: undefined };
   });
-  on("store.keys", () => ({ value: [...store.keys()] }));
+  on("store.keys", () => {
+    state.onKeys?.();
+    return { value: [...store.keys()] };
+  });
 
   on("session.start", (_, e) => ({ cwd: e.cwd }));
   on("classic.SessionStart", () => ({}));
@@ -261,7 +270,9 @@ export function world(on: On, options: WorldOptions = {}): World {
   });
 
   on("env.get", (_, e) => ({ value: state.env[e.name] }));
-  on("fs.exists", (_, e) => ({ value: files.has(e.path) }));
+  on("fs.exists", (_, e) => ({
+    value: files.has(e.path) || state.dirs.has(e.path.replace(/\/+$/, "")),
+  }));
   on("fs.read", (_, e) => {
     if (state.readFails || state.unreadable.has(e.path)) {
       return { deny: "EACCES: permission denied" };
@@ -329,7 +340,12 @@ export function world(on: On, options: WorldOptions = {}): World {
     state.processCwds.push(e.init?.cwd);
     if (argv[0] === "rm") {
       if (state.rmMissing) return { deny: "spawn rm ENOENT" };
-      if (state.rmFails) {
+      if (state.rmPartial) {
+        const first = argv[argv.indexOf("--") + 1]!;
+        state.removed.push(first);
+        files.delete(first);
+      }
+      if (state.rmFails || state.rmPartial) {
         return {
           value: {
             exitCode: 1,

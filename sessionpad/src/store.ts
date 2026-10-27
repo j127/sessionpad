@@ -182,8 +182,10 @@ export async function touchIndex(
 ): Promise<void> {
   await oneAtATime(async () => {
     const stored = await $.store.get(INDEX_KEY);
-    const index = isRecord(stored) ? stored : {};
-    await $.store.set(INDEX_KEY, { ...index, [sessionId]: entry });
+    // One that isn't an index is left as found: pruning stops on it, where
+    // a fresh one would make every other session's files look unowned.
+    if (stored !== undefined && !isRecord(stored)) return;
+    await $.store.set(INDEX_KEY, { ...(stored ?? {}), [sessionId]: entry });
   });
 }
 

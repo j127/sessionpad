@@ -57,6 +57,8 @@ describe("/pad-export", () => {
     await start($);
     const ran = await runCommand($, "pad-export", `${REPO}/notes/pad.md`);
     expect(ran.text).toBe(`Exported to ${REPO}/notes/pad.md`);
+    const up = await runCommand($, "pad-export", "../pad.md");
+    expect(up.text).toContain("outside this project");
     const outside = await runCommand($, "pad-export", "/tmp/x/pad.md");
     expect(outside.text).toContain("outside this project");
     expect(w.files.has("/tmp/x/pad.md")).toBe(true);
@@ -70,6 +72,11 @@ describe("/pad-export", () => {
     expect(isInside("C:\\proj\\a.md", "C:\\proj")).toBe(true);
     expect(isInside("C:\\other\\a.md", "C:\\proj")).toBe(false);
     expect(isInside("/a.md", "")).toBe(false);
+    // `..` is folded, the root holds everything, and case doesn't count.
+    expect(isInside("/repo/../x.md", "/repo")).toBe(false);
+    expect(isInside("/repo/./a/../b.md", "/repo")).toBe(true);
+    expect(isInside("/anywhere/a.md", "/")).toBe(true);
+    expect(isInside("c:\\proj\\a.md", "C:\\Proj")).toBe(true);
   });
 
   test("a relative path lands under the session's folder", async ($, on) => {

@@ -690,6 +690,30 @@ describe("after the review of milestone 3", () => {
   });
 });
 
+describe("where du runs", () => {
+  test("from USERPROFILE where there is no HOME", async ($, on) => {
+    const w = world(on);
+    w.env = { USERPROFILE: "/users/j" };
+    w.dirs.add("/users/j");
+    await start($);
+    const ui = await openTab($, w);
+    const at = w.processes.findIndex((argv) => argv[0] === "du");
+    expect(w.processCwds[at]).toBe("/users/j");
+    await ui.unmount();
+  });
+
+  test("where the session runs when the home folder isn't there", async ($, on) => {
+    const w = world(on);
+    w.env = { HOME: "/home/gone" };
+    await start($);
+    const ui = await openTab($, w);
+    const at = w.processes.findIndex((argv) => argv[0] === "du");
+    expect(w.processCwds[at]).toBeUndefined();
+    expect(await texts(ui)).toContain(`1 MB, measured ${formatClock(NOW)}`);
+    await ui.unmount();
+  });
+});
+
 describe("after the second review of milestone 3", () => {
   test("a change after an early measure is still measured", async ($, on) => {
     const w = world(on);

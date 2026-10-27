@@ -334,7 +334,9 @@ const MAX_WAITING = 8;
 function schedulePrune($: EngineInterface, days: number, keepId: string): void {
   $.clock.after(PRUNE_DELAY_MS, async () => {
     try {
-      const pruned = await pruneOld($, days, keepId);
+      // The session it is now too: a /resume may have moved it.
+      const current = await $.session.id().catch(() => keepId);
+      const pruned = await pruneOld($, days, [keepId, current]);
       if (pruned.sessions + pruned.files + pruned.sizes > 0) {
         $.ui.log(
           `sessionpad: pruned ${pruned.sessions} sessions, ${pruned.files} files and ${pruned.sizes} sizes not seen for ${days} days`,

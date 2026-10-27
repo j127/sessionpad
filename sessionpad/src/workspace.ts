@@ -362,10 +362,16 @@ async function runDu(
   try {
     // Run from the home folder, not the session's: a project could ship a
     // program named du, which some systems find there before the PATH.
+    // A home folder that isn't there (in some containers) would stop the
+    // run; then it runs where the session does.
     const home = (await $.env.get("HOME")) || (await $.env.get("USERPROFILE"));
+    const isHome =
+      home !== undefined &&
+      home !== "" &&
+      (await $.fs.exists(home).catch(() => false));
     const ran = await $.process.run(["du", "-sk", path], {
       timeoutMs: DU_TIMEOUT_MS,
-      ...(home ? { cwd: home } : {}),
+      ...(isHome ? { cwd: home } : {}),
     });
     const kb = parseDu(ran.stdout);
     const at = await $.clock.now();

@@ -29,6 +29,7 @@ const EXPORT = `${HOME}/.claude/sessionpad/exports/${OLD}.md`;
 const TIMELINE_DIR = `${HOME}/.claude/sessionpad/timeline`;
 
 const pad = (headline: string) => ({ headline, notes: [] });
+const OLD_TIMELINE = '[{"kind":"mark","at":0,"text":"Started."}]\n';
 const row = (lastSeen: number) => ({ cwd: "/repo", repo: "/repo", lastSeen });
 
 /** A store and files with one session of each age, as the tests start from. */
@@ -49,7 +50,7 @@ function seeded(on: Parameters<typeof world>[0]): World {
       [sizeKey("/odd-tree")]: "a newer mod's value",
     },
     files: {
-      [timelineFile(OLD)]: "[]\n",
+      [timelineFile(OLD)]: OLD_TIMELINE,
       [`${timelineFile(OLD)}.corrupt-123`]: "junk",
       [timelineFile(RECENT)]: "[]\n",
       [timelineFile(BUSY)]: "[]\n",
@@ -327,6 +328,93 @@ describe("pruning when a session starts", () => {
     await w.clock.advance(PRUNE_DELAY_MS);
     expect(w.files.get(timelineFile(OLD))).toBe("[]\n");
     expect(w.files.get(`${timelineFile(OLD)}.corrupt-123`)).toBe("[]\n");
+  });
+
+  test("rm that removed some before failing leaves those gone", async ($, on) => {
+    const w = seeded(on);
+    w.rmPartial = true;
+    await start($);
+    await w.clock.advance(PRUNE_DELAY_MS);
+    const first = w.removed[0]!;
+    expect(w.files.has(first)).toBe(false);
+    const rest = [timelineFile(OLD), `${timelineFile(OLD)}.corrupt-123`].filter(
+      (path) => path !== first
+    );
+    for (const path of rest) expect(w.files.get(path)).toBe("[]\n");
+  });
+
+  test("past 100 files, rm runs again for the rest", async ($, on) => {
+    const w = world(on);
+    for (let n = 0; n < 150; n++) {
+      const path = `${TIMELINE_DIR}/old-${String(n).padStart(3, "0")}.json`;
+      w.files.set(path, "[1]\n");
+      w.mtimes.set(path, NOW - 200 * DAY);
+    }
+    await start($);
+    await w.clock.advance(PRUNE_DELAY_MS);
+    const rms = w.processes.filter((argv) => argv[0] === "rm");
+    expect(rms.map((argv) => argv.length - 3)).toEqual([100, 50]);
+    expect(w.removed).toHaveLength(150);
+  });
+
+  test("notes whose row went missing keep their timeline too", async ($, on) => {
+    const LOST = "99999999-0000-0000-0000-000000000009";
+    const w = world(on, {
+      store: { [INDEX_KEY]: {}, [notesKey(LOST)]: pad("opened yesterday") },
+      files: { [timelineFile(LOST)]: "[1]\n" },
+    });
+    w.mtimes.set(timelineFile(LOST), NOW - 100 * DAY);
+    await start($);
+    await w.clock.advance(PRUNE_DELAY_MS);
+    expect(w.store.get(notesKey(LOST))).toEqual(pad("opened yesterday"));
+    expect(w.files.has(timelineFile(LOST))).toBe(true);
+  });
+
+  test("an index that isn't one is left as found, and stops the prune", async ($, on) => {
+    const w = seeded(on);
+    w.store.set(INDEX_KEY, ["not", "an", "index"]);
+    await start($);
+    await w.clock.advance(PRUNE_DELAY_MS);
+    expect(w.store.get(INDEX_KEY)).toEqual(["not", "an", "index"]);
+    expect(w.removed).toEqual([]);
+    expect(w.store.has(notesKey(OLD))).toBe(true);
+  });
+
+  test("a session resumed within the minute is never pruned", async ($, on) => {
+    const w = seeded(on);
+    await start($);
+    // Its own row can't be renewed: the store is full.
+    w.storeFull = true;
+    w.sessionId = OLD;
+    await $.classic.SessionStart({ source: "resume", session_id: OLD });
+    await w.clock.advance(PRUNE_DELAY_MS);
+    expect(w.store.get(notesKey(OLD))).toEqual(pad("old work"));
+    expect(w.files.has(timelineFile(OLD))).toBe(true);
+  });
+
+  test("a session whose timeline turned fresh keeps its notes and row", async ($, on) => {
+    const w = seeded(on);
+    // Written to after the listing: at work in another window.
+    w.onKeys = () => w.mtimes.set(timelineFile(OLD), NOW + PRUNE_DELAY_MS);
+    await start($);
+    await w.clock.advance(PRUNE_DELAY_MS);
+    expect(w.store.get(notesKey(OLD))).toEqual(pad("old work"));
+    expect(parseIndex(w.store.get(INDEX_KEY))[OLD]).toEqual(
+      row(NOW - 100 * DAY)
+    );
+  });
+
+  test("notes put back never cover newer ones", async ($, on) => {
+    const w = seeded(on);
+    w.onDelete = (key) => {
+      if (key !== notesKey(OLD)) return;
+      const index = w.store.get(INDEX_KEY) as Record<string, unknown>;
+      w.store.set(INDEX_KEY, { ...index, [OLD]: row(NOW) });
+      w.store.set(notesKey(OLD), pad("written just now"));
+    };
+    await start($);
+    await w.clock.advance(PRUNE_DELAY_MS);
+    expect(w.store.get(notesKey(OLD))).toEqual(pad("written just now"));
   });
 
   test("a file without a time from the listing is left alone", async ($, on) => {

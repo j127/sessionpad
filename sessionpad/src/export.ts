@@ -234,13 +234,30 @@ export async function exportThisSession(
   return target;
 }
 
-/** Whether `path` is `dir` or inside it, either slash counting. */
+/** A path's folders and name, `.` and `..` folded, either slash counting. */
+function segments(path: string): string[] {
+  const parts: string[] = [];
+  for (const part of path.replace(/\\/g, "/").split("/")) {
+    if (part === "" || part === ".") continue;
+    if (part === "..") parts.pop();
+    else parts.push(part);
+  }
+  return parts;
+}
+
+/**
+ * Whether `path` is `dir` or inside it, either slash counting, `..` folded,
+ * and case ignored: it decides only whether to add a hint, and the Mac and
+ * Windows file systems ignore case by default.
+ */
 export function isInside(path: string, dir: string): boolean {
-  const plain = (one: string): string =>
-    one.replace(/\\/g, "/").replace(/\/+$/, "");
-  const base = plain(dir);
-  const target = plain(path);
-  return base !== "" && (target === base || target.startsWith(`${base}/`));
+  if (dir.trim() === "") return false;
+  const base = segments(dir).map((part) => part.toLowerCase());
+  const target = segments(path).map((part) => part.toLowerCase());
+  return (
+    base.length <= target.length &&
+    base.every((part, at) => target[at] === part)
+  );
 }
 
 /**
@@ -254,6 +271,10 @@ export async function describeExport(
 ): Promise<string> {
   const said = `Exported to ${path}`;
   const cwd = await $.session.cwd().catch(() => "");
-  if (cwd === "" || isInside(path, cwd)) return said;
+  // Where each really is, links followed (/tmp is /private/tmp on a Mac).
+  const real = async (one: string): Promise<string> =>
+    (await $.fs.stat(one, { resolve: true }).catch(() => undefined))
+      ?.realPath ?? one;
+  if (cwd === "" || isInside(await real(path), await real(cwd))) return said;
   return `${said}. It's outside this project, so the Desktop app's file pane can't open it: open it from Finder or your file manager, or export into the project with /pad-export <path>, such as /pad-export notes/pad.md.`;
 }
