@@ -1,6 +1,7 @@
 import { describe, expect, test } from "claude-code/testing";
 
 import {
+  EXPORT_MARK,
   codeSpan,
   escapeMarkdown,
   exportMarkdown,
@@ -65,8 +66,9 @@ describe("/pad-export", () => {
     expect(w.files.has("/tmp/x/pad.md")).toBe(true);
   });
 
-  test("Windows paths are used as given", async ($, on) => {
+  test("on Windows, drive paths are used as given", async ($, on) => {
     const w = world(on);
+    w.env = { USERPROFILE: "C:\\Users\\j" };
     await start($);
     // The test's file system runs on this machine, which may read a Windows
     // path as relative; what matters is that the mod passed it on as given.
@@ -75,6 +77,22 @@ describe("/pad-export", () => {
     const drive = await runCommand($, "pad-export", "D:pad.md");
     expect(drive.text).toBe("Exported to D:pad.md");
     expect(w.files.size).toBe(2);
+  });
+
+  test("elsewhere, c:name is a relative name", async ($, on) => {
+    world(on);
+    await start($);
+    const ran = await runCommand($, "pad-export", "c:notes.md");
+    expect(ran.text).toBe(`Exported to ${REPO}/c:notes.md`);
+  });
+
+  test("a README that starts like an export is still left alone", async ($, on) => {
+    const readme = "# sessionpad\n\nA Claude Code mod.\n";
+    const w = world(on, { files: { [`${REPO}/README.md`]: readme } });
+    await start($);
+    const ran = await runCommand($, "pad-export", "README.md");
+    expect(ran.text).toContain("isn't a sessionpad export");
+    expect(w.files.get(`${REPO}/README.md`)).toBe(readme);
   });
 
   test("a file that isn't an export is never overwritten", async ($, on) => {
@@ -87,7 +105,7 @@ describe("/pad-export", () => {
 
   test("an earlier export is replaced", async ($, on) => {
     const w = world(on, {
-      files: { [`${REPO}/pad.md`]: "# sessionpad: old\n" },
+      files: { [`${REPO}/pad.md`]: `${EXPORT_MARK}\n\n# sessionpad: old\n` },
     });
     await start($);
     await runCommand($, "headline", "New aim");

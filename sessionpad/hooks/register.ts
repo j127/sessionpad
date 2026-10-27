@@ -33,7 +33,7 @@ import {
   turnTokens,
   withCall,
 } from "../src/turns";
-import type { TimelineSettings } from "../src/turns";
+import type { ClearMove, TimelineSettings } from "../src/turns";
 import { PANE_ID, PANE_TITLE, renderBand, renderPane } from "../src/ui";
 
 const NOTE_TOOL_DESCRIPTION = [
@@ -323,9 +323,9 @@ export const register: Register = (on, options) => {
   // What the main conversation's running turn has done so far. A reload
   // mid-turn loses it, and that turn's entry has no prompt or files.
   let turn: TurnLog | undefined;
-  // Each /clear's move, from the id it left to the one it went to, so a
-  // turn that ended just before still reaches the timeline carried on.
-  const clearedTo = new Map<string, string>();
+  // Each /clear's move, from the id it left to the one it went to and when,
+  // so a turn that ended just before still reaches the timeline carried on.
+  const clearedTo = new Map<string, ClearMove>();
   // Sessions already told their turns aren't being recorded: once is enough.
   const warned = new Set<string>();
 
@@ -372,7 +372,9 @@ export const register: Register = (on, options) => {
           try {
             // Set before the carry, so a turn's entry written meanwhile is
             // sent on too; dropped if the new id kept a timeline of its own.
-            if (how === "clear") clearedTo.set(previous, id);
+            if (how === "clear") {
+              clearedTo.set(previous, { to: id, at: await $.clock.now() });
+            }
             const isTaken =
               how !== undefined && (await carryTimeline($, previous, id, how));
             if (how === "clear" && !isTaken) clearedTo.delete(previous);
@@ -483,7 +485,8 @@ export const register: Register = (on, options) => {
         tokens: turnTokens(e.usage),
       };
       $.clock.after(0, () => {
-        const followers = (id: string) => followersOf(clearedTo, id);
+        const followers = (id: string) =>
+          followersOf(clearedTo, id, finished.at);
         finishTurn($, finished, timeline, followers).catch((error: unknown) => {
           const why = String(error);
           $.ui.log(`sessionpad: the turn was not recorded: ${why}`, {

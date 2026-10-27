@@ -62,6 +62,10 @@ export type World = {
   files: Map<string, string>;
   /** While true, every `$.fs.read` is refused. */
   readFails: boolean;
+  /** Paths whose reads are refused, the rest read as usual. */
+  unreadable: Set<string>;
+  /** Paths deleted by the next read of them, which then fails. */
+  vanishing: Set<string>;
   /** A write to a path this answers true for is refused. */
   writeFails: (path: string) => boolean;
   /** Folders `$.fs.stat` answers as folders. */
@@ -125,6 +129,8 @@ export function world(on: On, options: WorldOptions = {}): World {
     clock: mock.clock(on, { now: NOW }),
     files,
     readFails: false,
+    unreadable: new Set(),
+    vanishing: new Set(),
     writeFails: () => false,
     dirs: new Set(),
     env: { HOME },
@@ -176,7 +182,13 @@ export function world(on: On, options: WorldOptions = {}): World {
   on("env.get", (_, e) => ({ value: state.env[e.name] }));
   on("fs.exists", (_, e) => ({ value: files.has(e.path) }));
   on("fs.read", (_, e) => {
-    if (state.readFails) return { deny: "EACCES: permission denied" };
+    if (state.readFails || state.unreadable.has(e.path)) {
+      return { deny: "EACCES: permission denied" };
+    }
+    if (state.vanishing.delete(e.path)) {
+      files.delete(e.path);
+      return { deny: `ENOENT: no such file, ${e.path}` };
+    }
     const text = files.get(e.path);
     if (text === undefined) return { deny: `ENOENT: no such file, ${e.path}` };
     // As the engine does: a read over 4 MiB is refused.

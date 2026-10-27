@@ -52,21 +52,27 @@ export function turnTokens(usage: TurnUsage | undefined): TurnTokens | null {
   };
 }
 
+/** A /clear's move: the id it went to, and when. */
+export type ClearMove = { to: string; at: number };
+
 /**
- * The ids a session's timeline was carried on to by /clear, in order: each
- * /clear maps the id it left to the one it moved to.
+ * The ids a turn that ended at `endedAt` was carried on to by /clear, in
+ * order: each /clear maps the id it left to where it went. Only a /clear at
+ * or after the turn's end carried it; a session resumed after its /clear
+ * keeps its later turns to itself.
  */
 export function followersOf(
-  clearedTo: ReadonlyMap<string, string>,
-  sessionId: string
+  clearedTo: ReadonlyMap<string, ClearMove>,
+  sessionId: string,
+  endedAt: number
 ): string[] {
   const followers: string[] = [];
   const seen = new Set([sessionId]);
-  let next = clearedTo.get(sessionId);
-  while (next !== undefined && !seen.has(next)) {
-    followers.push(next);
-    seen.add(next);
-    next = clearedTo.get(next);
+  let move = clearedTo.get(sessionId);
+  while (move !== undefined && move.at >= endedAt && !seen.has(move.to)) {
+    followers.push(move.to);
+    seen.add(move.to);
+    move = clearedTo.get(move.to);
   }
   return followers;
 }
@@ -90,8 +96,10 @@ async function showIfOpen(
  *
  * A /clear can come between the turn's end and this work, carrying the
  * timeline to a new id before the entry is in it, so each write goes to the
- * turn's own session and every id it was carried on to (`followers`, read
- * again at each write). Adding a turn twice keeps one copy.
+ * turn's own session and every id it was carried on to (`followers`, asked
+ * again before the summary's writes). Adding a turn twice keeps one copy.
+ * Each id is tried on its own: one file that can't be written doesn't keep
+ * the others from the entry. The first failure rejects once all were tried.
  */
 export async function finishTurn(
   $: EngineInterface,
@@ -101,20 +109,30 @@ export async function finishTurn(
 ): Promise<void> {
   const place = await gitPlace($);
   const entry = turnEntry(turn, place.branch, place.worktree);
-  for (const id of [turn.sessionId, ...followers(turn.sessionId)]) {
-    const added = await changeTimeline($, id, (entries) =>
-      addEntry(entries, entry, settings.cap)
-    );
-    await showIfOpen($, id, added);
-  }
+  const failures: unknown[] = [];
+  const writeEach = async (
+    change: (entries: TimelineEntry[]) => TimelineEntry[]
+  ): Promise<void> => {
+    for (const id of [turn.sessionId, ...followers(turn.sessionId)]) {
+      try {
+        await showIfOpen($, id, await changeTimeline($, id, change));
+      } catch (error) {
+        failures.push(error);
+      }
+    }
+  };
 
-  if (settings.summaryModel === null || !isWorthSummary(entry)) return;
-  const line = await modelSummary($, settings.summaryModel, entry, turn.answer);
-  if (line === null) return;
-  for (const id of [turn.sessionId, ...followers(turn.sessionId)]) {
-    const summarized = await changeTimeline($, id, (entries) =>
-      withSummary(entries, entry.turnId, line)
+  await writeEach((entries) => addEntry(entries, entry, settings.cap));
+  if (settings.summaryModel !== null && isWorthSummary(entry)) {
+    const line = await modelSummary(
+      $,
+      settings.summaryModel,
+      entry,
+      turn.answer
     );
-    await showIfOpen($, id, summarized);
+    if (line !== null) {
+      await writeEach((entries) => withSummary(entries, entry.turnId, line));
+    }
   }
+  if (failures.length > 0) throw failures[0];
 }

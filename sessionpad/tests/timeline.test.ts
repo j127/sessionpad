@@ -39,6 +39,24 @@ import type { World } from "./harness";
 
 const NEW_ID = "22222222-aaaa-bbbb-cccc-000000000002";
 
+/** A bare turn entry, for the pure helpers. */
+const turnAt = (at: number, turnId: string): TurnEntry => ({
+  kind: "turn",
+  turnId,
+  at,
+  durationMs: 0,
+  isAborted: false,
+  prompt: "",
+  summary: "",
+  summaryBy: "prompt",
+  files: [],
+  fileCount: 0,
+  commands: 0,
+  branch: null,
+  worktree: null,
+  tokens: null,
+});
+
 const onlyTurn = (entries: TimelineEntry[]): TurnEntry => {
   expect(entries).toHaveLength(1);
   const entry = entries[0]!;
@@ -538,6 +556,52 @@ describe("the timeline file", () => {
     expect(utf8Length("😀")).toBe(4);
   });
 
+  test("a turn that writes a very long path keeps its end", async ($, on) => {
+    const w = world(on);
+    await start($);
+    const long = `/${"d/".repeat(400)}name.ts`;
+    await runTurn($, w, { calls: [{ tool: "Write", path: long }] });
+    const [kept] = onlyTurn(w.timeline()).files;
+    expect(kept).toHaveLength(MAX_PATH_LENGTH);
+    expect(kept!.endsWith("name.ts")).toBe(true);
+  });
+
+  test(
+    "a big file is cut to its budget when a turn is added",
+    { options: { timelineCap: 1000 } },
+    async ($, on) => {
+      // Under the cap in count, over the budget in bytes, still readable.
+      const big = Array.from({ length: 990 }, (_, i) =>
+        markEntry(NOW - 10_000_000 + i, "x".repeat(3900))
+      );
+      const text = timelineText(big);
+      expect(utf8Length(text)).toBeGreaterThan(FILE_BUDGET);
+      expect(text.length).toBeLessThan(4 * 1024 * 1024);
+      const w = world(on, { files: { [timelineFile()]: text } });
+      await start($);
+      await runTurn($, w, { text: "newest" });
+      const written = w.files.get(timelineFile())!;
+      expect(utf8Length(written)).toBeLessThanOrEqual(FILE_BUDGET);
+      const entries = w.timeline();
+      expect(entries.length).toBeLessThan(big.length);
+      const last = entries[entries.length - 1]!;
+      expect(last.kind === "turn" && last.prompt).toBe("newest");
+    }
+  );
+
+  test("a file deleted while it was being read counts as never there", async ($, on) => {
+    const w = world(on, {
+      files: { [timelineFile()]: timelineText([markEntry(NOW - 1, "gone")]) },
+    });
+    await start($);
+    w.vanishing.add(timelineFile());
+    await runTurn($, w, { text: "fresh" });
+    expect(onlyTurn(w.timeline()).prompt).toBe("fresh");
+    expect([...w.files.keys()].some((path) => path.includes(".corrupt-"))).toBe(
+      false
+    );
+  });
+
   test("a very long path keeps its end", () => {
     const long = `/${"d/".repeat(400)}name.ts`;
     const short = shortPath(long);
@@ -625,12 +689,85 @@ describe("moving between session ids", () => {
 
   test("followers run through each /clear in turn, and stop at a loop", () => {
     const moves = new Map([
-      ["a", "b"],
-      ["b", "c"],
-      ["c", "a"],
+      ["a", { to: "b", at: 10 }],
+      ["b", { to: "c", at: 20 }],
+      ["c", { to: "a", at: 30 }],
     ]);
-    expect(followersOf(moves, "a")).toEqual(["b", "c"]);
-    expect(followersOf(moves, "z")).toEqual([]);
+    expect(followersOf(moves, "a", 5)).toEqual(["b", "c"]);
+    expect(followersOf(moves, "z", 5)).toEqual([]);
+  });
+
+  test("only a /clear at or after a turn's end carries that turn", () => {
+    const moves = new Map([
+      ["a", { to: "b", at: 10 }],
+      ["b", { to: "c", at: 20 }],
+    ]);
+    expect(followersOf(moves, "a", 10)).toEqual(["b", "c"]);
+    expect(followersOf(moves, "a", 11)).toEqual([]);
+    expect(followersOf(moves, "b", 15)).toEqual(["c"]);
+  });
+
+  test("a session resumed after its /clear keeps its new turns to itself", async ($, on) => {
+    const w = world(on);
+    await start($);
+    await runTurn($, w, { text: "A1" });
+    w.sessionId = NEW_ID;
+    await $.classic.SessionStart({ source: "clear", session_id: NEW_ID });
+    await w.clock.advance(1000);
+    await runTurn($, w, { text: "B1" });
+    w.sessionId = SESSION;
+    await $.classic.SessionStart({ source: "resume", session_id: SESSION });
+    await w.clock.advance(1000);
+    await runTurn($, w, { text: "A2" });
+    const prompts = (id: string) =>
+      w
+        .timeline(id)
+        .map((entry) => (entry.kind === "turn" ? entry.prompt : "-"));
+    expect(prompts(NEW_ID)).toEqual(["A1", "-", "B1"]);
+    expect(prompts(SESSION)).toEqual(["A1", "A2"]);
+  });
+
+  test("a turn written before the /clear's carry is carried once", async ($, on) => {
+    const w = world(on);
+    await start($);
+    await $.turn.start({ text: "only once", turnId: "t1" });
+    await endTurn($, w, "t1");
+    // The entry and its summary are in the old file before the carry reads it.
+    expect(onlyTurn(w.timeline(SESSION)).summaryBy).toBe("model");
+    w.sessionId = NEW_ID;
+    await $.classic.SessionStart({ source: "clear", session_id: NEW_ID });
+    await w.clock.settle();
+    const turns = w.timeline(NEW_ID).filter((entry) => entry.kind === "turn");
+    expect(turns).toHaveLength(1);
+  });
+
+  test("a file that can't be written for one id doesn't keep the turn from the next", async ($, on) => {
+    const w = world(on, {
+      files: { [timelineFile()]: timelineText([markEntry(NOW - 1, "old")]) },
+    });
+    await start($);
+    await $.turn.start({ text: "carried", turnId: "t1" });
+    await $.turn.complete({
+      answer: "",
+      durationMs: 9000,
+      isAborted: false,
+      reason: "answer",
+      turnId: "t1",
+    });
+    w.sessionId = NEW_ID;
+    await $.classic.SessionStart({ source: "clear", session_id: NEW_ID });
+    // The old file breaks after the carry, before the turn's work runs.
+    w.unreadable.add(timelineFile(SESSION));
+    await w.clock.settle();
+    await w.clock.settle();
+    const prompts = w
+      .timeline(NEW_ID)
+      .map((entry) => (entry.kind === "turn" ? entry.prompt : entry.text));
+    expect(prompts).toEqual([
+      "old",
+      "carried",
+      "The conversation was cleared.",
+    ]);
   });
 
   test("a turn that ends after a /clear is filed under its own session", async ($, on) => {
@@ -660,6 +797,16 @@ describe("timeline helpers", () => {
     const c = markEntry(3, "c");
     expect(addEntry([a, c], b, 10)).toEqual([a, b, c]);
     expect(addEntry([a, b], c, 2)).toEqual([b, c]);
+  });
+
+  test("adding a turn that is already there replaces it", () => {
+    // A turn can reach a carried timeline twice: once in the carried copy,
+    // once sent on after the /clear. The kit can't stage that interleaving.
+    const mark = markEntry(5, "cleared");
+    const first = { ...turnAt(3, "t1"), summary: "old line" };
+    const again = { ...turnAt(3, "t1"), summary: "new line" };
+    const added = addEntry([first, mark], again, 10);
+    expect(added).toEqual([again, mark]);
   });
 
   test("the tab holds the newest 50", () => {

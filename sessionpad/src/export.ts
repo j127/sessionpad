@@ -8,8 +8,12 @@ import { formatClock, formatDay, formatDuration, formatTime } from "./format";
 import { readPad } from "./store";
 import { dataDir, fileName, loadTimeline } from "./timeline";
 
-/** The first line every export starts with, which marks a file as one. */
-const EXPORT_MARK = "# sessionpad";
+/**
+ * The first line every export starts with, which marks a file as one: a
+ * comment no Markdown viewer shows, and one no other file starts with (this
+ * repository's own README begins `# sessionpad`).
+ */
+export const EXPORT_MARK = "<!-- sessionpad export -->";
 
 const AUTHOR: Record<NoteAuthor, string> = {
   user: "you",
@@ -117,10 +121,10 @@ export function exportMarkdown(
 ): string {
   const title =
     pad.headline === ""
-      ? EXPORT_MARK
-      : `${EXPORT_MARK}: ${escapeMarkdown(pad.headline)}`;
+      ? "# sessionpad"
+      : `# sessionpad: ${escapeMarkdown(pad.headline)}`;
   const parts = [
-    `${title}\n`,
+    `${EXPORT_MARK}\n\n${title}\n`,
     `Session ${codeSpan(sessionId)}, exported ${formatTime(at)}.\n`,
     "## Notes\n",
     pad.notes.length === 0
@@ -150,8 +154,11 @@ async function exportPath(
   asked: string
 ): Promise<string> {
   if (asked !== "") {
-    // Absolute, a network path, or on a Windows drive: used as given.
-    if (/^(?:[\\/]|[A-Za-z]:)/.test(asked)) return asked;
+    // Absolute or a network path: used as given. So is a Windows drive
+    // path, on Windows only; elsewhere `c:x` is a relative name.
+    if (/^[\\/]/.test(asked)) return asked;
+    const isWindows = ((await $.env.get("USERPROFILE")) ?? "") !== "";
+    if (isWindows && /^[A-Za-z]:/.test(asked)) return asked;
     if (!/^~(?=$|[\\/])/.test(asked)) {
       // Relative: under the session's folder, said in full so it can be found.
       const cwd = await $.session.cwd();
