@@ -17,7 +17,7 @@ import type {
   Worktree,
   WorkspaceView,
 } from "../types";
-import { exportThisSession } from "./export";
+import { describeExport, exportThisSession } from "./export";
 import { formatClock, formatDay, formatDuration, formatTime } from "./format";
 import {
   addThisNote,
@@ -209,7 +209,7 @@ async function renderNotesTab(
 /** Writes the export and says where it went. */
 async function pressExport($: EngineInterface): Promise<void> {
   await guarded($, "the export", async () => {
-    $.ui.toast(`Exported to ${await exportThisSession($)}`);
+    $.ui.toast(await describeExport($, await exportThisSession($)));
   });
 }
 

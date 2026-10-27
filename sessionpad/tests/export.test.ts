@@ -3,6 +3,7 @@ import { describe, expect, test } from "claude-code/testing";
 import {
   EXPORT_MARK,
   codeSpan,
+  isInside,
   escapeMarkdown,
   exportMarkdown,
   formatTokens,
@@ -37,7 +38,9 @@ describe("/pad-export", () => {
       ],
     });
     const ran = await runCommand($, "pad-export");
-    expect(ran.text).toBe(`Exported to ${DEFAULT_PATH}`);
+    expect(ran.text).toBe(
+      `Exported to ${DEFAULT_PATH}. It's outside this project, so the Desktop app's file pane can't open it: open it from Finder or your file manager, or export into the project with /pad-export <path>, such as /pad-export notes/pad.md.`
+    );
     const markdown = w.files.get(DEFAULT_PATH)!;
     expect(markdown).toContain("# sessionpad: Ship the parser");
     expect(markdown).toContain(`Session \`${SESSION}\``);
@@ -47,6 +50,26 @@ describe("/pad-export", () => {
     expect(markdown).toContain(`  - On \`main\` in \`${REPO}\``);
     expect(markdown).toContain(`  - Wrote \`${REPO}/src/auth.ts\``);
     expect(markdown).toContain("Ran 1 command");
+  });
+
+  test("an export inside the project says where, and nothing more", async ($, on) => {
+    const w = world(on);
+    await start($);
+    const ran = await runCommand($, "pad-export", `${REPO}/notes/pad.md`);
+    expect(ran.text).toBe(`Exported to ${REPO}/notes/pad.md`);
+    const outside = await runCommand($, "pad-export", "/tmp/x/pad.md");
+    expect(outside.text).toContain("outside this project");
+    expect(w.files.has("/tmp/x/pad.md")).toBe(true);
+  });
+
+  test("inside a folder means under it, either slash counting", () => {
+    expect(isInside("/repo/a.md", "/repo")).toBe(true);
+    expect(isInside("/repo/a.md", "/repo/")).toBe(true);
+    expect(isInside("/repo", "/repo")).toBe(true);
+    expect(isInside("/repository/a.md", "/repo")).toBe(false);
+    expect(isInside("C:\\proj\\a.md", "C:\\proj")).toBe(true);
+    expect(isInside("C:\\other\\a.md", "C:\\proj")).toBe(false);
+    expect(isInside("/a.md", "")).toBe(false);
   });
 
   test("a relative path lands under the session's folder", async ($, on) => {
@@ -73,9 +96,11 @@ describe("/pad-export", () => {
     // The test's file system runs on this machine, which may read a Windows
     // path as relative; what matters is that the mod passed it on as given.
     const ran = await runCommand($, "pad-export", "C:\\Users\\j\\pad.md");
-    expect(ran.text).toBe("Exported to C:\\Users\\j\\pad.md");
+    expect(ran.text).toStartWith(
+      "Exported to C:\\Users\\j\\pad.md. It's outside"
+    );
     const drive = await runCommand($, "pad-export", "D:pad.md");
-    expect(drive.text).toBe("Exported to D:pad.md");
+    expect(drive.text).toStartWith("Exported to D:pad.md. It's outside");
     expect(w.files.size).toBe(2);
   });
 

@@ -159,7 +159,10 @@ describe("the Timeline tab", () => {
     await ui.press({ key: "export" });
     const path = `${HOME}/.claude/sessionpad/exports/${SESSION}.md`;
     expect(w.files.get(path)).toContain("## Timeline");
-    expect(w.toasts).toEqual([`Exported to ${path}`]);
+    expect(w.toasts).toHaveLength(1);
+    expect(w.toasts[0]).toStartWith(
+      `Exported to ${path}. It's outside this project`
+    );
     await ui.unmount();
   });
 });

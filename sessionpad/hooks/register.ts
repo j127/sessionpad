@@ -5,7 +5,7 @@
 import type { EngineInterface, Register } from "claude-code";
 
 import type { Pad } from "../types";
-import { exportThisSession } from "../src/export";
+import { describeExport, exportThisSession } from "../src/export";
 import { formatTime } from "../src/format";
 import { openingOf, submissionFor } from "../src/origin";
 import type { Submission } from "../src/origin";
@@ -313,7 +313,8 @@ async function exportCommand(
   args: string
 ): Promise<{ text: string }> {
   try {
-    return { text: `Exported to ${await exportThisSession($, args)}` };
+    const path = await exportThisSession($, args);
+    return { text: await describeExport($, path) };
   } catch (error) {
     return { text: `sessionpad: the export failed: ${String(error)}` };
   }

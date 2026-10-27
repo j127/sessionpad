@@ -233,3 +233,27 @@ export async function exportThisSession(
   await $.fs.write(target, markdown);
   return target;
 }
+
+/** Whether `path` is `dir` or inside it, either slash counting. */
+export function isInside(path: string, dir: string): boolean {
+  const plain = (one: string): string =>
+    one.replace(/\\/g, "/").replace(/\/+$/, "");
+  const base = plain(dir);
+  const target = plain(path);
+  return base !== "" && (target === base || target.startsWith(`${base}/`));
+}
+
+/**
+ * What a finished export says: where it went, and, when that is outside
+ * the session's folder, how to open it. The Desktop app's file pane opens
+ * only files inside the session's folders.
+ */
+export async function describeExport(
+  $: EngineInterface,
+  path: string
+): Promise<string> {
+  const said = `Exported to ${path}`;
+  const cwd = await $.session.cwd().catch(() => "");
+  if (cwd === "" || isInside(path, cwd)) return said;
+  return `${said}. It's outside this project, so the Desktop app's file pane can't open it: open it from Finder or your file manager, or export into the project with /pad-export <path>, such as /pad-export notes/pad.md.`;
+}
