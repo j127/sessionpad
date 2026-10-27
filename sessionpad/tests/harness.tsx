@@ -47,7 +47,13 @@ export type GitWorld = {
 
 /** What `du -sk` answers for a path: kibibytes, or how it fails. */
 export type DuAnswer =
-  number | "fails" | "missing" | "garbage" | "timeout" | { partial: number };
+  | number
+  | "fails"
+  | "missing"
+  | "garbage"
+  | "timeout"
+  | { partial: number }
+  | { deniedAfter: number };
 
 /** One call the plugin made of `$.model.complete`. */
 export type ModelCall = { model: string; prompt: string; system?: string };
@@ -285,6 +291,11 @@ export function world(on: On, options: WorldOptions = {}): World {
       });
       if (answer === "fails") return ran(1, "");
       if (answer === "garbage") return ran(0, "du: what?\n");
+      if (typeof answer === "object" && "deniedAfter" in answer) {
+        // A hook beneath that waits, then refuses: asking the person, say.
+        await state.clock.sleep(answer.deniedAfter);
+        return { deny: "refused" };
+      }
       if (typeof answer === "object")
         return ran(1, `${answer.partial}\t${path}\n`);
       return ran(0, `${answer}\t${path}\n`);

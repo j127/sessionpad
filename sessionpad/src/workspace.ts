@@ -122,8 +122,14 @@ const queued = new Set<string>();
 const forced = new Set<string>();
 /** The tree `du` runs on now. */
 let running: string | undefined;
-/** Whether a timer will measure the current tree once its size is old. */
-let isFollowing = false;
+/** When this session's last turn that changed files ended. */
+let changedAt: number | undefined;
+/**
+ * When the timer set to measure the current tree after a change fires; one
+ * whose time has passed without firing (its timer was refused) counts as
+ * none.
+ */
+let followDue: number | undefined;
 
 /**
  * Drops the queue: a new module starts with none, and a test's session must
@@ -135,7 +141,8 @@ export function forgetMeasuring(): void {
   queued.clear();
   forced.clear();
   running = undefined;
-  isFollowing = false;
+  changedAt = undefined;
+  followDue = undefined;
 }
 
 /**
@@ -200,14 +207,16 @@ export async function refreshWorkspace(
   const view = await readWorkspace($);
   const force = measure === "all";
   const isCurrentOnly = measure === "changed" || measure === "current";
+  if (measure === "changed") changedAt = now;
   const targets: string[] = [];
   for (const tree of worktrees) {
     if (tree.isBare || tree.isPrunable) continue;
     if (isCurrentOnly && !tree.isCurrent) continue;
     const known = view.sizes[tree.path];
     if (!force && known !== undefined && !isStale(known, now)) {
-      // Changed inside the 10 minutes: measured once they are up.
-      if (measure === "changed") follow($, maxAge(known) - (now - known.at));
+      // Measured before the last change: measured again once it is old.
+      const isBehind = changedAt !== undefined && known.at < changedAt;
+      if (isCurrentOnly && isBehind) follow($, known.at + maxAge(known), now);
       continue;
     }
     targets.push(tree.path);
@@ -215,20 +224,29 @@ export async function refreshWorkspace(
   await queueMeasures($, targets, force);
 }
 
-/** Measures the current tree once `ms` have passed, if no timer will yet. */
-function follow($: EngineInterface, ms: number): void {
-  if (isFollowing) return;
-  isFollowing = true;
+/**
+ * Looks at the current tree again at `due`, unless a timer already will by
+ * then. That look measures it if its size is old, and if it is still fresh
+ * but from before the last change (measured early, by Refresh sizes or
+ * another session), sets the next timer.
+ */
+function follow($: EngineInterface, due: number, now: number): void {
+  if (followDue !== undefined && followDue > now && followDue <= due) return;
+  followDue = due;
   const mine = generation;
-  $.clock.after(Math.max(0, ms), async () => {
-    if (mine !== generation) return;
-    isFollowing = false;
-    await refreshWorkspace($, "current").catch((error: unknown) => {
-      $.ui.log(`sessionpad: the workspace was not read: ${String(error)}`, {
-        to: "debug",
+  try {
+    $.clock.after(Math.max(0, due - now), async () => {
+      if (mine !== generation) return;
+      if (followDue === due) followDue = undefined;
+      await refreshWorkspace($, "current").catch((error: unknown) => {
+        $.ui.log(`sessionpad: the workspace was not read: ${String(error)}`, {
+          to: "debug",
+        });
       });
     });
-  });
+  } catch {
+    followDue = undefined;
+  }
 }
 
 async function queueMeasures(
@@ -236,6 +254,7 @@ async function queueMeasures(
   paths: readonly string[],
   force: boolean
 ): Promise<void> {
+  const mine = generation;
   const added: string[] = [];
   for (const path of paths) {
     if (queued.has(path)) {
@@ -255,7 +274,8 @@ async function queueMeasures(
       ...added.filter((path) => !view.measuring.includes(path)),
     ],
   }));
-  const mine = generation;
+  // Dropped meanwhile: these belong to the old queue, already forgotten.
+  if (mine !== generation) return;
   for (const path of added) {
     measuring = measuring
       .then(() => measureOne($, path, mine))
@@ -267,7 +287,7 @@ async function queueMeasures(
  * Measures one tree and shows its size. Unless forced, a size another
  * session stored while this one waited is used instead. A run whose queue
  * was dropped doesn't start, and one already running stores its size but
- * leaves the new queue and the tab alone.
+ * leaves the new queue and the tab alone. Never rejects.
  */
 async function measureOne(
   $: EngineInterface,

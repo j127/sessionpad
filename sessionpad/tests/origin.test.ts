@@ -238,6 +238,11 @@ describe("which submission a turn began from", () => {
         "<system-reminder>be brief</system-reminder>Ship it"
       )
     ).toBe(peer);
+    const reminded: Submission = {
+      ...peer,
+      text: "Ship it<system-reminder>be brief</system-reminder>",
+    };
+    expect(submissionFor([reminded], "Ship it")).toBe(reminded);
   });
 
   test("the oldest with the turn's text", () => {

@@ -683,3 +683,110 @@ describe("after the review of milestone 3", () => {
     await ui.unmount();
   });
 });
+
+describe("after the second review of milestone 3", () => {
+  test("a change after an early measure is still measured", async ($, on) => {
+    const w = world(on);
+    await start($);
+    const ui = await openTab($, w);
+    expect(w.duRuns).toHaveLength(1);
+    await w.clock.advance(MINUTE);
+    await runTurn($, w, { calls: [{ tool: "Edit", path: `${REPO}/a.ts` }] });
+    await w.clock.advance(MINUTE);
+    await ui.press({ key: "refresh-sizes" });
+    await w.clock.settle();
+    expect(w.duRuns).toHaveLength(2);
+    await w.clock.advance(MINUTE);
+    await runTurn($, w, { calls: [{ tool: "Edit", path: `${REPO}/b.ts` }] });
+    expect(w.duRuns).toHaveLength(2);
+    // The timer set by the first edit finds a size from before the second,
+    // and looks again once that size is old.
+    await w.clock.advance(60 * MINUTE);
+    expect(w.duRuns).toHaveLength(3);
+    await ui.unmount();
+  });
+
+  test("however many changing turns, one timer looks again", async ($, on) => {
+    const w = world(on);
+    await start($);
+    await runTurn($, w, { calls: [{ tool: "Edit", path: `${REPO}/a.ts` }] });
+    for (let n = 0; n < 3; n++) {
+      await w.clock.advance(MINUTE);
+      await runTurn($, w, {
+        calls: [{ tool: "Edit", path: `${REPO}/${n}.ts` }],
+      });
+    }
+    const looks = () =>
+      w.processes.filter(
+        (argv) => argv.join(" ") === "git worktree list --porcelain"
+      ).length;
+    const before = looks();
+    await w.clock.advance(10 * MINUTE);
+    // One look, one measure: not one of each per turn.
+    expect(looks() - before).toBe(1);
+    expect(w.duRuns).toHaveLength(2);
+  });
+
+  test("a timer set before a reload doesn't fire into the new session", async ($, on) => {
+    const w = world(on);
+    await start($);
+    await runTurn($, w, { calls: [{ tool: "Edit", path: `${REPO}/a.ts` }] });
+    await w.clock.advance(MINUTE);
+    await runTurn($, w, { calls: [{ tool: "Edit", path: `${REPO}/b.ts` }] });
+    await start($);
+    await w.clock.advance(60 * MINUTE);
+    expect(w.duRuns).toHaveLength(1);
+  });
+
+  test("Refresh during a run doesn't force that tree's next measure", async ($, on) => {
+    const w = world(on);
+    w.git = {
+      top: REPO,
+      branch: "main",
+      sha: "abc1234",
+      others: [{ path: FEATURE, branch: "feat/x" }],
+    };
+    w.duDelayMs = 1000;
+    await start($);
+    const ui = await openTab($, w);
+    // Refresh while the second tree is the one measuring.
+    await w.clock.advance(1500);
+    await ui.press({ key: "refresh-sizes" });
+    await w.clock.settle();
+    await w.clock.advance(1000);
+    await w.clock.advance(1000);
+    const featureRuns = () =>
+      w.duRuns.filter((run) => run.path === FEATURE).length;
+    expect(featureRuns()).toBe(1);
+    // Later, while this tree is measured, another session stores the
+    // second's size; it is used, not measured again.
+    await w.clock.advance(11 * MINUTE);
+    await ui.press({ key: "tab-notes" });
+    await ui.press({ key: "tab-workspace" });
+    await w.clock.settle();
+    w.store.set(sizeKey(FEATURE), { kb: 7 * MB, at: w.clock.now() });
+    await w.clock.advance(1000);
+    await w.clock.advance(1000);
+    expect(featureRuns()).toBe(1);
+    await ui.unmount();
+  });
+
+  test("only a refusal at the very end of the time counts as too large", async ($, on) => {
+    const w = world(on);
+    w.git = {
+      top: REPO,
+      branch: "main",
+      sha: "abc1234",
+      others: [{ path: FEATURE, branch: "feat/x" }],
+    };
+    w.du.set(REPO, { deniedAfter: DU_TIMEOUT_MS - 10_000 });
+    w.du.set(FEATURE, { deniedAfter: DU_TIMEOUT_MS - 4000 });
+    await start($);
+    const ui = await openTab($, w);
+    await w.clock.advance(DU_TIMEOUT_MS);
+    await w.clock.advance(DU_TIMEOUT_MS);
+    expect(w.store.has(sizeKey(REPO))).toBe(false);
+    expect(w.store.get(sizeKey(FEATURE))).toMatchObject({ isTooLarge: true });
+    await ui.unmount();
+  });
+});

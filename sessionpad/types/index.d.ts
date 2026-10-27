@@ -121,7 +121,7 @@ export type WorkspaceView = {
   sizes: Record<string, SizeRecord>;
   /** Paths waiting for `du`, or being measured. */
   measuring: string[];
-  /** When git was last read, to tell today's times from older ones. */
+  /** When git was last read. */
   readAt: number | null;
 };
 
