@@ -3,6 +3,7 @@ import { describe, expect, test } from "claude-code/testing";
 import {
   markupPhrase,
   openingOf,
+  EXAMINED_LENGTH,
   originPhrase,
   plainText,
   submissionFor,
@@ -27,6 +28,9 @@ const TASK_REPORT = [
   '<summary>Background command "bun test" completed (exit code 0)</summary>',
   "</task-notification>",
 ].join("\n");
+
+/** How a message from another session, or a subagent's hand-back, reads. */
+const PEER = "a message from another session or a subagent";
 
 const AGENT_REPORT =
   '<agent-message from="ab2c408963a12e849">\n[Subagent hand-back] The review found two bugs.';
@@ -98,13 +102,15 @@ describe("how a turn began", () => {
     expect(markupPhrase("<toString>")).toBe(null);
   });
 
-  test("for anyone but the person, a Claude Code tag says more", () => {
-    expect(openingOf(AGENT_REPORT, { kind: "peer" }).startedBy).toBe(
-      "a subagent's report"
-    );
+  test("what the origin says stands over what the text claims", () => {
+    // The engine sets the origin; whoever sends a message writes its text.
+    expect(openingOf(AGENT_REPORT, { kind: "peer" }).startedBy).toBe(PEER);
+    expect(
+      openingOf(AGENT_REPORT, { kind: "plugin", name: "lint" }).startedBy
+    ).toBe("a message from the lint plugin");
     expect(openingOf("Ship it", { kind: "peer" })).toEqual({
       prompt: "Ship it",
-      startedBy: "a message from another session",
+      startedBy: PEER,
     });
     expect(
       openingOf(
@@ -157,6 +163,11 @@ describe("how a turn began", () => {
     );
     expect(plainText('<agent-message from="a>b">\nhi')).toBe("hi");
     expect(plainText("<task-notification><a><b>deep</b></a>")).toBe("deep");
+    // A closing tag pairs once, and never with a tag left open inside a pair.
+    expect(plainText("<b>x</b> and a stray </b>")).toBe("x and a stray </b>");
+    expect(plainText("<p>use Array<string></p> then </string>")).toBe(
+      "use Array<string> then </string>"
+    );
   });
 
   test("each origin that isn't the person has a phrase", () => {
@@ -169,7 +180,8 @@ describe("how a turn began", () => {
     expect(originPhrase({ kind: "channel", server: "slack" })).toBe(
       "a message from slack"
     );
-    expect(originPhrase({ kind: "peer" })).toBe(
+    expect(originPhrase({ kind: "peer" })).toBe(PEER);
+    expect(originPhrase({ kind: "peer-send-message" })).toBe(
       "a message from another session"
     );
     expect(originPhrase({ kind: "scheduled-trigger" })).toBe(
@@ -208,6 +220,51 @@ describe("which submission a turn began from", () => {
     expect(submissionFor([review], "")).toBeUndefined();
     expect(submissionFor([peer], "Fix it")).toBeUndefined();
     expect(submissionFor([], "Fix it")).toBeUndefined();
+    // A turn Claude Code started isn't the command's.
+    expect(submissionFor([review], TASK_REPORT)).toBeUndefined();
+  });
+});
+
+describe("a prompt of any length", () => {
+  // Matched by a lazy pattern, as before, the first two took seconds.
+  const hostile = [
+    "<agent-message>" + "<a>".repeat(70_000),
+    "<command-name>" + "<command-name>x".repeat(14_000),
+    "<system-reminder>".repeat(12_000) + "Fix it",
+    "<agent-message>" + '<a b="'.repeat(40_000),
+    "<agent-message>" + "<a>".repeat(20_000) + "</b>".repeat(20_000),
+    "<agent-message>" + "<a" + " ".repeat(200_000),
+  ];
+
+  test("is read for its markup quickly", () => {
+    for (const text of hostile) {
+      const started = performance.now();
+      openingOf(text, { kind: "peer" });
+      openingOf(text);
+      submissionFor(
+        [
+          {
+            text: "/x",
+            origin: { kind: "composer" },
+            command: { name: "x", args: "" },
+          },
+        ],
+        text
+      );
+      expect(performance.now() - started).toBeLessThan(250);
+    }
+  });
+
+  test("keeps the words at its start", () => {
+    const long = `<task-notification>\n<summary>${"word ".repeat(2000)}</summary>`;
+    expect(openingOf(long).prompt).toMatch(/^word word/);
+    const huge = `<task-notification>\n${"word ".repeat(20_000)}`;
+    expect(huge.length).toBeGreaterThan(EXAMINED_LENGTH);
+    expect(openingOf(huge).prompt).toMatch(/^word word/);
+    // Only the start is read; a turn keeps far less of it.
+    expect(openingOf(huge).prompt.length).toBeLessThanOrEqual(EXAMINED_LENGTH);
+    const typed = "Fix it. " + "x".repeat(100_000);
+    expect(openingOf(typed, { kind: "composer" }).prompt).toBe(typed);
   });
 });
 
@@ -325,7 +382,7 @@ describe("turns Claude Code started", () => {
     await runTurn($, w, { text: typed, origin: { kind: "composer" } });
     // w.timeline() reads the file again, as a later session would.
     expect(w.timeline()).toMatchObject([
-      { prompt: "Ship it", startedBy: "a message from another session" },
+      { prompt: "Ship it", startedBy: PEER },
       { prompt: typed, startedBy: null, summary: typed },
     ]);
   });
@@ -351,7 +408,7 @@ describe("turns Claude Code started", () => {
     await Promise.all([first, second]);
     expect(w.timeline()).toMatchObject([
       { turnId: "a", startedBy: null },
-      { turnId: "b", startedBy: "a message from another session" },
+      { turnId: "b", startedBy: PEER },
     ]);
   });
 
@@ -366,7 +423,43 @@ describe("turns Claude Code started", () => {
     });
     await runTurn($, w, { text: "Ship it" });
     expect(w.timeline()[0]).toMatchObject({
-      startedBy: "a message from another session",
+      startedBy: PEER,
+    });
+  });
+
+  test("a queued prompt whose turn didn't come next is dropped", async ($, on) => {
+    const w = world(on);
+    await start($);
+    await $.prompt.submit({
+      text: "Ship it",
+      origin: { kind: "peer" },
+      wait: false,
+    });
+    await runTurn($, w, { turnId: "a", text: "Fix the login bug" });
+    await runTurn($, w, { turnId: "b", text: "Ship it" });
+    expect(w.timeline()).toMatchObject([
+      { turnId: "a", startedBy: null },
+      { turnId: "b", startedBy: null },
+    ]);
+  });
+
+  test("a command still waiting isn't taken by a turn Claude Code started", async ($, on) => {
+    const w = world(on);
+    await start($);
+    let release = () => {};
+    w.holdSubmit = new Promise<void>((resolve) => (release = resolve));
+    const pending = $.prompt.submit({
+      text: "/review",
+      origin: { kind: "composer" },
+      command: { name: "review", args: "" },
+      wait: false,
+    });
+    await runTurn($, w, { text: TASK_REPORT });
+    release();
+    await pending;
+    expect(w.timeline()[0]).toMatchObject({
+      startedBy: "a background task's report",
+      prompt: expect.stringContaining("b1 completed"),
     });
   });
 
