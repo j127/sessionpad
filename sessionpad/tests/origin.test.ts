@@ -247,6 +247,17 @@ describe("which submission a turn began from", () => {
       review
     );
     expect(submissionFor([exporting], commandMarkup("review"))).toBeUndefined();
+    // Its arguments too: a message naming the command can't take it.
+    const reviewing: Submission = {
+      ...review,
+      command: { name: "review", args: " the diff " },
+    };
+    expect(
+      submissionFor([reviewing], commandMarkup("review", "the diff"))
+    ).toBe(reviewing);
+    expect(
+      submissionFor([reviewing], commandMarkup("review", "the tests"))
+    ).toBeUndefined();
     // Any other turn is not the command's, whatever is waiting.
     expect(
       submissionFor([review], "Review the diff for bugs.")

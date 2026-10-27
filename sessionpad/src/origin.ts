@@ -232,8 +232,8 @@ export function openingOf(
 /**
  * The waiting submission a turn that starts with `text` began from: the
  * oldest with that text, or, for a slash command's turn, whose text is the
- * command as Claude Code writes it, the oldest command of that name.
- * Undefined when none fits, and the text decides.
+ * command as Claude Code writes it, the oldest command with that name and
+ * those arguments. Undefined when none fits, and the text decides.
  */
 export function submissionFor(
   waiting: readonly Submission[],
@@ -242,9 +242,13 @@ export function submissionFor(
   const typed = text.trim();
   const same = waiting.find((one) => one.text.trim() === typed);
   if (same !== undefined) return same;
-  const name = commandNameIn(typed.slice(0, EXAMINED_LENGTH));
+  const head = typed.slice(0, EXAMINED_LENGTH);
+  const name = commandNameIn(head);
   if (name === undefined) return undefined;
-  return waiting.find((one) => one.command?.name === name);
+  const args = (inside(head, "command-args") ?? "").trim();
+  return waiting.find(
+    (one) => one.command?.name === name && one.command.args.trim() === args
+  );
 }
 
 /**
