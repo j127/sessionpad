@@ -1,0 +1,7 @@
+[flake8]
+max-line-length = 200
+# flake8 doesn't read .gitignore. Names without a slash are skipped at any
+# depth. ./build only matches build/ next to this file, like /build/ in
+# .gitignore, so packages named build are still linted. Use extend-exclude,
+# not exclude, to keep flake8's defaults (.git, __pycache__, .tox, ...).
+extend-exclude = .venv,venv,node_modules,dist,./build

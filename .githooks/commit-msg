@@ -1,0 +1,142 @@
+#!/bin/sh
+#
+# Git commit-msg hook that rejects a commit with AI agent attribution: a
+# trailer such as "Co-Authored-By: Claude", a footer such as "Generated with
+# Claude Code", or the agent as the commit's author or committer.
+#
+# This enforces the AGENTS.md rule:
+#   "NEVER commit code that contains AI agent attribution. Do NOT add the agent
+#   name (e.g. Claude, Generated with Claude Code, Co-Authored-By Claude)
+#   anywhere in commit messages, PR descriptions, or other Git/GitHub
+#   messages."
+#
+# Git runs it for each git commit and git merge, whichever tool or agent runs
+# them, so it catches what the Claude Code hook in
+# .claude/hooks/no-ai-attribution.sh can't see in a Bash command: a message
+# file named by a variable, a commit made by a script or by another agent,
+# and an identity that comes from somewhere other than the command. Only
+# trailers, footers and identities count, so a message that just mentions the
+# agent, such as one about this hook, is fine.
+#
+# Git only runs hooks from this folder once it's told to, so enable it once
+# per clone with:
+#   git config core.hooksPath .githooks
+# That replaces .git/hooks. If the project already uses a hook manager (such
+# as husky, lefthook or pre-commit), call this script from its commit-msg hook
+# instead, passing the message file.
+#
+# git commit --no-verify skips it, and so do git cherry-pick, rebase, am and
+# commit-tree, and tools that don't run git's hooks.
+
+# Match bytes, not characters, so sed and grep behave the same in every
+# locale, even on invalid UTF-8.
+export LC_ALL=C
+
+MESSAGE_FILE=$1
+
+# BEGIN attribution patterns
+# .claude/hooks/no-ai-attribution.sh and .githooks/commit-msg share this
+# block. Keep the two copies identical.
+#
+# The agent's name: Claude alone or with a product or model name, such as
+# Claude Code, Claude Opus 4.5, claude-3-5-sonnet or claude[bot], optionally in
+# markdown emphasis, a code span or a link. The name has to end there, so a
+# person whose name only starts with Claude (Claude Dupont, Claude-Michel)
+# doesn't match, but a bare "Claude" does, since that's how the agent signs.
+AGENT_NAME='[[*_`]*(anthropic[ -])?claude([ -]?(code|opus|sonnet|haiku|fable|instant|ai|agent|assistant|bot|v?[0-9][0-9.]*)|\[bot\])*[]*_`]*'
+# After the name comes the end of the line or a character such as < or ".
+# A hyphen, comma, closing parenthesis or possessive 's doesn't count, since
+# the name or sentence goes on (Claude-Michel, Claude's settings, a quote of
+# the AGENTS.md rule). A comma does count when words and then "by" or "with"
+# follow it, as in a footer that goes on with ", reviewed by Jane Doe". A
+# hard-wrapped quote of the rule can start a line with its example footer and
+# a comma, but then the line ends or the rule's next example follows, and
+# "Co-Authored-By" doesn't match, since its words are joined by hyphens.
+AGENT_END='[[:space:]]*([^-,)'\''[:alnum:][:space:]]|'\''([^[:alnum:]]|$)|,[[:space:]]*([[:alpha:]]+[[:space:]]+)*(by|with)([^[:alnum:]]|$)|$)'
+# The agent's noreply address, which its co-author trailer uses.
+AGENT_EMAIL='noreply@anthropic\.com'
+# What can come before a trailer or footer on its line: bullets, emoji and
+# HTML tags such as <sub>. Quotes, backticks and > can't, so a trailer quoted
+# in a sentence, a code span or a blockquote is fine.
+LEAD='([^[:alnum:]"'\''`>]|<[[:alpha:]]+>)*'
+# Verbs that credit an author, as in "Generated with" or "Written by".
+CREDIT='(generated|created|made|written|built|authored|co-authored|produced|assisted|drafted|developed|coded|implemented)'
+# Trailers that credit the agent: Co-Authored-By and variants such as
+# "Co-authored by", any other *-by key (Assisted-by, Signed-off-by) and
+# credit *-with keys (Generated-with) naming the agent or its address, and the
+# Claude-Session link trailer.
+TRAILER="$LEAD((co-?authored[ -]?by|[a-z]+(-[a-z]+)*-by|$CREDIT-with)[[:space:]]*[:=]?[[:space:]]*($AGENT_NAME$AGENT_END|[^\"'<]*<?$AGENT_EMAIL)|claude-session[[:space:]]*:)"
+# Footers such as "Generated with Claude Code" or "Written by: Claude".
+FOOTER="$LEAD$CREDIT[[:space:]]+((with|by|using|via|alongside)[[:space:]]*:?|in[[:space:]]+collaboration[[:space:]]+with)[[:space:]]+((the[[:space:]]+)?(help|assistance)[[:space:]]+(of|from)[[:space:]]+)?$AGENT_NAME$AGENT_END"
+# A sed command that drops fenced code blocks, since an example in one isn't
+# attribution.
+CODE_BLOCKS='/^[[:space:]]*```/,/^[[:space:]]*```/d'
+# END attribution patterns
+
+STATUS=0
+
+# git commit -v (and --cleanup=scissors) in the editor puts a cut block in the
+# message: a scissors line (the comment string, then
+# "------------------------ >8 ------------------------") and two comment
+# lines, in the user's language, saying that everything below is ignored. The
+# diff from -v comes after it. Git drops the block and everything after it, so
+# only the part above counts. Without those two comment lines, as in a file
+# passed with git commit -F, git keeps a scissors line and everything below
+# it, so all of that is checked. The comment string can be anything
+# core.commentChar or core.commentString sets, letters included, except one
+# that starts with a space or tab: then the block could be an indented example
+# in the message (as in a markdown code block), which mustn't hide what follows
+# it. Git does allow such a comment string, and with one the -v diff gets
+# checked too. awk keeps only three lines at a time and stops at the block, so
+# a big -v diff isn't read into memory.
+MESSAGE=$(awk '
+  BEGIN { cut = " ------------------------ >8 ------------------------" }
+  {
+    line[++count] = $0
+    if (count < 3) next
+    n = length(line[1]) - length(cut)
+    if (n >= 1 && substr(line[1], n + 1) == cut) {
+      comment = substr(line[1], 1, n)
+      if (comment !~ /^[ \t]/ && index(line[2], comment " ") == 1 && index(line[3], comment " ") == 1) {
+        found = 1
+        exit
+      }
+    }
+    print line[1]
+    line[1] = line[2]
+    line[2] = line[3]
+    count = 2
+  }
+  END {
+    if (!found) for (i = 1; i <= count; i++) print line[i]
+  }
+' "$MESSAGE_FILE" | sed -e "$CODE_BLOCKS")
+
+FOUND=$(printf '%s\n' "$MESSAGE" | grep -Eai -e "^$TRAILER" -e "^$FOOTER")
+if [ -n "$FOUND" ]; then
+  echo "commit-msg: the commit message has AI agent attribution:" >&2
+  printf '%s\n' "$FOUND" | sed 's/^/  /' >&2
+  STATUS=1
+fi
+
+# git commit exports the author from --author, and git var sees -c user.name,
+# so these are the identities the commit will get.
+for ROLE in author committer; do
+  if [ "$ROLE" = author ]; then
+    IDENT=$(git var GIT_AUTHOR_IDENT 2>/dev/null)
+  else
+    IDENT=$(git var GIT_COMMITTER_IDENT 2>/dev/null)
+  fi
+
+  if printf '%s\n' "$IDENT" | grep -Eaiq -e "^$AGENT_NAME[[:space:]]*(\([^)]*\)[[:space:]]*)?<" -e "<$AGENT_EMAIL>"; then
+    # Drop the timestamp and time zone at the end of the ident.
+    echo "commit-msg: the AI agent is the commit's $ROLE: ${IDENT% * *}" >&2
+    STATUS=1
+  fi
+done
+
+if [ "$STATUS" -ne 0 ]; then
+  echo "Per AGENTS.md, commits must not contain AI agent attribution. Remove it and commit again." >&2
+fi
+
+exit "$STATUS"
