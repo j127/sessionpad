@@ -19,8 +19,8 @@ import {
   setThisHeadline,
 } from "../src/pad";
 import { readHeadline, readTab } from "../src/state";
-import { pruneOld, retentionDays } from "../src/prune";
-import { touchSeen } from "../src/store";
+import { PRUNE_DELAY_MS, pruneOld, retentionDays } from "../src/prune";
+import { forgetRenewals, touchSeen } from "../src/store";
 import { summaryModel } from "../src/summary";
 import {
   carryTimeline,
@@ -327,11 +327,12 @@ async function exportCommand(
 const MAX_WAITING = 8;
 
 /**
- * Prunes sessions not seen for `days` on a timer, after the session has
- * loaded, so a start never waits on it.
+ * Prunes sessions not seen for `days` on a timer, a minute after the session
+ * has loaded, so a start never waits on it and sessions starting alongside
+ * have marked themselves seen first.
  */
 function schedulePrune($: EngineInterface, days: number, keepId: string): void {
-  $.clock.after(0, async () => {
+  $.clock.after(PRUNE_DELAY_MS, async () => {
     try {
       const pruned = await pruneOld($, days, keepId);
       if (pruned.sessions + pruned.files + pruned.sizes > 0) {
@@ -402,11 +403,12 @@ export const register: Register = (on, options) => {
     }
     // A new session or a reload: no `du` from before is still this module's.
     forgetMeasuring();
+    forgetRenewals();
     await showWorkspace($);
-    if (loadedId !== undefined) schedulePrune($, retention, loadedId);
     await registerTools($);
     // Commands go last: a name clash there must not stop the rest.
     served = await registerCommands($);
+    if (loadedId !== undefined) schedulePrune($, retention, loadedId);
     return next(e);
   });
 

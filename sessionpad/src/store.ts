@@ -205,25 +205,82 @@ export function parseIndex(value: unknown): Record<string, IndexEntry> {
 /** How stale a session's last-seen time may get before a turn renews it. */
 export const SEEN_REFRESH_MS = 24 * 60 * 60 * 1000;
 
+/** When each session in this module last read or renewed its row. */
+const renewedAt = new Map<string, number>();
+
+/** Forgets the renewals: a new session or a reload reads the index afresh. */
+export function forgetRenewals(): void {
+  renewedAt.clear();
+}
+
 /**
  * Renews the session's last-seen time when a day old, so a session left
- * open for months is never taken for one nobody has opened since.
+ * open for months is never taken for one nobody has opened since. A row
+ * that went missing (two sessions writing the index at once) is put back.
+ * Reads the index at most once a day per session.
  */
 export async function touchSeen(
   $: EngineInterface,
   sessionId: string,
   now: number
 ): Promise<void> {
+  const renewed = renewedAt.get(sessionId);
+  if (
+    renewed !== undefined &&
+    renewed <= now &&
+    now - renewed < SEEN_REFRESH_MS
+  ) {
+    return;
+  }
+  const cwd = await $.session.cwd().catch(() => "");
+  const repo = await $.session.repo().catch(() => null);
   await oneAtATime(async () => {
     const stored = await $.store.get(INDEX_KEY);
-    if (!isRecord(stored)) return;
-    const row = stored[sessionId];
-    if (!isRecord(row) || typeof row.lastSeen !== "number") return;
-    if (now - row.lastSeen < SEEN_REFRESH_MS) return;
-    await $.store.set(INDEX_KEY, {
-      ...stored,
-      [sessionId]: { ...row, lastSeen: now },
-    });
+    if (stored !== undefined && !isRecord(stored)) return;
+    const index = stored ?? {};
+    const row = index[sessionId];
+    if (isRecord(row) && typeof row.lastSeen === "number") {
+      if (now - row.lastSeen < SEEN_REFRESH_MS) {
+        renewedAt.set(sessionId, row.lastSeen);
+        return;
+      }
+      await $.store.set(INDEX_KEY, {
+        ...index,
+        [sessionId]: { ...row, lastSeen: now },
+      });
+    } else {
+      const fresh: IndexEntry = {
+        cwd,
+        repo: repo?.root ?? null,
+        lastSeen: now,
+      };
+      await $.store.set(INDEX_KEY, { ...index, [sessionId]: fresh });
+    }
+    renewedAt.set(sessionId, now);
+  });
+}
+
+/**
+ * Gives sessions with notes but no index row a row seen `now`, re-reading
+ * the index first, so they age out like any other.
+ */
+export async function adoptRows(
+  $: EngineInterface,
+  sessionIds: readonly string[],
+  now: number
+): Promise<void> {
+  if (sessionIds.length === 0) return;
+  await oneAtATime(async () => {
+    const stored = await $.store.get(INDEX_KEY);
+    if (stored !== undefined && !isRecord(stored)) return;
+    const index = { ...(stored ?? {}) };
+    let isChanged = false;
+    for (const id of sessionIds) {
+      if (index[id] !== undefined) continue;
+      index[id] = { cwd: "", repo: null, lastSeen: now };
+      isChanged = true;
+    }
+    if (isChanged) await $.store.set(INDEX_KEY, index);
   });
 }
 

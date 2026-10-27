@@ -101,6 +101,12 @@ export type World = {
   mtimes: Map<string, number>;
   /** While true, there is no `rm`, as on Windows. */
   rmMissing: boolean;
+  /** While true, `rm` exits with an error, having removed nothing. */
+  rmFails: boolean;
+  /** Runs as a folder is listed, before the plugin goes on. */
+  onList: (() => void) | undefined;
+  /** Every key `$.store.get` read, in order. */
+  storeReads: string[];
   /** Every path `rm` was asked to remove. */
   removed: string[];
   /** Runs as each store key is deleted, before the next step goes on. */
@@ -111,6 +117,8 @@ export type World = {
   git: GitWorld | "fails";
   /** Every argv `$.process.run` was asked to run. */
   processes: string[][];
+  /** The folder each of those ran in, by argv, `undefined` for the session's. */
+  processCwds: (string | undefined)[];
   /** What `du` answers for each path; a path not here measures 1024 KB. */
   du: Map<string, DuAnswer>;
   /** How long, on the test's clock, each `du` takes. */
@@ -185,11 +193,15 @@ export function world(on: On, options: WorldOptions = {}): World {
     dirs: new Set(),
     mtimes: new Map(),
     rmMissing: false,
+    rmFails: false,
+    onList: undefined,
+    storeReads: [],
     removed: [],
     onDelete: undefined,
     env: { HOME },
     git: { top: REPO, branch: "main", sha: "abc1234" },
     processes: [],
+    processCwds: [],
     du: new Map(),
     duDelayMs: 0,
     duRuns: [],
@@ -207,11 +219,12 @@ export function world(on: On, options: WorldOptions = {}): World {
     holdSubmit: undefined,
   };
 
-  on("store.get", (_, e) =>
-    state.storeBroken
+  on("store.get", (_, e) => {
+    state.storeReads.push(e.key);
+    return state.storeBroken
       ? { deny: "the store cannot be read" }
-      : { value: store.get(e.key) }
-  );
+      : { value: store.get(e.key) };
+  });
   on("store.set", (_, e) => {
     if (state.storeFull) return { deny: "the store is full" };
     store.set(e.key, JSON.parse(JSON.stringify(e.value)));
@@ -271,6 +284,7 @@ export function world(on: On, options: WorldOptions = {}): World {
   });
   on("fs.list", (_, e) => {
     if (state.readFails) return { deny: "EACCES: permission denied" };
+    state.onList?.();
     const dir = e.path.replace(/\/+$/, "");
     const entries = [...files.entries()]
       .filter(([path]) => {
@@ -299,14 +313,33 @@ export function world(on: On, options: WorldOptions = {}): World {
         ? ("file" as const)
         : undefined;
     if (kind === undefined) return { deny: `ENOENT: ${e.path}` };
-    return { value: { kind, size: 0, mtimeMs: NOW, isLink: false } };
+    return {
+      value: {
+        kind,
+        size: 0,
+        mtimeMs: state.mtimes.get(e.path) ?? NOW,
+        isLink: false,
+      },
+    };
   });
 
   on("process.run", async (_, e) => {
     const argv = [...e.argv];
     state.processes.push(argv);
+    state.processCwds.push(e.init?.cwd);
     if (argv[0] === "rm") {
       if (state.rmMissing) return { deny: "spawn rm ENOENT" };
+      if (state.rmFails) {
+        return {
+          value: {
+            exitCode: 1,
+            stdout: "",
+            stderr: "rm: Permission denied",
+            isStdoutTruncated: false,
+            isStderrTruncated: false,
+          },
+        };
+      }
       const paths = argv.slice(argv.indexOf("--") + 1);
       for (const path of paths) {
         state.removed.push(path);

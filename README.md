@@ -21,7 +21,7 @@ Claude Code 2.1.286 or later in the Desktop app's Code tab, or 2.1.287 or later 
 
 ## Install
 
-In Claude Code 2.1.275 or later, one line:
+In a Claude Code session (2.1.286 or later, as above), one line:
 
 ```
 /plugin install sessionpad --marketplace j127/sessionpad
@@ -37,7 +37,11 @@ claude plugin marketplace add j127/sessionpad
 claude plugin install sessionpad@sessionpad
 ```
 
-Then run `/pad` in a session. `claude plugin update sessionpad@sessionpad` fetches a newer version; the settings below are under `/plugin configure sessionpad@sessionpad`.
+The install asks `Add marketplace?` for `github:j127/sessionpad` (answer `y`), shows the plugin with the user scope first (Enter takes it), then a screen for the settings below, where Enter keeps the defaults. It is then active in that session, with no reload.
+
+In the Desktop app, where `/plugin` doesn't run: click **+** next to the prompt box, then **Plugins**, **Add marketplace** with `j127/sessionpad`, then **Add plugin**.
+
+Then run `/pad`. `claude plugin update sessionpad@sessionpad` fetches a newer version, and `/plugin configure sessionpad@sessionpad` changes the settings.
 
 ## Try it from this folder
 
@@ -74,7 +78,7 @@ For the Desktop app, add the folder to `CLAUDE_CODE_PLUGIN_DIRS` in the `env` bl
 Everything stays on your machine, with one exception: the summary line. The mod makes no network calls of its own.
 
 - The headline and notes for each session live in the mod's key-value store, a JSON file under `~/.claude/plugins/store/`, under the key `notes:<session id>`.
-- A small index, `index`, records each session's working directory, repository root and when it was last seen. Later milestones use it for pruning and an all-sessions view.
+- A small index, `index`, records each session's working directory, repository root and when it was last seen. Pruning reads it, and an all-sessions view could later.
 - Each session's timeline is a file, `~/.claude/sessionpad/timeline/<session id>.json` (under `CLAUDE_CONFIG_DIR` instead when that is set), one entry a line. An entry holds the prompt's first 200 characters, the summary line, up to 25 paths written, the branch, the worktree's path and the token counts. The file is kept under 3.5 MiB (the oldest entries go first), since Claude Code won't read a file over 4 MiB. A file that isn't a timeline, or holds entries the mod can't read, is copied beside the new one as `<id>.json.corrupt-<time>` before it is rewritten. One it can't read at all is left alone, the turn goes unrecorded, and a toast says so once per session.
 - Each worktree's measured size is in the same store under `size:<worktree path>`, as `{ kb, at }`, shared by every session, so sessions in one repository use each other's measurements. `kb` is null when `du` finished without a size; `isPartial` marks a size from a run that couldn't read every file, and `isTooLarge` a tree whose run ran out of time.
 - Exports go to `~/.claude/sessionpad/exports/` unless you name a path.
@@ -83,7 +87,7 @@ Everything stays on your machine, with one exception: the summary line. The mod 
 
 The store holds at most 4 MiB for all sessions together, so a pad keeps at most 100 notes of up to 4,000 characters each, and a headline is one line of up to 200 characters. Text past a limit is cut, and the mod says so. If the store ever refuses a write, the command or pane says the note wasn't saved rather than dropping it silently.
 
-**Old sessions are pruned.** When a session starts, a session nobody has opened for `retentionDays` (90 by default) loses its pad, its timeline file and its row in the index, and a worktree size measured that long ago is dropped. A session counts as unopened only when the index hasn't seen it and its timeline hasn't been written in that time, and a session left open renews its time once a day as its turns end, so one at work in another window is never pruned. Exports are your own files and are never touched. Set `retentionDays` to 0 to keep everything.
+**Old sessions are pruned.** A minute after a session starts, at most once a day across sessions, a session nobody has opened for `retentionDays` (90 by default) loses its pad, its timeline file and its row in the index, and a worktree size measured that long ago is dropped. A session counts as unopened only when the index hasn't seen it and its timeline hasn't been written in that time, and a session left open renews its time once a day as its turns end, so one at work in another window is never pruned. Exports are your own files and are never touched. Set `retentionDays` to 0 to keep everything.
 
 ## Uninstall
 
@@ -95,11 +99,11 @@ claude plugin uninstall sessionpad@sessionpad
 claude plugin marketplace remove sessionpad
 ```
 
-That leaves your data. To delete it too, delete the mod's file in `~/.claude/plugins/store/` and the folder `~/.claude/sessionpad/` (under `CLAUDE_CONFIG_DIR` instead when that is set), which holds the timelines and the exports.
+That leaves your data. To delete it too, delete the mod's store file, the one named `sessionpad_…json` in `~/.claude/plugins/store/`, and the folder `~/.claude/sessionpad/`, which holds the timelines and the exports. Both are under `CLAUDE_CONFIG_DIR` instead when that is set. A copy loaded with `--plugin-dir` has a store file of its own (`sessionpad_inline-…json`), apart from an installed copy's, so notes taken in one don't show in the other.
 
 ## What the mod can reach
 
-`claude plugin validate` reads the mod the way Claude Code will and lists every event it hooks and every API call it makes. For this version it reports:
+`claude plugin validate` reads the mod the way Claude Code will and lists every event it hooks and every API call it makes. For this version it reports, in part (the full report also lists the hooks that answer for themselves and the `$.state` values, and names the function behind each call):
 
 ```
 hooks: session.start, classic.SessionStart{source=clear|resume|fork}, session.end,
@@ -128,7 +132,9 @@ The mod lives in `sessionpad/`; the repository root holds the tooling. Recipes r
 just check
 ```
 
-That runs `format_check` (Prettier), `validate` (`claude plugin validate --strict sessionpad`), `type_check` (`tsc`, once Claude Code has written the mod's types by loading it) and `test` (`claude plugin test sessionpad`). Run `bun install` first for Prettier and TypeScript.
+That runs `format_check` (Prettier), `validate` (`claude plugin validate --strict` on the mod and on the marketplace file), `type_check` (`tsc`, once Claude Code has written the mod's types by loading it) and `test` (`claude plugin test sessionpad`). Run `bun install` first for Prettier and TypeScript.
+
+To release: raise `version` in `sessionpad/.claude-plugin/plugin.json` (semver; `claude plugin update` only delivers a new version), give the CHANGELOG's top section that version and the date, merge into `main`, and tag the merge `v<version>`.
 
 ## Design notes
 
@@ -169,8 +175,9 @@ Decisions made while building, and places where this build of Claude Code (2.1.3
 - **`measureDisk` is read when the mod loads**, not kept in `$.state`, which `/clear` resets.
 - **A worktree inside another is counted in both.** Claude Code's own worktrees live under the main checkout's `.claude/worktrees/`, so the main checkout's size includes theirs. `du` has no portable way to leave them out.
 - **Git is read again** when the session starts, when the tab opens, after every turn (the branch may have moved) and on **Refresh sizes**: `rev-parse --show-toplevel`, `symbolic-ref` (and `rev-parse --short HEAD` for a detached HEAD), and `worktree list --porcelain`. A bare entry and a worktree whose folder is gone (`prunable`) are listed but not measured. Where the worktree list can't be read, the tab shows this tree alone.
-- **Pruning deletes files with `rm`.** The mods API can read, write, list and stat files but not delete them, so a timeline file goes through `$.process.run(["rm", "-f", "--", path])`, only for a name the mod writes (`<id>.json`, or `<id>.json.corrupt-<time>`) in its own timeline folder. Where there is no `rm`, as on Windows, the file is emptied instead, so nothing of the session stays in it; one already empty isn't written again.
-- **Two signals before pruning.** A session is pruned only when the index's last-seen time and its timeline file's time are both older than `retentionDays`; the index alone would prune a session that has been open, and working, for longer. A session renews its last-seen time at the end of a turn, at most once a day. An index that can't be read stops the prune, since every old file would look like one no session owns. The index row goes last and is re-read first, so a session opened meanwhile keeps it. This session is never pruned, even when its time couldn't be renewed. A stored size the mod can't read (a newer version's, say) is left alone.
+- **Pruning deletes files with `rm`.** The mods API can read, write, list and stat files but not delete them, so timeline files go through `$.process.run(["rm", "-f", "--", ...paths])`, up to 100 at a time, only for names the mod writes (`<id>.json`, or `<id>.json.corrupt-<time>`) in its own timeline folder, and run in that folder rather than the session's: on some systems a program is found in the folder it runs in before the PATH, and a project could ship one named `rm`. `du` runs from the home folder for the same reason. Where there is no `rm`, as on Windows, or it fails, each file left is emptied instead, so nothing of the session stays in it; one already empty isn't written again.
+- **Two signals before pruning.** A session is pruned only when the index's last-seen time and its timeline file's time are both older than `retentionDays`; the index alone would prune a session that has been open, and working, for longer. A session renews its last-seen time at the end of a turn, at most once a day. An index that can't be read, or isn't one, stops the prune, since every old file would look like one no session owns. Notes whose index row went missing (two sessions writing the index at once) get a row, and age out from then. A turn puts back this session's row when it is missing.
+- **Looked at again before anything goes.** The prune waits a minute after the start, so sessions starting together (the Desktop app restoring several, say) have each marked itself seen. Then, right before a session's notes go, its index row and timeline file are read afresh; if it was opened in that moment, its notes go back. Each old file is looked at again too, and the index row goes last, re-read first. `prune:at` in the store records the last prune, so it runs at most once a day however many sessions start; a short `claude -p` run is over before it prunes at all. This session is never pruned, even when its time couldn't be renewed. A stored size the mod can't read (a newer version's, say) is left alone.
 - **CI pins the `claude` CLI** to 2.1.304, a release more than a week old when it was chosen, so a new release can't change what CI runs overnight. Raise it on purpose. CI skips `type_check`, since the types it needs are written by loading the mod.
 
 ## License

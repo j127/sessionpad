@@ -360,8 +360,12 @@ async function runDu(
 ): Promise<{ record: SizeRecord; isKept: boolean }> {
   const started = await $.clock.now();
   try {
+    // Run from the home folder, not the session's: a project could ship a
+    // program named du, which some systems find there before the PATH.
+    const home = (await $.env.get("HOME")) || (await $.env.get("USERPROFILE"));
     const ran = await $.process.run(["du", "-sk", path], {
       timeoutMs: DU_TIMEOUT_MS,
+      ...(home ? { cwd: home } : {}),
     });
     const kb = parseDu(ran.stdout);
     const at = await $.clock.now();

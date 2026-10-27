@@ -17,6 +17,7 @@ import {
   sizeKey,
 } from "../src/workspace";
 import {
+  HOME,
   NOW,
   REPO,
   SURFACES,
@@ -235,6 +236,11 @@ describe("the Workspace tab", () => {
       new Set([REPO, FEATURE, DETACHED])
     );
     expect(w.duRuns.every((run) => run.timeoutMs === DU_TIMEOUT_MS)).toBe(true);
+    // Run from the home folder, never the project's.
+    const duCwds = w.processCwds.filter(
+      (_, at) => w.processes[at]![0] === "du"
+    );
+    expect(duCwds.every((cwd) => cwd === HOME)).toBe(true);
   });
 
   test("a size from the last 10 minutes is used as it is", async ($, on) => {

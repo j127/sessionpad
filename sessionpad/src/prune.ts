@@ -6,7 +6,13 @@
 
 import type { EngineInterface } from "claude-code";
 
-import { INDEX_KEY, dropFromIndex, notesKey, parseIndex } from "./store";
+import {
+  INDEX_KEY,
+  adoptRows,
+  dropFromIndex,
+  notesKey,
+  parseIndex,
+} from "./store";
 import { dataDir, fileName } from "./timeline";
 import { parseSize } from "./workspace";
 
@@ -14,6 +20,19 @@ export const DEFAULT_RETENTION_DAYS = 90;
 /** A hundred years: past that, keeping everything says it better. */
 export const MAX_RETENTION_DAYS = 36500;
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * How long after a session starts it prunes. Sessions that start together,
+ * as when the Desktop app restores several, have each marked itself seen by
+ * then; and a short `claude -p` run is over before it prunes anything.
+ */
+export const PRUNE_DELAY_MS = 60 * 1000;
+
+/** Where the store keeps when any session last pruned: once a day is plenty. */
+export const PRUNE_AT_KEY = "prune:at";
+
+/** How many files one `rm` removes. */
+const RM_BATCH = 100;
 
 /** The setting as whole days; 0 keeps everything. */
 export function retentionDays(value: unknown): number {
@@ -35,12 +54,16 @@ export function timelineFileId(name: string): string | undefined {
 /** What a prune removed. */
 export type Pruned = { sessions: number; files: number; sizes: number };
 
+const isPlainObject = (value: unknown): boolean =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 /**
  * Removes what belongs to sessions not seen for `days`, never `keepId`'s
  * (this session). A session counts as unseen when the index hasn't seen it
  * since and its timeline file hasn't been written since either, so a
- * session at work in another window is kept. Each removal is tried on its
- * own; one that fails is tried again at the next start.
+ * session at work in another window is kept. Each is looked at again right
+ * before anything of it goes. Runs at most once a day across sessions. Each
+ * removal is tried on its own; one that fails is tried again later.
  */
 export async function pruneOld(
   $: EngineInterface,
@@ -49,14 +72,25 @@ export async function pruneOld(
 ): Promise<Pruned> {
   const pruned: Pruned = { sessions: 0, files: 0, sizes: 0 };
   if (days === 0) return pruned;
-  const before = (await $.clock.now()) - days * DAY_MS;
+  const now = await $.clock.now();
+  const last = await $.store.get(PRUNE_AT_KEY).catch(() => undefined);
+  if (typeof last === "number" && last <= now && now - last < DAY_MS) {
+    return pruned;
+  }
+  const before = now - days * DAY_MS;
   // An index that can't be read stops the prune: every old file would look
-  // like one no session owns.
-  const index = parseIndex(await $.store.get(INDEX_KEY));
+  // like one no session owns. So does one that isn't an index at all.
+  const stored = await $.store.get(INDEX_KEY);
+  if (stored !== undefined && !isPlainObject(stored)) {
+    throw new Error("the session index isn't one, so nothing was pruned");
+  }
+  await $.store.set(PRUNE_AT_KEY, now).catch(() => undefined);
+  const index = parseIndex(stored);
   const dir = await dataDir($);
   const timelineDir = dir === null ? null : `${dir}/timeline`;
-  const listed =
-    timelineDir === null ? [] : await $.fs.list(timelineDir).catch(() => []);
+  const listed = (
+    timelineDir === null ? [] : await $.fs.list(timelineDir).catch(() => [])
+  ).filter((entry) => Number.isFinite(entry.mtimeMs));
 
   // When each session's files were last written, by the id their names hold.
   const written = new Map<string, number>();
@@ -71,10 +105,26 @@ export async function pruneOld(
     (index[id]?.lastSeen ?? 0) < before &&
     (written.get(fileName(id)) ?? 0) < before;
 
+  // Notes whose index row was lost (two sessions writing it at once) get a
+  // row now, so they age out like any other rather than staying forever.
+  const keys = await $.store.keys().catch((): string[] => []);
+  const rowless = keys
+    .filter((key) => key.startsWith("notes:"))
+    .map((key) => key.slice("notes:".length))
+    .filter((id) => index[id] === undefined && id !== keepId);
+  await adoptRows($, rowless, now).catch(() => undefined);
+
   const unseen = Object.keys(index).filter(isUnseen);
   for (const id of unseen) {
     try {
+      if (!(await isStillUnseen($, id, before, timelineDir))) continue;
+      const notes = await $.store.get(notesKey(id));
       await $.store.delete(notesKey(id));
+      // Opened in that moment: its notes go back.
+      if (!(await isStillUnseen($, id, before, timelineDir))) {
+        if (notes !== undefined) await $.store.set(notesKey(id), notes);
+        continue;
+      }
       pruned.sessions++;
     } catch {
       // Left for the next start.
@@ -84,18 +134,29 @@ export async function pruneOld(
   // A file goes when it is old and no session seen since owns it: an
   // unseen one, or none the index knows.
   const owners = new Map(Object.keys(index).map((id) => [fileName(id), id]));
+  const doomed: { path: string; size: number }[] = [];
   for (const entry of listed) {
     const id = entry.kind === "file" ? timelineFileId(entry.name) : undefined;
     if (id === undefined || id === keepFile || entry.mtimeMs >= before)
       continue;
     const owner = owners.get(id);
     if (owner !== undefined && !isUnseen(owner)) continue;
-    if (await removeFile($, `${timelineDir}/${entry.name}`, entry.size)) {
-      pruned.files++;
+    const path = `${timelineDir}/${entry.name}`;
+    // Looked at again: written, or its session seen, since the listing.
+    if (
+      owner !== undefined &&
+      !(await isStillUnseen($, owner, before, timelineDir))
+    ) {
+      continue;
     }
+    const file = await $.fs.stat(path).catch(() => undefined);
+    if (file === undefined || !(file.mtimeMs < before)) continue;
+    doomed.push({ path, size: entry.size });
+  }
+  if (timelineDir !== null) {
+    pruned.files += await removeFiles($, timelineDir, doomed);
   }
 
-  const keys = await $.store.keys().catch((): string[] => []);
   for (const key of keys) {
     if (!key.startsWith("size:")) continue;
     try {
@@ -114,28 +175,66 @@ export async function pruneOld(
 }
 
 /**
- * Removes one of the mod's files with `rm`. Where there is none (Windows),
- * the file is emptied instead, so nothing of the session is left in it; one
- * already empty isn't written again.
+ * Whether a session is still unseen, read afresh: its index row and its
+ * timeline file both older than `before`. A row gone counts as unseen; the
+ * file, written at every turn, still keeps a session at work.
  */
-async function removeFile(
+async function isStillUnseen(
   $: EngineInterface,
-  path: string,
-  size: number
+  id: string,
+  before: number,
+  timelineDir: string | null
 ): Promise<boolean> {
-  try {
-    const ran = await $.process.run(["rm", "-f", "--", path], {
-      timeoutMs: 10_000,
-    });
-    if (ran.exitCode === 0) return true;
-  } catch {
-    // No rm here: empty it below.
+  const row = parseIndex(await $.store.get(INDEX_KEY))[id];
+  if (row !== undefined && row.lastSeen >= before) return false;
+  if (timelineDir === null) return true;
+  const file = await $.fs
+    .stat(`${timelineDir}/${fileName(id)}.json`)
+    .catch(() => undefined);
+  return file === undefined || file.mtimeMs < before;
+}
+
+/**
+ * Removes the mod's own files with `rm`, a batch at a time, run in the
+ * timeline folder rather than the session's (where a project could ship a
+ * program of that name). Where there is none (Windows), each file is
+ * emptied instead, so nothing of the session is left in it; one already
+ * empty isn't written again. Resolves how many went.
+ */
+async function removeFiles(
+  $: EngineInterface,
+  timelineDir: string,
+  files: readonly { path: string; size: number }[]
+): Promise<number> {
+  let removed = 0;
+  for (let at = 0; at < files.length; at += RM_BATCH) {
+    const batch = files.slice(at, at + RM_BATCH);
+    try {
+      const ran = await $.process.run(
+        ["rm", "-f", "--", ...batch.map((file) => file.path)],
+        { cwd: timelineDir, timeoutMs: 10_000 }
+      );
+      if (ran.exitCode === 0) {
+        removed += batch.length;
+        continue;
+      }
+    } catch {
+      // No rm here: empty them below.
+    }
+    for (const file of batch) {
+      try {
+        // rm may have removed some before it failed: those are gone.
+        if (!(await $.fs.exists(file.path))) {
+          removed++;
+          continue;
+        }
+        if (file.size <= 3) continue;
+        await $.fs.write(file.path, "[]\n");
+        removed++;
+      } catch {
+        // Left for the next prune.
+      }
+    }
   }
-  if (size <= 3) return false;
-  try {
-    await $.fs.write(path, "[]\n");
-    return true;
-  } catch {
-    return false;
-  }
+  return removed;
 }
