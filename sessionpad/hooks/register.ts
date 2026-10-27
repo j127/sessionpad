@@ -19,6 +19,8 @@ import {
   setThisHeadline,
 } from "../src/pad";
 import { readHeadline, readTab } from "../src/state";
+import { pruneOld, retentionDays } from "../src/prune";
+import { touchSeen } from "../src/store";
 import { summaryModel } from "../src/summary";
 import {
   carryTimeline,
@@ -323,6 +325,28 @@ async function exportCommand(
  */
 const MAX_WAITING = 8;
 
+/**
+ * Prunes sessions not seen for `days` on a timer, after the session has
+ * loaded, so a start never waits on it.
+ */
+function schedulePrune($: EngineInterface, days: number, keepId: string): void {
+  $.clock.after(0, async () => {
+    try {
+      const pruned = await pruneOld($, days, keepId);
+      if (pruned.sessions + pruned.files + pruned.sizes > 0) {
+        $.ui.log(
+          `sessionpad: pruned ${pruned.sessions} sessions, ${pruned.files} files and ${pruned.sizes} sizes not seen for ${days} days`,
+          { to: "debug" }
+        );
+      }
+    } catch (error) {
+      $.ui.log(`sessionpad: pruning failed: ${String(error)}`, {
+        to: "debug",
+      });
+    }
+  });
+}
+
 /** Sets the Workspace tab up and reads git into it, never failing the caller. */
 async function showWorkspace($: EngineInterface): Promise<void> {
   try {
@@ -338,6 +362,7 @@ async function showWorkspace($: EngineInterface): Promise<void> {
 export const register: Register = (on, options) => {
   const showBand = options.showBand !== false;
   setMeasureDisk(options.measureDisk !== false);
+  const retention = retentionDays(options.retentionDays);
   const timeline: TimelineSettings = {
     summaryModel: summaryModel(options.summaryModel),
     cap: timelineCap(options.timelineCap),
@@ -377,6 +402,7 @@ export const register: Register = (on, options) => {
     // A new session or a reload: no `du` from before is still this module's.
     forgetMeasuring();
     await showWorkspace($);
+    if (loadedId !== undefined) schedulePrune($, retention, loadedId);
     await registerTools($);
     // Commands go last: a name clash there must not stop the rest.
     served = await registerCommands($);
@@ -555,6 +581,8 @@ export const register: Register = (on, options) => {
       const isChanged = log.fileCount > 0 || log.commands > 0;
       $.clock.after(0, () => {
         scheduleRefresh($, isChanged ? "changed" : "none");
+        // A session at work stays seen, however long it stays open.
+        touchSeen($, finished.sessionId, finished.at).catch(() => undefined);
         const followers = (id: string) =>
           followersOf(clearedTo, id, finished.at);
         finishTurn($, finished, timeline, followers).catch((error: unknown) => {

@@ -10,17 +10,19 @@ clean:
 # requests into main, and you run it before pushing.
 check: format_check validate type_check test
 
-# Check formatting of the mod and the docs
+# Check formatting of the mod, the marketplace file and the docs
 format_check:
-  bunx prettier --check sessionpad README.md CHANGELOG.md package.json
+  bunx prettier --check sessionpad .claude-plugin README.md CHANGELOG.md package.json
 
 # Rewrite files into Prettier's format
 format:
-  bunx prettier --write sessionpad README.md CHANGELOG.md package.json
+  bunx prettier --write sessionpad .claude-plugin README.md CHANGELOG.md package.json
 
-# Read the mod the way Claude Code will, treating warnings as errors
+# Read the mod, then the marketplace file that lists it, the way Claude Code
+# will, treating warnings as errors
 validate:
   claude plugin validate --strict sessionpad
+  claude plugin validate --strict .
 
 # Run the mod's tests (sessionpad/tests/*.test.ts and *.test.tsx)
 test:

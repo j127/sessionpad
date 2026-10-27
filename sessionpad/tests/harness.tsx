@@ -97,6 +97,14 @@ export type World = {
   writeFails: (path: string) => boolean;
   /** Folders `$.fs.stat` answers as folders. */
   dirs: Set<string>;
+  /** When each file was last written; one written by the test reads as NOW. */
+  mtimes: Map<string, number>;
+  /** While true, there is no `rm`, as on Windows. */
+  rmMissing: boolean;
+  /** Every path `rm` was asked to remove. */
+  removed: string[];
+  /** Runs as each store key is deleted, before the next step goes on. */
+  onDelete: ((key: string) => void) | undefined;
   /** The variables `$.env.get` answers. */
   env: Record<string, string>;
   /** What `git` answers, or "fails" for git that won't start. */
@@ -175,6 +183,10 @@ export function world(on: On, options: WorldOptions = {}): World {
     vanishing: new Set(),
     writeFails: () => false,
     dirs: new Set(),
+    mtimes: new Map(),
+    rmMissing: false,
+    removed: [],
+    onDelete: undefined,
     env: { HOME },
     git: { top: REPO, branch: "main", sha: "abc1234" },
     processes: [],
@@ -207,6 +219,7 @@ export function world(on: On, options: WorldOptions = {}): World {
   });
   on("store.delete", (_, e) => {
     store.delete(e.key);
+    state.onDelete?.(e.key);
     return { value: undefined };
   });
   on("store.keys", () => ({ value: [...store.keys()] }));
@@ -253,7 +266,30 @@ export function world(on: On, options: WorldOptions = {}): World {
   on("fs.write", (_, e) => {
     if (state.writeFails(e.path)) return { deny: "EROFS: read-only" };
     files.set(e.path, e.text);
+    state.mtimes.set(e.path, state.clock.now());
     return { value: undefined };
+  });
+  on("fs.list", (_, e) => {
+    if (state.readFails) return { deny: "EACCES: permission denied" };
+    const dir = e.path.replace(/\/+$/, "");
+    const entries = [...files.entries()]
+      .filter(([path]) => {
+        const rest = path.startsWith(`${dir}/`)
+          ? path.slice(dir.length + 1)
+          : "";
+        return rest !== "" && !rest.includes("/");
+      })
+      .map(([path, text]) => ({
+        name: path.slice(dir.length + 1),
+        kind: "file" as const,
+        size: text.length,
+        mtimeMs: state.mtimes.get(path) ?? NOW,
+        isLink: false,
+      }));
+    if (entries.length === 0 && !state.dirs.has(dir)) {
+      return { deny: `ENOENT: ${dir}` };
+    }
+    return { value: entries };
   });
   on("fs.stat", (_, e) => {
     const path = e.path.replace(/\/+$/, "");
@@ -269,6 +305,23 @@ export function world(on: On, options: WorldOptions = {}): World {
   on("process.run", async (_, e) => {
     const argv = [...e.argv];
     state.processes.push(argv);
+    if (argv[0] === "rm") {
+      if (state.rmMissing) return { deny: "spawn rm ENOENT" };
+      const paths = argv.slice(argv.indexOf("--") + 1);
+      for (const path of paths) {
+        state.removed.push(path);
+        files.delete(path);
+      }
+      return {
+        value: {
+          exitCode: 0,
+          stdout: "",
+          stderr: "",
+          isStdoutTruncated: false,
+          isStderrTruncated: false,
+        },
+      };
+    }
     if (argv[0] === "du") {
       const path = argv[argv.length - 1]!;
       state.duRuns.push({ path, timeoutMs: e.init?.timeoutMs });

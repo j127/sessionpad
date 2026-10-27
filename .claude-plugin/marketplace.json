@@ -1,0 +1,16 @@
+{
+  "name": "sessionpad",
+  "owner": {
+    "name": "J"
+  },
+  "metadata": {
+    "description": "sessionpad, a Claude Code mod: a notepad, a turn timeline and a workspace view for each session."
+  },
+  "plugins": [
+    {
+      "name": "sessionpad",
+      "source": "./sessionpad",
+      "description": "A notepad for each Claude Code session: a headline and notes, a timeline of every turn, and the session's worktree and disk use, in a pane and above the prompt."
+    }
+  ]
+}

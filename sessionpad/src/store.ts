@@ -186,3 +186,71 @@ export async function touchIndex(
     await $.store.set(INDEX_KEY, { ...index, [sessionId]: entry });
   });
 }
+
+/** The session index as stored, each row checked; malformed rows are left out. */
+export function parseIndex(value: unknown): Record<string, IndexEntry> {
+  if (!isRecord(value)) return {};
+  const index: Record<string, IndexEntry> = {};
+  for (const [id, row] of Object.entries(value)) {
+    if (!isRecord(row) || typeof row.lastSeen !== "number") continue;
+    index[id] = {
+      cwd: typeof row.cwd === "string" ? row.cwd : "",
+      repo: typeof row.repo === "string" ? row.repo : null,
+      lastSeen: row.lastSeen,
+    };
+  }
+  return index;
+}
+
+/** How stale a session's last-seen time may get before a turn renews it. */
+export const SEEN_REFRESH_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Renews the session's last-seen time when a day old, so a session left
+ * open for months is never taken for one nobody has opened since.
+ */
+export async function touchSeen(
+  $: EngineInterface,
+  sessionId: string,
+  now: number
+): Promise<void> {
+  await oneAtATime(async () => {
+    const stored = await $.store.get(INDEX_KEY);
+    if (!isRecord(stored)) return;
+    const row = stored[sessionId];
+    if (!isRecord(row) || typeof row.lastSeen !== "number") return;
+    if (now - row.lastSeen < SEEN_REFRESH_MS) return;
+    await $.store.set(INDEX_KEY, {
+      ...stored,
+      [sessionId]: { ...row, lastSeen: now },
+    });
+  });
+}
+
+/**
+ * Takes sessions out of the index, re-reading it first, and only those
+ * still not seen since `before`: one seen meanwhile stays.
+ */
+export async function dropFromIndex(
+  $: EngineInterface,
+  sessionIds: readonly string[],
+  before: number
+): Promise<void> {
+  if (sessionIds.length === 0) return;
+  await oneAtATime(async () => {
+    const stored = await $.store.get(INDEX_KEY);
+    if (!isRecord(stored)) return;
+    const kept = { ...stored };
+    for (const id of sessionIds) {
+      const row = kept[id];
+      if (
+        isRecord(row) &&
+        typeof row.lastSeen === "number" &&
+        row.lastSeen < before
+      ) {
+        delete kept[id];
+      }
+    }
+    await $.store.set(INDEX_KEY, kept);
+  });
+}

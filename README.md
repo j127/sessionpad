@@ -2,7 +2,7 @@
 
 A Claude Code mod that gives every session a small notepad: a one-line headline that says what the session is for, plus notes written by you or by Claude. Open any session after a few days away and see at a glance what it was doing and what is left to do.
 
-Status: milestone 3 of 4 (notes, timeline and workspace). Pruning old sessions and the release (milestone 4) are still to come.
+Status: version 0.1.0, all four milestones built (notes, timeline, workspace, pruning), not yet released.
 
 ## What it does
 
@@ -17,7 +17,27 @@ Status: milestone 3 of 4 (notes, timeline and workspace). Pruning old sessions a
 
 ## Requirements
 
-Claude Code 2.1.286 or later in the Desktop app's Code tab, or 2.1.287 or later in a terminal. Mods don't run in regular claude.ai chats or in Desktop WSL sessions. In `claude -p` and the Agent SDK the commands and tools work but nothing is drawn.
+Claude Code 2.1.286 or later in the Desktop app's Code tab, or 2.1.287 or later in a terminal. Mods don't run in regular claude.ai chats or in Desktop WSL sessions. In `claude -p` and the Agent SDK the commands and tools work but nothing is drawn. The tests run on 2.1.304 (CI) and 2.1.308; releases between 2.1.286 and 2.1.304 aren't tested.
+
+## Install
+
+In Claude Code 2.1.275 or later, one line:
+
+```
+/plugin install sessionpad --marketplace j127/sessionpad
+```
+
+Or from a terminal:
+
+```bash
+claude plugin marketplace add j127/sessionpad
+```
+
+```bash
+claude plugin install sessionpad@sessionpad
+```
+
+Then run `/pad` in a session. `claude plugin update sessionpad@sessionpad` fetches a newer version; the settings below are under `/plugin configure sessionpad@sessionpad`.
 
 ## Try it from this folder
 
@@ -41,14 +61,13 @@ For the Desktop app, add the folder to `CLAUDE_CODE_PLUGIN_DIRS` in the `env` bl
 
 ## Settings
 
-| Key            | Type                 | Default | Effect                                                       |
-| -------------- | -------------------- | ------- | ------------------------------------------------------------ |
-| `showBand`     | boolean              | `true`  | Show the headline above the prompt                           |
-| `measureDisk`  | boolean              | `true`  | Run `du` on the repository's worktrees for the Workspace tab |
-| `summaryModel` | `"haiku"` or `"off"` | `haiku` | The model that writes each turn's summary line               |
-| `timelineCap`  | number, 1 to 1000    | `500`   | Entries a session's timeline file keeps; the oldest go first |
-
-`retentionDays`, for pruning, arrives in milestone 4.
+| Key             | Type                 | Default | Effect                                                                 |
+| --------------- | -------------------- | ------- | ---------------------------------------------------------------------- |
+| `showBand`      | boolean              | `true`  | Show the headline above the prompt                                     |
+| `measureDisk`   | boolean              | `true`  | Run `du` on the repository's worktrees for the Workspace tab           |
+| `retentionDays` | number, 0 to 36500   | `90`    | Days a session can go unopened before it is pruned; 0 keeps everything |
+| `summaryModel`  | `"haiku"` or `"off"` | `haiku` | The model that writes each turn's summary line                         |
+| `timelineCap`   | number, 1 to 1000    | `500`   | Entries a session's timeline file keeps; the oldest go first           |
 
 ## What is stored, and where
 
@@ -62,9 +81,44 @@ Everything stays on your machine, with one exception: the summary line. The mod 
 
 **The summary line costs a small model call.** After a turn, the mod sends Haiku (on your own plan or API key, like any request of the session) the prompt's first 200 characters, the start of Claude's final answer (1,500 characters at most), the names of the files written (not their paths or contents) and the number of commands run, and asks for one line of at most 15 words, capped at 60 tokens. Stopped turns, and turns under 5 seconds that wrote no files and ran no commands, skip the call. Set `summaryModel` to `off` to make no calls at all; the line is then the prompt's first line.
 
-The store holds at most 4 MiB for all sessions together, so a pad keeps at most 100 notes of up to 4,000 characters each, and a headline is one line of up to 200 characters. Text past a limit is cut, and the mod says so. Pruning of sessions you haven't opened in a while (`retentionDays`) arrives in milestone 4. If the store ever refuses a write, the command or pane says the note wasn't saved rather than dropping it silently.
+The store holds at most 4 MiB for all sessions together, so a pad keeps at most 100 notes of up to 4,000 characters each, and a headline is one line of up to 200 characters. Text past a limit is cut, and the mod says so. If the store ever refuses a write, the command or pane says the note wasn't saved rather than dropping it silently.
 
-To delete everything, remove the mod, delete its file in `~/.claude/plugins/store/`, and delete `~/.claude/sessionpad/`.
+**Old sessions are pruned.** When a session starts, a session nobody has opened for `retentionDays` (90 by default) loses its pad, its timeline file and its row in the index, and a worktree size measured that long ago is dropped. A session counts as unopened only when the index hasn't seen it and its timeline hasn't been written in that time, and a session left open renews its time once a day as its turns end, so one at work in another window is never pruned. Exports are your own files and are never touched. Set `retentionDays` to 0 to keep everything.
+
+## Uninstall
+
+```bash
+claude plugin uninstall sessionpad@sessionpad
+```
+
+```bash
+claude plugin marketplace remove sessionpad
+```
+
+That leaves your data. To delete it too, delete the mod's file in `~/.claude/plugins/store/` and the folder `~/.claude/sessionpad/` (under `CLAUDE_CONFIG_DIR` instead when that is set), which holds the timelines and the exports.
+
+## What the mod can reach
+
+`claude plugin validate` reads the mod the way Claude Code will and lists every event it hooks and every API call it makes. For this version it reports:
+
+```
+hooks: session.start, classic.SessionStart{source=clear|resume|fork}, session.end,
+  command.run{command=pad|sessionpad}, command.run{command=note|pad-note},
+  command.run{command=headline|pad-headline}, command.run{command=pad-export},
+  prompt.submit, turn.start, tool.call{tool=Edit|Write|NotebookEdit|Bash},
+  turn.complete, tool.call{tool=mcp__sessionpad__note},
+  tool.call{tool=mcp__sessionpad__notes_read},
+  ui.render{component=Pane, requestId=sessionpad}, ui.render{component=AbovePrompt}
+calls: $.clock.after, $.clock.now, $.command.list, $.command.register, $.env.get,
+  $.fs.exists, $.fs.list, $.fs.read, $.fs.stat, $.fs.write, $.model.complete,
+  $.process.run, $.session.cwd, $.session.id, $.session.repo, $.state.get,
+  $.state.set, $.store.delete, $.store.get, $.store.keys, $.store.set,
+  $.tool.register, $.ui.log, $.ui.open, $.ui.resolve, $.ui.toast
+env reads: CLAUDE_CONFIG_DIR, HOME, USERPROFILE
+env writes: nothing
+```
+
+There is no `$.http`: the only thing that leaves your machine is the summary line's model call, described above. `$.process.run` runs `git` (read-only commands), `du -sk` and `rm` on the mod's own files. The hooks on `prompt.submit`, `turn.start` and the `tool.call` for Edit, Write, NotebookEdit and Bash only watch: each passes the event on and hands back what came back, untouched. Run `claude plugin validate sessionpad` in a clone to see the full report.
 
 ## Development
 
@@ -80,7 +134,7 @@ That runs `format_check` (Prettier), `validate` (`claude plugin validate --stric
 
 Decisions made while building, and places where this build of Claude Code (2.1.308) differs from the original spec. Where they disagree, the types Claude Code writes for the mod win.
 
-- **The mod is in a subfolder, not the repository root.** `claude plugin validate` warns that a `CLAUDE.md` at a plugin root isn't loaded, and `--strict` turns that into an error; the subfolder also keeps the repository's tooling out of what users install. The marketplace file (milestone 4) will sit at the repository root with `"source": "./sessionpad"` rather than `"./"`.
+- **The mod is in a subfolder, not the repository root.** `claude plugin validate` warns that a `CLAUDE.md` at a plugin root isn't loaded, and `--strict` turns that into an error; the subfolder also keeps the repository's tooling out of what users install. The marketplace file sits at the repository root, `.claude-plugin/marketplace.json`, with `"source": "./sessionpad"` rather than `"./"`.
 - **The hooks module imports sibling files**, with three rules the validator enforces: a hook is written inline or as a function declared at the top of its file; a function in another file that receives `$` is a `function` declaration, not an arrow; and every read and write of a `$.state` value happens in the file that declares it, which is why all of it goes through `src/state.ts`.
 - **Drawing is in `src/ui.tsx`**, not `src/ui.ts`, because it uses JSX.
 - **Session ids.** `/clear` ends the session (`session.end` with reason `clear`) and continues under a new id with no `session.start`; the mod sees it as `classic.SessionStart` with source `clear`. `/resume` reports source `resume`. `/branch` reports source `fork` there (and `resume` at `session.end`). The mod tracks the id it loaded and carries the pad from that id. A pad the new id already has is never overwritten. This comes from the docs and the types; a manual check in a live session is still to do.
@@ -114,7 +168,9 @@ Decisions made while building, and places where this build of Claude Code (2.1.3
 - **`measureDisk` is read when the mod loads**, not kept in `$.state`, which `/clear` resets.
 - **A worktree inside another is counted in both.** Claude Code's own worktrees live under the main checkout's `.claude/worktrees/`, so the main checkout's size includes theirs. `du` has no portable way to leave them out.
 - **Git is read again** when the session starts, when the tab opens, after every turn (the branch may have moved) and on **Refresh sizes**: `rev-parse --show-toplevel`, `symbolic-ref` (and `rev-parse --short HEAD` for a detached HEAD), and `worktree list --porcelain`. A bare entry and a worktree whose folder is gone (`prunable`) are listed but not measured. Where the worktree list can't be read, the tab shows this tree alone.
-- **Size keys aren't pruned yet.** Every worktree ever measured keeps its `size:` key, a few dozen bytes each, until pruning arrives in milestone 4.
+- **Pruning deletes files with `rm`.** The mods API can read, write, list and stat files but not delete them, so a timeline file goes through `$.process.run(["rm", "-f", "--", path])`, only for a name the mod writes (`<id>.json`, or `<id>.json.corrupt-<time>`) in its own timeline folder. Where there is no `rm`, as on Windows, the file is emptied instead, so nothing of the session stays in it; one already empty isn't written again.
+- **Two signals before pruning.** A session is pruned only when the index's last-seen time and its timeline file's time are both older than `retentionDays`; the index alone would prune a session that has been open, and working, for longer. A session renews its last-seen time at the end of a turn, at most once a day. An index that can't be read stops the prune, since every old file would look like one no session owns. The index row goes last and is re-read first, so a session opened meanwhile keeps it. This session is never pruned, even when its time couldn't be renewed. A stored size the mod can't read (a newer version's, say) is left alone.
+- **CI pins the `claude` CLI** to 2.1.304, a release more than a week old when it was chosen, so a new release can't change what CI runs overnight. Raise it on purpose. CI skips `type_check`, since the types it needs are written by loading the mod.
 
 ## License
 
