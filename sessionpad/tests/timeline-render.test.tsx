@@ -13,6 +13,7 @@ import {
   start,
   timelineFile,
   world,
+  SUMMARIES,
 } from "./harness";
 
 const OTHER_ID = "33333333-aaaa-bbbb-cccc-000000000003";
@@ -38,40 +39,44 @@ const turn = (over: Partial<TurnEntry>): TurnEntry => ({
 });
 
 describe("the Timeline tab", () => {
-  test("lists turns newest first, under their day, on each surface and width", async ($, on) => {
-    const w = world(on);
-    await start($);
-    w.modelReply = "Wrote the parser";
-    await runTurn($, w, {
-      text: "write the parser",
-      calls: [
-        { tool: "Edit", path: "/repo/parser.ts" },
-        { tool: "Bash", command: "bun test" },
-      ],
-    });
-    await w.clock.advance(DAY);
-    w.modelReply = "Fixed the lexer";
-    await runTurn($, w, { text: "fix the lexer" });
-    for (const surface of SURFACES) {
-      for (const columns of [30, 90]) {
-        const ui = await $.ui.mount(paneTarget(surface, columns));
-        await ui.press({ key: "tab-timeline" });
-        const rows = await ui.findAll({ type: "Text" });
-        const texts = rows.map((row) => row.text);
-        const newer = texts.findIndex((text) => text === "Fixed the lexer");
-        const older = texts.findIndex((text) => text === "Wrote the parser");
-        expect(newer).toBeGreaterThan(-1);
-        expect(older).toBeGreaterThan(newer);
-        expect(texts).toContain("1 file · 1 cmd");
-        expect(texts).toContain("2 turns, newest first");
-        expect(
-          texts.filter((text) => /^\d{4}-\d\d-\d\d$/.test(text))
-        ).toHaveLength(2);
-        expect(await ui.find({ key: "export" })).toBeDefined();
-        await ui.unmount();
+  test(
+    "lists turns newest first, under their day, on each surface and width",
+    SUMMARIES,
+    async ($, on) => {
+      const w = world(on);
+      await start($);
+      w.modelReply = "Wrote the parser";
+      await runTurn($, w, {
+        text: "write the parser",
+        calls: [
+          { tool: "Edit", path: "/repo/parser.ts" },
+          { tool: "Bash", command: "bun test" },
+        ],
+      });
+      await w.clock.advance(DAY);
+      w.modelReply = "Fixed the lexer";
+      await runTurn($, w, { text: "fix the lexer" });
+      for (const surface of SURFACES) {
+        for (const columns of [30, 90]) {
+          const ui = await $.ui.mount(paneTarget(surface, columns));
+          await ui.press({ key: "tab-timeline" });
+          const rows = await ui.findAll({ type: "Text" });
+          const texts = rows.map((row) => row.text);
+          const newer = texts.findIndex((text) => text === "Fixed the lexer");
+          const older = texts.findIndex((text) => text === "Wrote the parser");
+          expect(newer).toBeGreaterThan(-1);
+          expect(older).toBeGreaterThan(newer);
+          expect(texts).toContain("1 file · 1 cmd");
+          expect(texts).toContain("2 turns, newest first");
+          expect(
+            texts.filter((text) => /^\d{4}-\d\d-\d\d$/.test(text))
+          ).toHaveLength(2);
+          expect(await ui.find({ key: "export" })).toBeDefined();
+          await ui.unmount();
+        }
       }
     }
-  });
+  );
 
   test("a turn's marks go on a line under its summary at every width", async ($, on) => {
     const w = world(on);

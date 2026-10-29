@@ -70,6 +70,8 @@ const deletedAtom = atom(
   null as DeletedNote | null
 );
 
+const offerAtom = atom({ plugin: "sessionpad", key: "offer" } as const, false);
+
 const usageAtom = atom(
   { plugin: "sessionpad", key: "usage" } as const,
   EMPTY_USAGE
@@ -110,6 +112,10 @@ export function readDeleted($: EngineInterface): Promise<DeletedNote | null> {
 
 export function readUsage($: EngineInterface): Promise<SummaryUsage> {
   return read($, usageAtom);
+}
+
+export function readOffer($: EngineInterface): Promise<boolean> {
+  return read($, offerAtom);
 }
 
 /** Never call these while drawing: write from a handler or another event. */
@@ -217,6 +223,14 @@ export async function forgetDeleted(
   await update($, deletedAtom, (kept) =>
     kept?.note.id === noteId ? null : kept
   );
+}
+
+/** Shows or hides the Timeline tab's offer to turn summary lines on. */
+export async function showOffer(
+  $: EngineInterface,
+  isShown: boolean
+): Promise<void> {
+  await update($, offerAtom, () => isShown);
 }
 
 /** Puts what the summary lines have cost where the Timeline tab reads it. */

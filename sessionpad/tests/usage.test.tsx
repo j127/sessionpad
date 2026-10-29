@@ -9,7 +9,15 @@ import {
   isSpent,
   parseUsage,
 } from "../src/usage";
-import { NOW, SURFACES, paneTarget, runTurn, start, world } from "./harness";
+import {
+  NOW,
+  SURFACES,
+  paneTarget,
+  runTurn,
+  start,
+  world,
+  SUMMARIES,
+} from "./harness";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -80,56 +88,68 @@ describe("the summary usage total", () => {
 });
 
 describe("counting the summary calls", () => {
-  test("each summarized turn adds its call, and the Timeline tab says so", async ($, on) => {
-    const w = world(on);
-    await start($);
-    w.modelUsage = CALL;
-    await runTurn($, w, { text: "write the parser" });
-    await runTurn($, w, { text: "fix the lexer" });
-    const total = parseUsage(w.store.get(USAGE_KEY));
-    expect(total).toMatchObject({ calls: 2, input: 960, output: 36 });
-    expect(total.since).not.toBeNull();
-    for (const surface of SURFACES) {
-      const ui = await $.ui.mount(paneTarget(surface));
+  test(
+    "each summarized turn adds its call, and the Timeline tab says so",
+    SUMMARIES,
+    async ($, on) => {
+      const w = world(on);
+      await start($);
+      w.modelUsage = CALL;
+      await runTurn($, w, { text: "write the parser" });
+      await runTurn($, w, { text: "fix the lexer" });
+      const total = parseUsage(w.store.get(USAGE_KEY));
+      expect(total).toMatchObject({ calls: 2, input: 960, output: 36 });
+      expect(total.since).not.toBeNull();
+      for (const surface of SURFACES) {
+        const ui = await $.ui.mount(paneTarget(surface));
+        await ui.press({ key: "tab-timeline" });
+        expect(
+          (
+            await ui.find({
+              type: "Text",
+              text: /^Summary lines, all sessions/,
+            })
+          )?.text
+        ).toBe(
+          `Summary lines, all sessions since ${formatDay(total.since!)}: 2 calls · 960 tokens in · 36 out`
+        );
+        expect((await ui.find({ key: "usage" }))?.props).toBeDefined();
+        await ui.press({ key: "tab-notes" });
+        await ui.unmount();
+      }
+    }
+  );
+
+  test(
+    "other sessions' calls are kept and shown from the start",
+    SUMMARIES,
+    async ($, on) => {
+      const earlier = { calls: 10, input: 5000, output: 200, since: NOW - DAY };
+      const w = world(on, { store: { [USAGE_KEY]: earlier } });
+      await start($);
+      const ui = await $.ui.mount(paneTarget("desktop"));
       await ui.press({ key: "tab-timeline" });
+      // No turn in this session yet: the line sits under the empty timeline.
       expect(
-        (await ui.find({ type: "Text", text: /^Summary lines, all sessions/ }))
-          ?.text
-      ).toBe(
-        `Summary lines, all sessions since ${formatDay(total.since!)}: 2 calls · 960 tokens in · 36 out`
-      );
-      expect((await ui.find({ key: "usage" }))?.props).toBeDefined();
+        (await ui.find({ type: "Text", text: /^Summary lines/ }))?.text
+      ).toContain("10 calls · 5k tokens in · 200 out");
+      w.modelUsage = CALL;
+      await runTurn($, w);
+      expect(w.store.get(USAGE_KEY)).toEqual({
+        calls: 11,
+        input: 5480,
+        output: 218,
+        since: NOW - DAY,
+      });
+      expect(
+        (await ui.find({ type: "Text", text: /^Summary lines/ }))?.text
+      ).toContain("11 calls · 5.5k tokens in · 218 out");
       await ui.press({ key: "tab-notes" });
       await ui.unmount();
     }
-  });
+  );
 
-  test("other sessions' calls are kept and shown from the start", async ($, on) => {
-    const earlier = { calls: 10, input: 5000, output: 200, since: NOW - DAY };
-    const w = world(on, { store: { [USAGE_KEY]: earlier } });
-    await start($);
-    const ui = await $.ui.mount(paneTarget("desktop"));
-    await ui.press({ key: "tab-timeline" });
-    // No turn in this session yet: the line sits under the empty timeline.
-    expect(
-      (await ui.find({ type: "Text", text: /^Summary lines/ }))?.text
-    ).toContain("10 calls · 5k tokens in · 200 out");
-    w.modelUsage = CALL;
-    await runTurn($, w);
-    expect(w.store.get(USAGE_KEY)).toEqual({
-      calls: 11,
-      input: 5480,
-      output: 218,
-      since: NOW - DAY,
-    });
-    expect(
-      (await ui.find({ type: "Text", text: /^Summary lines/ }))?.text
-    ).toContain("11 calls · 5.5k tokens in · 218 out");
-    await ui.press({ key: "tab-notes" });
-    await ui.unmount();
-  });
-
-  test("a failed call's cost counts too", async ($, on) => {
+  test("a failed call's cost counts too", SUMMARIES, async ($, on) => {
     const w = world(on);
     await start($);
     w.modelReply = null;
@@ -139,21 +159,25 @@ describe("counting the summary calls", () => {
     expect(w.store.get(USAGE_KEY)).toMatchObject({ calls: 1, input: 480 });
   });
 
-  test("a call that spent nothing or was refused counts nothing, and shows no line", async ($, on) => {
-    const w = world(on);
-    await start($);
-    await runTurn($, w);
-    w.modelReply = "refused";
-    w.modelUsage = CALL;
-    await runTurn($, w);
-    expect(w.modelCalls).toHaveLength(2);
-    expect(w.store.has(USAGE_KEY)).toBe(false);
-    const ui = await $.ui.mount(paneTarget("desktop"));
-    await ui.press({ key: "tab-timeline" });
-    expect(await ui.find({ key: "usage" })).toBeUndefined();
-    await ui.press({ key: "tab-notes" });
-    await ui.unmount();
-  });
+  test(
+    "a call that spent nothing or was refused counts nothing, and shows no line",
+    SUMMARIES,
+    async ($, on) => {
+      const w = world(on);
+      await start($);
+      await runTurn($, w);
+      w.modelReply = "refused";
+      w.modelUsage = CALL;
+      await runTurn($, w);
+      expect(w.modelCalls).toHaveLength(2);
+      expect(w.store.has(USAGE_KEY)).toBe(false);
+      const ui = await $.ui.mount(paneTarget("desktop"));
+      await ui.press({ key: "tab-timeline" });
+      expect(await ui.find({ key: "usage" })).toBeUndefined();
+      await ui.press({ key: "tab-notes" });
+      await ui.unmount();
+    }
+  );
 
   test(
     "summaryModel off counts nothing",
@@ -167,31 +191,39 @@ describe("counting the summary calls", () => {
     }
   );
 
-  test("a stored total that isn't one starts over", async ($, on) => {
-    const w = world(on, { store: { [USAGE_KEY]: "junk" } });
-    await start($);
-    w.modelUsage = CALL;
-    await runTurn($, w);
-    expect(w.store.get(USAGE_KEY)).toMatchObject({
-      calls: 1,
-      input: 480,
-      output: 18,
-    });
-  });
+  test(
+    "a stored total that isn't one starts over",
+    SUMMARIES,
+    async ($, on) => {
+      const w = world(on, { store: { [USAGE_KEY]: "junk" } });
+      await start($);
+      w.modelUsage = CALL;
+      await runTurn($, w);
+      expect(w.store.get(USAGE_KEY)).toMatchObject({
+        calls: 1,
+        input: 480,
+        output: 18,
+      });
+    }
+  );
 
-  test("a store that refuses the total still keeps the turn's line", async ($, on) => {
-    const w = world(on);
-    await start($);
-    w.modelUsage = CALL;
-    w.storeFull = true;
-    await runTurn($, w, { text: "write the docs" });
-    expect(w.timeline()[0]).toMatchObject({
-      summary: "Fixed the token expiry check",
-      summaryBy: "model",
-    });
-    expect(w.store.has(USAGE_KEY)).toBe(false);
-    // The timeline is kept, so nothing says it isn't.
-    expect(w.toasts.join("\n")).not.toContain("aren't being added");
-    expect(w.logs.join("\n")).toContain("the summary's cost was not counted");
-  });
+  test(
+    "a store that refuses the total still keeps the turn's line",
+    SUMMARIES,
+    async ($, on) => {
+      const w = world(on);
+      await start($);
+      w.modelUsage = CALL;
+      w.storeFull = true;
+      await runTurn($, w, { text: "write the docs" });
+      expect(w.timeline()[0]).toMatchObject({
+        summary: "Fixed the token expiry check",
+        summaryBy: "model",
+      });
+      expect(w.store.has(USAGE_KEY)).toBe(false);
+      // The timeline is kept, so nothing says it isn't.
+      expect(w.toasts.join("\n")).not.toContain("aren't being added");
+      expect(w.logs.join("\n")).toContain("the summary's cost was not counted");
+    }
+  );
 });

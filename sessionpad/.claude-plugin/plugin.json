@@ -1,7 +1,7 @@
 {
   "name": "sessionpad",
   "displayName": "Session Pad",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A notepad for each Claude Code session: a headline and notes, a timeline of every turn, and the session's worktree and disk use, in a pane and above the prompt.",
   "author": {
     "name": "J"
@@ -26,9 +26,9 @@
     "summaryModel": {
       "type": "string",
       "title": "Model for each turn's summary line",
-      "description": "After each turn, this model writes the one-line summary the Timeline tab shows, from the prompt's start, the final answer and the names of files written. Choose off to use the prompt's first line instead and make no model calls.",
-      "options": ["haiku", "off"],
-      "default": "haiku"
+      "description": "Off by default. Set to haiku to have Haiku write the one-line summary the Timeline tab shows after each turn, from the prompt's start, the final answer and the names of files written: about 500 tokens in and 20 out a turn, from your plan's usage or your API key. Off uses the prompt's first line and makes no model calls.",
+      "options": ["off", "haiku"],
+      "default": "off"
     },
     "timelineCap": {
       "type": "number",

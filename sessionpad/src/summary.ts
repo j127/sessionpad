@@ -20,12 +20,14 @@ export const SUMMARY_SYSTEM = [
   "Write it as a past-tense note, with no preamble, quotes or trailing period.",
 ].join(" ");
 
-/** The setting's model, or null when summaries are off. */
+/**
+ * The setting's model, or null when summaries are off: they are off unless
+ * the person turns them on, since each one spends some of their usage.
+ */
 export function summaryModel(value: unknown): string | null {
-  if (value === "off") return null;
-  return typeof value === "string" && value.trim() !== ""
-    ? value.trim()
-    : "haiku";
+  if (typeof value !== "string") return null;
+  const model = value.trim();
+  return model === "" || model === "off" ? null : model;
 }
 
 /** Whether a turn is worth a model call: not stopped, and not short and idle. */

@@ -34,6 +34,7 @@ import {
   start,
   timelineFile,
   world,
+  SUMMARIES,
 } from "./harness";
 import type { World } from "./harness";
 
@@ -184,14 +185,18 @@ describe("a turn's entry", () => {
     }
   });
 
-  test("an end with no start heard still makes an entry", async ($, on) => {
-    const w = world(on);
-    await start($);
-    await endTurn($, w, "unheard", { answer: "Reloaded and finished." });
-    const entry = onlyTurn(w.timeline());
-    expect(entry.prompt).toBe("");
-    expect(entry.summaryBy).toBe("model");
-  });
+  test(
+    "an end with no start heard still makes an entry",
+    SUMMARIES,
+    async ($, on) => {
+      const w = world(on);
+      await start($);
+      await endTurn($, w, "unheard", { answer: "Reloaded and finished." });
+      const entry = onlyTurn(w.timeline());
+      expect(entry.prompt).toBe("");
+      expect(entry.summaryBy).toBe("model");
+    }
+  );
 
   test("turn.start and turn.complete hand back what came back", async ($, on) => {
     const w = world(on);
@@ -323,54 +328,66 @@ describe("watching tool calls", () => {
 });
 
 describe("the summary line", () => {
-  test("the model's line is used, asked of haiku with the turn's facts", async ($, on) => {
-    const w = world(on);
-    await start($);
-    await runTurn($, w, {
-      text: "Fix the login bug",
-      answer: "I changed the expiry comparison.",
-      calls: [{ tool: "Edit", path: `${REPO}/src/auth.ts` }],
-    });
-    const entry = onlyTurn(w.timeline());
-    expect(entry.summary).toBe("Fixed the token expiry check");
-    expect(entry.summaryBy).toBe("model");
-    expect(w.modelCalls).toHaveLength(1);
-    const call = w.modelCalls[0]!;
-    expect(call.model).toBe("haiku");
-    expect(call.system).toBe(SUMMARY_SYSTEM);
-    expect(call.prompt).toContain("Request: Fix the login bug");
-    expect(call.prompt).toContain("auth.ts");
-    expect(call.prompt).not.toContain(`${REPO}/src`);
-    expect(call.prompt).toContain("I changed the expiry comparison.");
-  });
+  test(
+    "the model's line is used, asked of haiku with the turn's facts",
+    SUMMARIES,
+    async ($, on) => {
+      const w = world(on);
+      await start($);
+      await runTurn($, w, {
+        text: "Fix the login bug",
+        answer: "I changed the expiry comparison.",
+        calls: [{ tool: "Edit", path: `${REPO}/src/auth.ts` }],
+      });
+      const entry = onlyTurn(w.timeline());
+      expect(entry.summary).toBe("Fixed the token expiry check");
+      expect(entry.summaryBy).toBe("model");
+      expect(w.modelCalls).toHaveLength(1);
+      const call = w.modelCalls[0]!;
+      expect(call.model).toBe("haiku");
+      expect(call.system).toBe(SUMMARY_SYSTEM);
+      expect(call.prompt).toContain("Request: Fix the login bug");
+      expect(call.prompt).toContain("auth.ts");
+      expect(call.prompt).not.toContain(`${REPO}/src`);
+      expect(call.prompt).toContain("I changed the expiry comparison.");
+    }
+  );
 
-  test("the entry is in the file before the model is asked", async ($, on) => {
-    const w = world(on);
-    await start($);
-    await runTurn($, w, { text: "Fix the login bug" });
-    expect(w.modelSaw).toHaveLength(1);
-    const before = onlyTurn(w.modelSaw[0]!);
-    expect(before.summary).toBe("Fix the login bug");
-    expect(before.summaryBy).toBe("prompt");
-    expect(onlyTurn(w.timeline()).summaryBy).toBe("model");
-  });
+  test(
+    "the entry is in the file before the model is asked",
+    SUMMARIES,
+    async ($, on) => {
+      const w = world(on);
+      await start($);
+      await runTurn($, w, { text: "Fix the login bug" });
+      expect(w.modelSaw).toHaveLength(1);
+      const before = onlyTurn(w.modelSaw[0]!);
+      expect(before.summary).toBe("Fix the login bug");
+      expect(before.summaryBy).toBe("prompt");
+      expect(onlyTurn(w.timeline()).summaryBy).toBe("model");
+    }
+  );
 
-  test("the pane shows the turn's own line until the model answers", async ($, on) => {
-    const w = world(on);
-    await start($);
-    w.modelReply = null;
-    await runTurn($, w, {
-      text: "Fix the login bug",
-      calls: [
-        { tool: "Edit", path: "/repo/a.ts" },
-        { tool: "Edit", path: "/repo/b.ts" },
-      ],
-    });
-    const entry = onlyTurn(w.timeline());
-    expect(entry.summary).toBe("Fix the login bug (2 files)");
-    expect(entry.summaryBy).toBe("prompt");
-    expect(w.modelCalls).toHaveLength(1);
-  });
+  test(
+    "the pane shows the turn's own line until the model answers",
+    SUMMARIES,
+    async ($, on) => {
+      const w = world(on);
+      await start($);
+      w.modelReply = null;
+      await runTurn($, w, {
+        text: "Fix the login bug",
+        calls: [
+          { tool: "Edit", path: "/repo/a.ts" },
+          { tool: "Edit", path: "/repo/b.ts" },
+        ],
+      });
+      const entry = onlyTurn(w.timeline());
+      expect(entry.summary).toBe("Fix the login bug (2 files)");
+      expect(entry.summaryBy).toBe("prompt");
+      expect(w.modelCalls).toHaveLength(1);
+    }
+  );
 
   test("a refused model call falls back too", async ($, on) => {
     const w = world(on);
@@ -402,15 +419,19 @@ describe("the summary line", () => {
     expect(w.modelCalls).toEqual([]);
   });
 
-  test("a short turn that ran a command is summarized", async ($, on) => {
-    const w = world(on);
-    await start($);
-    await runTurn($, w, {
-      durationMs: 2000,
-      calls: [{ tool: "Bash", command: "ls" }],
-    });
-    expect(w.modelCalls).toHaveLength(1);
-  });
+  test(
+    "a short turn that ran a command is summarized",
+    SUMMARIES,
+    async ($, on) => {
+      const w = world(on);
+      await start($);
+      await runTurn($, w, {
+        durationMs: 2000,
+        calls: [{ tool: "Bash", command: "ls" }],
+      });
+      expect(w.modelCalls).toHaveLength(1);
+    }
+  );
 
   test("a stopped turn skips the call", async ($, on) => {
     const w = world(on);
@@ -672,36 +693,40 @@ describe("moving between session ids", () => {
     expect(w.files.size).toBe(0);
   });
 
-  test("a /clear before the turn's work runs still carries that turn", async ($, on) => {
-    const w = world(on);
-    await start($);
-    await runTurn($, w, { text: "first" });
-    await $.turn.start({ text: "second", turnId: "t2" });
-    await $.turn.complete({
-      answer: "",
-      durationMs: 9000,
-      isAborted: false,
-      reason: "answer",
-      turnId: "t2",
-    });
-    // /clear runs before the timer for the second turn has fired.
-    w.sessionId = NEW_ID;
-    await $.classic.SessionStart({ source: "clear", session_id: NEW_ID });
-    await w.clock.settle();
-    await w.clock.settle();
-    const carried = w.timeline(NEW_ID);
-    const prompts = carried.map((entry) =>
-      entry.kind === "turn" ? entry.prompt : entry.text
-    );
-    expect(prompts).toEqual([
-      "first",
-      "second",
-      "The conversation was cleared.",
-    ]);
-    const second = carried[1]!;
-    expect(second.kind === "turn" && second.summaryBy).toBe("model");
-    expect(w.timeline(SESSION)).toHaveLength(2);
-  });
+  test(
+    "a /clear before the turn's work runs still carries that turn",
+    SUMMARIES,
+    async ($, on) => {
+      const w = world(on);
+      await start($);
+      await runTurn($, w, { text: "first" });
+      await $.turn.start({ text: "second", turnId: "t2" });
+      await $.turn.complete({
+        answer: "",
+        durationMs: 9000,
+        isAborted: false,
+        reason: "answer",
+        turnId: "t2",
+      });
+      // /clear runs before the timer for the second turn has fired.
+      w.sessionId = NEW_ID;
+      await $.classic.SessionStart({ source: "clear", session_id: NEW_ID });
+      await w.clock.settle();
+      await w.clock.settle();
+      const carried = w.timeline(NEW_ID);
+      const prompts = carried.map((entry) =>
+        entry.kind === "turn" ? entry.prompt : entry.text
+      );
+      expect(prompts).toEqual([
+        "first",
+        "second",
+        "The conversation was cleared.",
+      ]);
+      const second = carried[1]!;
+      expect(second.kind === "turn" && second.summaryBy).toBe("model");
+      expect(w.timeline(SESSION)).toHaveLength(2);
+    }
+  );
 
   test("followers run through each /clear in turn, and stop at a loop", () => {
     const moves = new Map([
@@ -743,19 +768,23 @@ describe("moving between session ids", () => {
     expect(prompts(SESSION)).toEqual(["A1", "A2"]);
   });
 
-  test("a turn written before the /clear's carry is carried once", async ($, on) => {
-    const w = world(on);
-    await start($);
-    await $.turn.start({ text: "only once", turnId: "t1" });
-    await endTurn($, w, "t1");
-    // The entry and its summary are in the old file before the carry reads it.
-    expect(onlyTurn(w.timeline(SESSION)).summaryBy).toBe("model");
-    w.sessionId = NEW_ID;
-    await $.classic.SessionStart({ source: "clear", session_id: NEW_ID });
-    await w.clock.settle();
-    const turns = w.timeline(NEW_ID).filter((entry) => entry.kind === "turn");
-    expect(turns).toHaveLength(1);
-  });
+  test(
+    "a turn written before the /clear's carry is carried once",
+    SUMMARIES,
+    async ($, on) => {
+      const w = world(on);
+      await start($);
+      await $.turn.start({ text: "only once", turnId: "t1" });
+      await endTurn($, w, "t1");
+      // The entry and its summary are in the old file before the carry reads it.
+      expect(onlyTurn(w.timeline(SESSION)).summaryBy).toBe("model");
+      w.sessionId = NEW_ID;
+      await $.classic.SessionStart({ source: "clear", session_id: NEW_ID });
+      await w.clock.settle();
+      const turns = w.timeline(NEW_ID).filter((entry) => entry.kind === "turn");
+      expect(turns).toHaveLength(1);
+    }
+  );
 
   test("a file that can't be written for one id doesn't keep the turn from the next", async ($, on) => {
     const w = world(on, {

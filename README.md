@@ -2,7 +2,15 @@
 
 A Claude Code mod that gives every session a small notepad: a one-line headline that says what the session is for, plus notes written by you or by Claude. Open any session after a few days away and see at a glance what it was doing and what is left to do.
 
-Status: version 0.1.0, released 2026-10-29, with all four milestones built (notes, timeline, workspace, pruning).
+> [!WARNING]
+> **sessionpad is alpha software. Use it at your own risk.** It is new and has had little use beyond its author's, and a later version may change how it stores your notes. Keep anything you can't lose somewhere else as well; `/pad-export` writes a session's notes and timeline to a Markdown file.
+
+> [!NOTE]
+> **Summary lines spend some of your Claude usage, so they are off until you turn them on.** With them on, the mod asks Claude Haiku for a one-line summary after each turn. A call sends about 500 tokens and gets about 20 back. At the API prices of October 2026 that is about $0.00006 a turn on Haiku 5.5 ($0.10 and $0.50 per million tokens in and out), or about 6 cents per 1,000 turns; if your Claude Code's `haiku` is Haiku 4.5 ($1 and $5), ten times that. On a Pro or Max plan it counts against your usage limits instead of costing money, and a single turn of your own conversation usually uses thousands of times as much. The Timeline tab's last line shows the running total.
+>
+> To turn them on, press **Turn on summaries** in the Timeline tab, or set `summaryModel` to `haiku` in `/config` (or with `/plugin configure sessionpad@sessionpad`). To turn them off, set it back to `off`. While they are off, each turn's line in the Timeline is its prompt's first line, and the mod makes no model calls at all.
+
+Status: alpha. Version 0.2.0, not released yet; 0.1.0 was released 2026-10-29, with all four milestones built (notes, timeline, workspace, pruning).
 
 ## What it does
 
@@ -65,13 +73,13 @@ For the Desktop app, add the folder to `CLAUDE_CODE_PLUGIN_DIRS` in the `env` bl
 
 ## Settings
 
-| Key             | Type                 | Default | Effect                                                                 |
-| --------------- | -------------------- | ------- | ---------------------------------------------------------------------- |
-| `showBand`      | boolean              | `true`  | Show the headline above the prompt                                     |
-| `measureDisk`   | boolean              | `true`  | Run `du` on the repository's worktrees for the Workspace tab           |
-| `retentionDays` | number, 0 to 36500   | `90`    | Days a session can go unopened before it is pruned; 0 keeps everything |
-| `summaryModel`  | `"haiku"` or `"off"` | `haiku` | The model that writes each turn's summary line                         |
-| `timelineCap`   | number, 1 to 1000    | `500`   | Entries a session's timeline file keeps; the oldest go first           |
+| Key             | Type                 | Default | Effect                                                                   |
+| --------------- | -------------------- | ------- | ------------------------------------------------------------------------ |
+| `showBand`      | boolean              | `true`  | Show the headline above the prompt                                       |
+| `measureDisk`   | boolean              | `true`  | Run `du` on the repository's worktrees for the Workspace tab             |
+| `retentionDays` | number, 0 to 36500   | `90`    | Days a session can go unopened before it is pruned; 0 keeps everything   |
+| `summaryModel`  | `"off"` or `"haiku"` | `off`   | The model that writes each turn's summary line; off makes no model calls |
+| `timelineCap`   | number, 1 to 1000    | `500`   | Entries a session's timeline file keeps; the oldest go first             |
 
 ## What is stored, and where
 
@@ -83,7 +91,7 @@ Everything stays on your machine, with one exception: the summary line. The mod 
 - Each worktree's measured size is in the same store under `size:<worktree path>`, as `{ kb, at }`, shared by every session, so sessions in one repository use each other's measurements. `kb` is null when `du` finished without a size; `isPartial` marks a size from a run that couldn't read every file, and `isTooLarge` a tree whose run ran out of time.
 - Exports go to `~/.claude/sessionpad/exports/` unless you name a path.
 
-**The summary line costs a small model call.** After a turn, the mod sends Haiku (on your own plan or API key, like any request of the session) the prompt's first 200 characters, the start of Claude's final answer (1,500 characters at most), the names of the files written (not their paths or contents) and the number of commands run, and asks for one line of at most 15 words, capped at 60 tokens. Stopped turns, and turns under 5 seconds that wrote no files and ran no commands, skip the call. Set `summaryModel` to `off` to make no calls at all; the line is then the prompt's first line. A call is typically about 500 tokens in and 20 out. Every call that spent tokens, answered or not, is added to a total that all sessions share (the store key `summary-usage`, which pruning leaves alone), and the Timeline tab's last line shows it, so what the mod has spent is there to read rather than to estimate. It is a close count rather than an exact one: two sessions whose calls finish in the same moment can each miss the other's.
+**The summary line costs a small model call, and is off until you turn it on.** With `summaryModel` set to `haiku`, after a turn the mod sends Haiku (on your own plan or API key, like any request of the session) the prompt's first 200 characters, the start of Claude's final answer (1,500 characters at most), the names of the files written (not their paths or contents) and the number of commands run, and asks for one line of at most 15 words, capped at 60 tokens. Stopped turns, and turns under 5 seconds that wrote no files and ran no commands, skip the call. Left `off`, the default, the mod makes no calls at all, and the line is the prompt's first line. A call is typically about 500 tokens in and 20 out. Every call that spent tokens, answered or not, is added to a total that all sessions share (the store key `summary-usage`, which pruning leaves alone), and the Timeline tab's last line shows it, so what the mod has spent is there to read rather than to estimate. It is a close count rather than an exact one: two sessions whose calls finish in the same moment can each miss the other's.
 
 The store holds at most 4 MiB for all sessions together, so a pad keeps at most 100 notes of up to 4,000 characters each, and a headline is one line of up to 200 characters. Text past a limit is cut, and the mod says so. If the store ever refuses a write, the command or pane says the note wasn't saved rather than dropping it silently.
 
@@ -156,7 +164,7 @@ Decisions made while building, and places where this build of Claude Code (2.1.3
 - **How it looks.** The pane follows the Cards design, `mockups/pane_as_drawn/02-cards.html` (the choice is recorded in `DECISION.md` beside it), drawn only with what a design test page (`/pad-demo`, removed once the look was settled) showed each surface can draw, as `mockups/sessionpad_pane/RENDERING.md` records. On Desktop the headline, each note, each day of the timeline and the current worktree sit on soft filled cards: a faint round border around a see-through grey fill (`rgba(128, 128, 128, 0.12)`), which reads as a light grey on the light pane and a dark grey on the dark one, so it follows the mode where an opaque raw color would turn unreadable in one of them; the Undo card is tinted red the same way. The cards were first filled with the theme's `promptBorder` shade, which drew too dark for the dim text and the buttons on them. A terminal would fill those with a mid grey block, so there a card is a grey frame, and the headline and the note being edited take the accent frame. The open tab is the app's primary pill on Desktop; a colored or bold label inside a Button draws only in a terminal, which shows the open tab that way. Hover can't reveal anything on Desktop and a terminal has none, so every button says what it does in its own label. An edited note's Save is its field's own submit button, since Desktop draws that button whatever else is beside it. The field asks for three rows; 2.1.299, the oldest release the mod supports, has no `rows` for a field and draws it as one line. Times sit in a fixed-width column, since runs of spaces collapse on both surfaces. Text in the timeline wraps rather than being cut, and the pane is sized to `100%` of its body rather than a count of cells, since the Desktop app's proportional text doesn't keep to one. The note field's draft and an open note's text are kept as they are typed, which a redraw that lags the typing could in principle reset; that is one to watch in the Desktop app.
 - **The tab digits are the terminal's.** A digit presses a tab only while the pane holds the keyboard, which a terminal gives it with ctrl+x tab; elsewhere a digit goes to the prompt, so the Desktop app's tabs are drawn without them.
 - **The band's width.** The band refuses Claude Code's own row under a Box with a width, so the width is on the headline line's own Box.
-- **Summaries are on by default.** `summaryModel` ships as `haiku`: the line it writes is what makes the Timeline worth reading after a few days away, and each call is one small request. `off` turns it off.
+- **Summaries are off by default.** `summaryModel` ships as `off`, since each call spends some of the person's usage and spending it should be their choice. The line Haiku writes is what makes the Timeline worth reading after a few days away, so the Timeline tab offers it once, with **Turn on summaries** and **Not now**; the answer is kept for every session under the store key `summary-offer`, which pruning leaves alone. Changing `summaryModel` in `/config` counts as an answer too, and the next turn follows it without a reload.
 - **The pane opens only when you run `/pad`.** Opening it unasked at the start of a session with notes is still an open question.
 - `$.fs.write` creates missing directories, which the timeline file relies on. The home folder comes from `HOME`, else `USERPROFILE` on Windows, and `CLAUDE_CONFIG_DIR` wins over both. With none of them set, no timeline is kept and `/pad-export` asks for a path.
 - **A turn's prompt comes from `turn.start`**, not `prompt.submit` as the spec had it. `turn.start` carries the turn's id, the same one `turn.complete` carries, so the prompt and the end are paired exactly; `prompt.submit` also fires for prompts typed while a turn runs, which join that turn rather than starting one.
