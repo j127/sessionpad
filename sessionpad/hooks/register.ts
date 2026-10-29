@@ -549,13 +549,15 @@ export const register: Register = (on, options) => {
     const result = await next(e);
     if (result.deny === undefined) {
       useSummaryModel(summaryModel(result.value));
-      await $.store
-        .set(OFFER_KEY, { at: await $.clock.now() })
-        .catch(() => undefined);
-      await showOffer($, false).catch(() => undefined);
+      try {
+        await showOffer($, false);
+        await $.store.set(OFFER_KEY, { at: await $.clock.now() });
+      } catch {
+        // The setting is written either way; only the offer's answer is lost.
+      }
     }
     return result;
-  });
+  }).catch(($, e, next) => next(e)); // replays the result next settled to
 
   // Observe only, and instant: every session.end hook shares 1.5 seconds.
   on("session.end", ($, e, next) => {

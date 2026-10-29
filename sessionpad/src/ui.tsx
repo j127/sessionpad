@@ -69,6 +69,7 @@ import {
   showTab,
 } from "./state";
 import { OFFER_KEY, SUMMARY_CONFIG_KEY, useSummaryModel } from "./settings";
+import { summaryModel } from "./summary";
 import { RECENT_COUNT } from "./timeline";
 import { formatSize, isMeasureDisk, scheduleRefresh } from "./workspace";
 
@@ -578,12 +579,16 @@ async function pressSummariesOn($: EngineInterface): Promise<void> {
       $.ui.toast(`sessionpad: summary lines stay off: ${result.deny}`);
       return;
     }
-    // This module's own change: its config.set hook doesn't see it.
-    useSummaryModel("haiku");
+    // This module's own change: its config.set hook doesn't see it. What
+    // was written counts, since another plugin's hook may have changed it.
+    const model = summaryModel(result.value);
+    useSummaryModel(model);
     await showOffer($, false);
-    await $.store.set(OFFER_KEY, { at: await $.clock.now() });
+    await rememberAnswer($);
     $.ui.toast(
-      "Summary lines are on: Haiku writes one after each turn. Set summaryModel to off in /config to stop."
+      model === null
+        ? "sessionpad: summary lines stay off: the setting was written as off."
+        : `Summary lines are on: ${model} writes one after each turn. Set summaryModel to off in /config to stop.`
     );
   });
 }
@@ -592,8 +597,22 @@ async function pressSummariesOn($: EngineInterface): Promise<void> {
 async function pressNotNow($: EngineInterface): Promise<void> {
   await guarded($, "hiding the offer", async () => {
     await showOffer($, false);
-    await $.store.set(OFFER_KEY, { at: await $.clock.now() });
+    await rememberAnswer($);
   });
+}
+
+/**
+ * Records that the offer was answered, so other sessions don't make it. A
+ * store that refuses (a full one) only means another session may ask again.
+ */
+async function rememberAnswer($: EngineInterface): Promise<void> {
+  try {
+    await $.store.set(OFFER_KEY, { at: await $.clock.now() });
+  } catch (error) {
+    $.ui.log(`sessionpad: the answer was not kept: ${String(error)}`, {
+      to: "debug",
+    });
+  }
 }
 
 /**

@@ -142,6 +142,88 @@ describe("summary lines are opt-in", () => {
     await ui.unmount();
   });
 
+  test("a value another plugin rewrites to off is followed", async ($, on) => {
+    const w = world(on);
+    w.configRewrite = "off";
+    await start($);
+    const ui = await $.ui.mount(paneTarget("desktop"));
+    await ui.press({ key: "tab-timeline" });
+    await ui.press({ key: "summaries-on" });
+    expect(w.toasts.join("\n")).toContain(
+      "stay off: the setting was written as off"
+    );
+    await runTurn($, w);
+    expect(w.modelCalls).toEqual([]);
+    await ui.press({ key: "tab-notes" });
+    await ui.unmount();
+  });
+
+  test("a store that refuses the answer still turns them on, or hides the card", async ($, on) => {
+    const w = world(on);
+    await start($);
+    w.storeFull = true;
+    const ui = await $.ui.mount(paneTarget("desktop"));
+    await ui.press({ key: "tab-timeline" });
+    await ui.press({ key: "summaries-on" });
+    expect(w.toasts.join("\n")).toContain("Summary lines are on");
+    expect(w.toasts.join("\n")).not.toContain("failed");
+    expect(w.logs.join("\n")).toContain("the answer was not kept");
+    await runTurn($, w);
+    expect(w.modelCalls).toHaveLength(1);
+    await ui.press({ key: "tab-notes" });
+    await ui.unmount();
+  });
+
+  test("Not now hides the card when the store refuses the answer", async ($, on) => {
+    const w = world(on);
+    await start($);
+    w.storeFull = true;
+    const ui = await $.ui.mount(paneTarget("desktop"));
+    await ui.press({ key: "tab-timeline" });
+    await ui.press({ key: "summaries-not-now" });
+    expect(await ui.find({ key: "summary-offer" })).toBeUndefined();
+    expect(w.toasts.join("\n")).not.toContain("failed");
+    await ui.press({ key: "tab-notes" });
+    await ui.unmount();
+  });
+
+  test("a /config change is handed back as written; a refused one changes nothing", async ($, on) => {
+    const w = world(on);
+    await start($);
+    w.configDeny = "settings are managed";
+    expect(await $.config.set(fromMenu("haiku", "off"))).toEqual({
+      deny: "settings are managed",
+    });
+    expect(w.store.has(OFFER_KEY)).toBe(false);
+    await runTurn($, w);
+    expect(w.modelCalls).toEqual([]);
+    const ui = await $.ui.mount(paneTarget("desktop"));
+    await ui.press({ key: "tab-timeline" });
+    expect(await ui.find({ key: "summary-offer" })).toBeDefined();
+    w.configDeny = undefined;
+    expect(await $.config.set(fromMenu("haiku", "off"))).toEqual({
+      value: "haiku",
+    });
+    await ui.press({ key: "tab-notes" });
+    await ui.unmount();
+  });
+
+  test("/resume and /branch ask the store again too", async ($, on) => {
+    const w = world(on);
+    await start($);
+    w.store.set(OFFER_KEY, { at: 1 });
+    for (const [n, source] of (["resume", "fork"] as const).entries()) {
+      w.sessionId = `33333333-aaaa-bbbb-cccc-00000000000${n + 1}`;
+      await $.classic.SessionStart({ source, session_id: w.sessionId });
+      await w.clock.settle();
+      const ui = await $.ui.mount(paneTarget("desktop"));
+      await ui.press({ key: "tab-timeline" });
+      expect(await ui.find({ key: "summary-offer" })).toBeUndefined();
+      await ui.press({ key: "tab-notes" });
+      await ui.unmount();
+    }
+  });
+
   test("with summaries on, nothing is offered", SUMMARIES, async ($, on) => {
     world(on);
     await start($);

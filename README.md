@@ -8,7 +8,7 @@ A Claude Code mod that gives every session a small notepad: a one-line headline 
 > [!NOTE]
 > **Summary lines spend some of your Claude usage, so they are off until you turn them on.** With them on, the mod asks Claude Haiku for a one-line summary after each turn. A call sends about 500 tokens and gets about 20 back. At the API prices of October 2026 that is about $0.00006 a turn on Haiku 5.5 ($0.10 and $0.50 per million tokens in and out), or about 6 cents per 1,000 turns; if your Claude Code's `haiku` is Haiku 4.5 ($1 and $5), ten times that. On a Pro or Max plan it counts against your usage limits instead of costing money, and a single turn of your own conversation usually uses thousands of times as much. The Timeline tab's last line shows the running total.
 >
-> To turn them on, press **Turn on summaries** in the Timeline tab, or set `summaryModel` to `haiku` in `/config` (or with `/plugin configure sessionpad@sessionpad`). To turn them off, set it back to `off`. While they are off, each turn's line in the Timeline is its prompt's first line, and the mod makes no model calls at all.
+> To turn them on, press **Turn on summaries** in the Timeline tab, or set `summaryModel` to `haiku` in `/config` (or with `/plugin configure sessionpad@sessionpad`). To turn them off, set it back to `off`. Sessions already open in other windows may keep the old setting until they start again. While they are off, each turn's line in the Timeline is its prompt's first line, and the mod makes no model calls at all.
 
 Status: alpha. Version 0.2.0, not released yet; 0.1.0 was released 2026-10-29, with all four milestones built (notes, timeline, workspace, pruning).
 
