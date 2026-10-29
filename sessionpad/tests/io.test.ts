@@ -1,5 +1,5 @@
 import { describe, expect, test } from "claude-code/testing";
-import type { EngineInterface, StateAddress } from "claude-code";
+import type { EngineInterface, PluginState, StateAddress } from "claude-code";
 
 import { ioOf } from "../hooks/register";
 
@@ -43,7 +43,15 @@ const KEYS = [
   "deleted",
   "usage",
   "offer",
-] as const;
+] as const satisfies readonly (keyof PluginState["sessionpad"])[];
+
+// true only while KEYS names every value the contract declares: one added
+// to the contract and not here makes the type false, and this fails to check.
+const isEveryKey: [
+  Exclude<keyof PluginState["sessionpad"], (typeof KEYS)[number]>,
+] extends [never]
+  ? true
+  : false = true;
 
 /** A state reference as `read` and `update` pass it, typed loosely. */
 const refOf = (address: StateAddress) =>
@@ -51,6 +59,7 @@ const refOf = (address: StateAddress) =>
 
 describe("ioOf's $.state", () => {
   test("each of the pad's values is read and written under its own key", async () => {
+    expect(isEveryKey).toBe(true);
     const { $, calls } = fakeEngine((name) =>
       name === "state.get"
         ? Promise.resolve({ value: "held", version: 3 })

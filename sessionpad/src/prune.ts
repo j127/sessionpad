@@ -218,7 +218,8 @@ async function isStillUnseen(
   const row = parseIndex(await io.store.get(INDEX_KEY))[id];
   if (row !== undefined && row.lastSeen >= before) return false;
   if (timelineDir === null) return true;
-  // Kept on one line: the directory's check reads $.noun.method(...) whole.
+  // The path has a line of its own so the call fits on one, from when this
+  // file held $ and the directory's check read $.noun.method(...) whole here.
   const path = `${timelineDir}/${fileName(id)}.json`;
   const file = await io.fs.stat(path).catch(() => undefined);
   return file === undefined || file.mtimeMs < before;

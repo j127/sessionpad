@@ -1,6 +1,7 @@
 // sessionpad: a notepad for each session. This module wires the hooks; the
-// pieces live in ../src (data in store.ts, $.state in state.ts, actions in
-// pad.ts, drawing in ui.tsx). They reach the engine through ioOf below.
+// pieces live in ../src (data in store.ts, $.state's atoms in state.ts,
+// actions in pad.ts, drawing in ui.tsx). They reach the engine through ioOf
+// below.
 
 import type {
   EngineInterface,
@@ -112,8 +113,12 @@ const OFFER = { plugin: "sessionpad", key: "offer" } as const;
 
 type PadState = PluginState["sessionpad"];
 
-/** The refusal for a value the pad doesn't keep in $.state. */
-const notPads = (ref: StateAddress): Promise<never> =>
+/**
+ * The refusal for a value the pad doesn't keep in $.state. `unhandled` is
+ * the key a switch below fell through with: a key added to the contract and
+ * not to the switch makes it a value, which doesn't type-check.
+ */
+const notPads = (ref: StateAddress, unhandled?: never): Promise<never> =>
   Promise.reject(
     new Error(
       `sessionpad: the pad keeps no state value ${ref.plugin}.${ref.key}`
@@ -129,7 +134,8 @@ function stateOf($: EngineInterface): Io["state"] {
     if (ref.plugin !== "sessionpad" || ref.id !== undefined) {
       return notPads(ref);
     }
-    switch (ref.key) {
+    const key = ref.key as keyof PadState;
+    switch (key) {
       case "tab":
         return $.state.get(TAB);
       case "headline":
@@ -149,38 +155,39 @@ function stateOf($: EngineInterface): Io["state"] {
       case "offer":
         return $.state.get(OFFER);
       default:
-        return notPads(ref);
+        return notPads(ref, key);
     }
   };
   const set = (
     ref: StateAddress,
-    value: unknown,
+    value: never,
     options: StateSetOptions = {}
   ): Promise<StateSetResult> => {
     if (ref.plugin !== "sessionpad" || ref.id !== undefined) {
       return notPads(ref);
     }
-    switch (ref.key) {
+    const key = ref.key as keyof PadState;
+    switch (key) {
       case "tab":
-        return $.state.set(TAB, value as PadState["tab"], options);
+        return $.state.set(TAB, value, options);
       case "headline":
-        return $.state.set(HEADLINE, value as PadState["headline"], options);
+        return $.state.set(HEADLINE, value, options);
       case "notes":
-        return $.state.set(NOTES, value as PadState["notes"], options);
+        return $.state.set(NOTES, value, options);
       case "recent":
-        return $.state.set(RECENT, value as PadState["recent"], options);
+        return $.state.set(RECENT, value, options);
       case "workspace":
-        return $.state.set(WORKSPACE, value as PadState["workspace"], options);
+        return $.state.set(WORKSPACE, value, options);
       case "editing":
-        return $.state.set(EDITING, value as PadState["editing"], options);
+        return $.state.set(EDITING, value, options);
       case "deleted":
-        return $.state.set(DELETED, value as PadState["deleted"], options);
+        return $.state.set(DELETED, value, options);
       case "usage":
-        return $.state.set(USAGE, value as PadState["usage"], options);
+        return $.state.set(USAGE, value, options);
       case "offer":
-        return $.state.set(OFFER, value as PadState["offer"], options);
+        return $.state.set(OFFER, value, options);
       default:
-        return notPads(ref);
+        return notPads(ref, key);
     }
   };
   // The engine's get and set are generic over the contract's keys; these

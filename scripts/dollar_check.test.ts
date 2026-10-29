@@ -116,6 +116,90 @@ describe("hooksProblems", () => {
   });
 });
 
+describe("hooksProblems, after the review", () => {
+  test("refuses $ spread into a call or used as a default value", () => {
+    const source = [
+      "function helper(...rest: unknown[]) {}",
+      "function f($: E) { helper(...$); }",
+      "function g($: E, a = $) {}",
+      "const h = ($: E, a = $) => a;",
+    ].join("\n");
+    expect(hookLines(source)).toEqual([2, 3, 4]);
+  });
+
+  test("refuses the engine held under a name other than $", () => {
+    const source = [
+      'import { loadSession } from "../src/pad";',
+      "function helper(engine: EngineInterface) {}",
+      "function named(engine, e, next) {}",
+      "export const register: Register = (on) => {",
+      '  on("session.start", (engine, e, next) => loadSession(engine));',
+      '  on("session.end", ({ ui }, e, next) => next(e));',
+      '  on("turn.start", ($, e, next) => next(e)).catch((x, e, next) => next(e));',
+      '  on("turn.complete", named);',
+      '  on("ui.render", imported);',
+      "};",
+    ].join("\n");
+    expect(hookLines(source)).toEqual([2, 5, 6, 7, 8, 9]);
+  });
+
+  test("refuses a registration that isn't a statement of its own line in register", () => {
+    const source = [
+      "export const register: Register = (on) => {",
+      '  for (const name of names) on("a", ($) => 1);',
+      '  if (isOn) on("b", ($) => 1);',
+      '  on("c", ($) => 1); on("d", ($) => 1);',
+      '  const kept = on("e", ($) => 1);',
+      "  on(eventName, ($) => 1);",
+      '  [1].forEach(() => { on("f", ($) => 1); });',
+      '  on("g", ($) => 1).then(() => 1);',
+      "  if (isOn)",
+      '    on("h", ($) => 1);',
+      "};",
+      'on("i", ($) => 1);',
+    ].join("\n");
+    expect(hookLines(source)).toEqual([2, 3, 4, 5, 6, 7, 8, 10, 12]);
+  });
+
+  test("allows a registration across lines, with its .catch", () => {
+    const source = [
+      "export const register: Register = (on, options) => {",
+      "  on(",
+      '    "classic.SessionStart",',
+      '    { source: ["clear", "resume"] },',
+      "    async ($, e, next) => {",
+      "      return next(e);",
+      "    }",
+      "  ).catch(($, e, next) => next(e)); // replays the result",
+      '  on("session.end", ($, e, next) => next(e));',
+      "};",
+    ].join("\n");
+    expect(hookLines(source)).toEqual([]);
+  });
+
+  test("reads a generic function's $ as its parameter", () => {
+    const source = [
+      "function helper<T>($: EngineInterface): T {",
+      "  return $.store.get('k') as T;",
+      "}",
+      "function caller($: EngineInterface) { helper<string>($); }",
+    ].join("\n");
+    // Passing $ with a type argument is refused, as the directory says.
+    expect(hookLines(source)).toEqual([4]);
+  });
+});
+
+describe("blankOut and JSX", () => {
+  test("a closing tag and a self-closing element aren't read as regexes", () => {
+    const code = blankOut(
+      '<Text>a</Text>; f($);\n<Box key="a" />; g($);\n<Box x={1} />; h($);'
+    );
+    expect(code).toContain("f($)");
+    expect(code).toContain("g($)");
+    expect(code).toContain("h($)");
+  });
+});
+
 describe("topLevelFunctions", () => {
   test("names the functions declared at the top, not inner ones or consts", () => {
     const code = [
@@ -140,8 +224,19 @@ describe("moduleProblems", () => {
       "  return $.store.get('k');",
       "}",
     ].join("\n");
+    // Line 5 twice: $ taken as a parameter, and the engine's type named.
     expect(moduleProblems(source, "m.ts").map((one) => one.line)).toEqual([
-      5, 6,
+      5, 5, 6,
     ]);
+  });
+
+  test("lets src/io.ts name the engine's type, which Io is made from", () => {
+    const source = 'import type { EngineInterface } from "claude-code";';
+    expect(moduleProblems(source, "sessionpad/src/io.ts")).toEqual([]);
+    expect(moduleProblems(source, "sessionpad/src/pad.ts")).toHaveLength(1);
+  });
+
+  test("refuses $ spread into a call", () => {
+    expect(moduleProblems("f(...$);", "m.ts")).toHaveLength(1);
   });
 });

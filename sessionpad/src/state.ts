@@ -1,9 +1,10 @@
 // The values the pane and the band draw from. They live in $.state, so they
 // survive a hot reload and a write redraws exactly the sites that read them.
 //
-// Every read and write of $.state goes through this file: `claude plugin
-// validate` reads each state reference where it is used, so the atoms and the
-// calls on them sit side by side.
+// Every read and write of $.state goes through this file's atoms. The calls
+// on $.state themselves are in hooks/register.ts (stateOf), where `claude
+// plugin validate` reads each state reference: a $.state call takes its
+// plugin and key written out in the hooks module.
 
 import { atom, read, update } from "claude-code";
 

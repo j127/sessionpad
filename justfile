@@ -15,10 +15,11 @@ check: format_check validate type_check dollar_check script_test test
 # reads each line with its comments taken off; it doesn't see a $ taken
 # apart by destructuring, a call split between noun and method, or anything
 # after a "//" inside a string on the same line.
-# Then scripts/dollar_check.ts applies the directory's whole rule for $, the
+# Then scripts/dollar_check.ts applies the directory's rule for $ and on, the
 # way it reads the source: in the hooks module, $ goes only to a function
-# declared at the top of that file, and no module in src holds $ at all. It
-# lists every place at once, where the developer portal shows ten a round.
+# declared at the top of that file, each registration is on("event", hook) on
+# a line of its own, and no module in src holds $ at all. It lists every
+# place at once, where the developer portal shows ten a round.
 dollar_check:
   #!/usr/bin/env bash
   set -uo pipefail
