@@ -1,5 +1,6 @@
 import { describe, expect, test } from "claude-code/testing";
 
+import { describeEdit, describeRestore } from "../src/pad";
 import { MAX_NOTES, MAX_NOTE_LENGTH, notesKey } from "../src/store";
 
 import {
@@ -299,6 +300,55 @@ describe("editing a note", () => {
     await ui.unmount();
   });
 
+  test("while one note is open, the others offer no Edit", async ($, on) => {
+    const w = world(on);
+    await start($);
+    await runCommand($, "note", "open me");
+    await runCommand($, "note", "wait your turn");
+    const [open, other] = w.pad(SESSION).notes;
+    for (const surface of SURFACES) {
+      const ui = await $.ui.mount(paneTarget(surface));
+      await ui.press({ key: `edit-${open!.id}` });
+      expect(await ui.find({ key: `edit-${other!.id}` })).toBeUndefined();
+      // Its other buttons stay.
+      expect(await ui.find({ key: `delete-${other!.id}` })).toBeDefined();
+      await ui.press({ key: "cancel-edit" });
+      expect(await ui.find({ key: `edit-${other!.id}` })).toBeDefined();
+      await ui.unmount();
+    }
+  });
+
+  test("an open note deleted elsewhere doesn't keep Edit away", async ($, on) => {
+    const w = world(on);
+    await start($);
+    await runCommand($, "note", "open me");
+    await runCommand($, "note", "stays");
+    const [open, stays] = w.pad(SESSION).notes;
+    const ui = await $.ui.mount(paneTarget("desktop"));
+    await ui.press({ key: `edit-${open!.id}` });
+    // Another process rewrites the pad without it; a new note shows the change.
+    w.store.set(notesKey(SESSION), { headline: "", notes: [stays] });
+    await runCommand($, "note", "later");
+    expect(await ui.find({ key: "edit-note" })).toBeUndefined();
+    expect(await ui.find({ key: `edit-${stays!.id}` })).toBeDefined();
+    await ui.unmount();
+  });
+
+  test("a save the store refuses keeps the field open", async ($, on) => {
+    const w = world(on);
+    await start($);
+    await runCommand($, "note", "unchanged");
+    const id = w.pad(SESSION).notes[0]!.id;
+    const ui = await $.ui.mount(paneTarget("desktop"));
+    await ui.press({ key: `edit-${id}` });
+    w.storeFull = true;
+    await ui.input({ key: "edit-note", text: "will not save" });
+    expect(await ui.find({ key: "edit-note" })).toBeDefined();
+    expect(w.pad(SESSION).notes[0]!.text).toBe("unchanged");
+    expect(w.toasts.join("\n")).toContain("saving the note failed");
+    await ui.unmount();
+  });
+
   test("saving a note that was deleted meanwhile says so", async ($, on) => {
     const w = world(on);
     await start($);
@@ -430,12 +480,92 @@ describe("undoing a delete", () => {
     expect(w.pad(SESSION).notes.some((one) => one.id === "n5")).toBe(false);
     expect(await ui.find({ key: "undo-delete" })).toBeDefined();
     expect(w.toasts.join("\n")).toContain("was not put back");
-    // Room again: Undo now works.
+    expect(
+      await ui.find({ type: "Text", text: /^The pad is full: delete another/ })
+    ).toBeDefined();
+    // The delete that makes room keeps the waiting card, as the toast says.
     await ui.press({ key: "delete-n0" });
     expect(
       (await ui.find({ type: "Text", text: /^Note deleted:/ }))?.text
-    ).toBe("Note deleted: note 0");
+    ).toBe("Note deleted: note 5");
+    await ui.press({ key: "undo-delete" });
+    const ids = w.pad(SESSION).notes.map((one) => one.id);
+    expect(ids).toHaveLength(MAX_NOTES);
+    expect(ids.indexOf("n5")).toBe(5);
+    expect(ids).not.toContain("n0");
+    expect(await ui.find({ key: "undo-delete" })).toBeUndefined();
+    // Undo works as before for the next delete.
+    await ui.press({ key: "delete-n1" });
+    expect(
+      (await ui.find({ type: "Text", text: /^Note deleted:/ }))?.text
+    ).toBe("Note deleted: note 1");
     await ui.unmount();
+  });
+
+  test("a note put back meanwhile isn't added twice", async ($, on) => {
+    const w = world(on);
+    await start($);
+    await runCommand($, "note", "once");
+    await runCommand($, "note", "kept");
+    const pad = w.pad(SESSION);
+    const ui = await $.ui.mount(paneTarget("desktop"));
+    await ui.press({ key: `delete-${pad.notes[0]!.id}` });
+    // Another process writes the note back before Undo is pressed.
+    w.store.set(notesKey(SESSION), pad);
+    await ui.press({ key: "undo-delete" });
+    expect(w.pad(SESSION).notes).toEqual(pad.notes);
+    expect(await ui.find({ key: "undo-delete" })).toBeUndefined();
+    expect(w.toasts).toEqual([]);
+    await ui.unmount();
+  });
+
+  test("a delete the store refuses leaves no Undo card", async ($, on) => {
+    const w = world(on);
+    await start($);
+    await runCommand($, "note", "stuck");
+    await runCommand($, "note", "also stuck");
+    const ui = await $.ui.mount(paneTarget("desktop"));
+    w.storeFull = true;
+    await ui.press({ key: `delete-${w.pad(SESSION).notes[0]!.id}` });
+    expect(w.pad(SESSION).notes).toHaveLength(2);
+    expect(await ui.find({ key: "undo-delete" })).toBeUndefined();
+    expect(w.toasts.join("\n")).toContain("deleting the note failed");
+    await ui.unmount();
+  });
+
+  test("/clear, /resume and /branch start without the Undo card or an open note", async ($, on) => {
+    const w = world(on);
+    await start($);
+    for (const text of ["one", "two", "three"]) {
+      await runCommand($, "note", text);
+    }
+    const [one, two] = w.pad(SESSION).notes;
+    const before = await $.ui.mount(paneTarget("desktop"));
+    await before.press({ key: `delete-${one!.id}` });
+    await before.press({ key: `edit-${two!.id}` });
+    await before.unmount();
+    w.sessionId = "22222222-aaaa-bbbb-cccc-000000000002";
+    await $.classic.SessionStart({ source: "clear", session_id: w.sessionId });
+    await w.clock.settle();
+    const after = await $.ui.mount(paneTarget("desktop"));
+    expect(await after.find({ key: "undo-delete" })).toBeUndefined();
+    expect(await after.find({ key: "edit-note" })).toBeUndefined();
+    expect(await after.find({ key: `edit-${two!.id}` })).toBeDefined();
+    await after.unmount();
+  });
+
+  test("what each outcome says", () => {
+    expect(describeRestore("full")).toContain("can't be undone");
+    expect(describeRestore("present")).toBe("That note is already back.");
+    expect(describeRestore("restored")).toBe("Note restored.");
+    expect(describeEdit({ status: "saved", isShortened: false })).toBe(
+      "Saved."
+    );
+    expect(describeEdit({ status: "saved", isShortened: true })).toBe(
+      `Saved, cut to its first ${MAX_NOTE_LENGTH} characters.`
+    );
+    expect(describeEdit({ status: "blank" })).toContain("can't be empty");
+    expect(describeEdit({ status: "missing" })).toContain("was deleted");
   });
 });
 
@@ -592,6 +722,13 @@ describe("the look", () => {
     expect(
       await ui.find({ type: "Text", text: /^you · \d{4}-\d\d-\d\d \d\d:\d\d$/ })
     ).toBeDefined();
+    await ui.press({ key: `edit-${long}` });
+    await ui.input({ key: "edit-note", text: "kept, edited" });
+    expect(w.pad(SESSION).notes[0]!.text).toBe("kept, edited");
+    await ui.press({ key: `delete-${long}` });
+    expect(w.pad(SESSION).notes).toEqual([]);
+    await ui.press({ key: "undo-delete" });
+    expect(w.pad(SESSION).notes.map((one) => one.id)).toEqual([long]);
     await ui.unmount();
   });
 });

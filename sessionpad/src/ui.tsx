@@ -52,7 +52,10 @@ import {
   readRecent,
   readTab,
   readWorkspace,
-  showDeleted,
+  closeEditing,
+  forgetDeleted,
+  holdDeleted,
+  keepDeleted,
   showDraft,
   showEditing,
   showEditingText,
@@ -142,11 +145,14 @@ async function submitNote($: EngineInterface, value: string): Promise<void> {
 async function pressDelete($: EngineInterface, note: Note): Promise<void> {
   await guarded($, "deleting the note", async () => {
     const removed = await deleteThisNote($, note.id);
-    if (removed !== null) await showDeleted($, removed);
+    if (removed !== null) await keepDeleted($, removed);
   });
 }
 
-/** Puts the deleted note back; a full pad keeps the Undo card up. */
+/**
+ * Puts the deleted note back. A full pad keeps the Undo card up, waiting:
+ * the next delete makes its room rather than taking the card over.
+ */
 async function pressUndo(
   $: EngineInterface,
   deleted: DeletedNote
@@ -154,10 +160,11 @@ async function pressUndo(
   await guarded($, "restoring the note", async () => {
     const result = await restoreDeletedNote($, deleted);
     if (result === "full") {
+      await holdDeleted($, deleted.note.id);
       $.ui.toast(describeRestore(result));
       return;
     }
-    await showDeleted($, null);
+    await forgetDeleted($, deleted.note.id);
   });
 }
 
@@ -176,7 +183,7 @@ async function submitEdit(
       $.ui.toast(describeEdit(result));
       return;
     }
-    await showEditing($, null);
+    await closeEditing($, id);
     if (result.status === "missing" || result.isShortened) {
       $.ui.toast(describeEdit(result));
     }
@@ -282,6 +289,11 @@ async function renderNotesTab(
   const editing = await readEditing($);
   const deleted = await readDeleted($);
   const now = await $.clock.now();
+  // One note opens at a time: while one is, the others offer no Edit, so its
+  // typed text can't be dropped by opening another. An open id whose note is
+  // gone (deleted by another process) holds nothing open.
+  const isOneOpen =
+    editing !== null && notes.some((note) => note.id === editing.id);
 
   // Desktop sets the headline apart by size on a filled card; a terminal has
   // one size and no soft fill, so there it takes the accent frame.
@@ -318,8 +330,13 @@ async function renderNotesTab(
       paddingX={1}
       {...cardLook(isTerminal, "diffRemovedDimmed")}
     >
-      <Box flexGrow={1} flexShrink={1}>
+      <Box flexGrow={1} flexShrink={1} flexDirection="column">
         <Text wrap="wrap">Note deleted: {preview(gone.note.text)}</Text>
+        {gone.isWaiting === true ? (
+          <Text size="footnote" dimColor wrap="wrap">
+            The pad is full: delete another note to make room, then press Undo.
+          </Text>
+        ) : null}
       </Box>
       <Button
         key="undo-delete"
@@ -354,7 +371,7 @@ async function renderNotesTab(
             )
           }
         />
-        {Input === undefined ? null : (
+        {Input === undefined || isOneOpen ? null : (
           <Button
             key={`edit-${note.id}`}
             label="Edit"
@@ -407,7 +424,7 @@ async function renderNotesTab(
             key="cancel-edit"
             label="Cancel"
             onPress={() =>
-              guarded($, "closing the note", () => showEditing($, null))
+              guarded($, "closing the note", () => closeEditing($, note.id))
             }
           />
         </Box>

@@ -130,7 +130,9 @@ export async function editThisNote(
 ): Promise<EditResult> {
   const clean = cleanNote(text);
   if (clean === "") return { status: "blank" };
-  let isFound = false;
+  // Set by the change, which runs once; `as` keeps TypeScript from reading
+  // it as always false.
+  let isFound = false as boolean;
   const pad = await changePad($, await $.session.id(), (pad) => {
     isFound = pad.notes.some((note) => note.id === id);
     return isFound ? editNote(pad, id, clean) : pad;
@@ -201,7 +203,7 @@ export async function restoreDeletedNote(
 /** One line saying why an Undo did nothing. */
 export function describeRestore(result: RestoreResult): string {
   if (result === "full") {
-    return `The pad already holds ${MAX_NOTES} notes, so the note was not put back. Delete one to make room, then press Undo again.`;
+    return `The pad already holds ${MAX_NOTES} notes, so the note was not put back. Delete another note to make room (that delete can't be undone), then press Undo again.`;
   }
   return result === "present" ? "That note is already back." : "Note restored.";
 }

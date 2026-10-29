@@ -18,7 +18,7 @@ import {
   readThisPad,
   setThisHeadline,
 } from "../src/pad";
-import { readHeadline, readTab } from "../src/state";
+import { forgetPaneEdits, readHeadline, readTab } from "../src/state";
 import { PRUNE_DELAY_MS, pruneOld, retentionDays } from "../src/prune";
 import { forgetRenewals, touchSeen } from "../src/store";
 import { summaryModel } from "../src/summary";
@@ -489,6 +489,9 @@ export const register: Register = (on, options) => {
         });
       }
       // $.state was reset, the Workspace tab's with it, whatever the pad did.
+      // The Undo card and an open note belonged to the pad left behind, so
+      // they go too, should a host keep $.state.
+      await forgetPaneEdits($).catch(() => undefined);
       await showWorkspace($);
       return next(e);
     }

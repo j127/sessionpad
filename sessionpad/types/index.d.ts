@@ -37,6 +37,11 @@ export type DeletedNote = {
   note: Note;
   /** Where it stood in the list, oldest first. */
   index: number;
+  /**
+   * Undo was refused because the pad was full: the next delete makes room for
+   * this note instead of taking its place.
+   */
+  isWaiting?: boolean;
 };
 
 /** Tokens a turn spent, as the engine reported them. */

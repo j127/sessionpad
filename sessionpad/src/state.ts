@@ -158,10 +158,57 @@ export async function showEditingText(
   );
 }
 
-/** Keeps the note Undo would bring back, or forgets it with null. */
-export async function showDeleted(
+/**
+ * Closes the open note, if it is still this one: a press drawn before another
+ * note opened must not close that one.
+ */
+export async function closeEditing(
   $: EngineInterface,
-  deleted: DeletedNote | null
+  id: string
 ): Promise<void> {
-  await update($, deletedAtom, () => deleted);
+  await update($, editingAtom, (editing) =>
+    editing?.id === id ? null : editing
+  );
+}
+
+/**
+ * Keeps a deleted note for Undo, in place of the one kept before; a note
+ * whose Undo the full pad refused stays, since this delete made its room.
+ */
+export async function keepDeleted(
+  $: EngineInterface,
+  deleted: DeletedNote
+): Promise<void> {
+  await update($, deletedAtom, (kept) =>
+    kept?.isWaiting === true ? kept : deleted
+  );
+}
+
+/** Marks the kept note as waiting for room, if it is still this one. */
+export async function holdDeleted(
+  $: EngineInterface,
+  noteId: string
+): Promise<void> {
+  await update($, deletedAtom, (kept) =>
+    kept?.note.id === noteId ? { ...kept, isWaiting: true } : kept
+  );
+}
+
+/**
+ * Forgets the kept note once it is back, if it is still this one: an Undo
+ * drawn before a newer delete must not take that delete's card away.
+ */
+export async function forgetDeleted(
+  $: EngineInterface,
+  noteId: string
+): Promise<void> {
+  await update($, deletedAtom, (kept) =>
+    kept?.note.id === noteId ? null : kept
+  );
+}
+
+/** Drops the open note and the kept one, for a session that starts afresh. */
+export async function forgetPaneEdits($: EngineInterface): Promise<void> {
+  await update($, editingAtom, () => null);
+  await update($, deletedAtom, () => null);
 }
