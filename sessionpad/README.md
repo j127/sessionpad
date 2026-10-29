@@ -5,7 +5,7 @@ A notepad for each Claude Code session. Give a session a one-line headline that 
 > [!WARNING]
 > **Session Pad is alpha software. Use it at your own risk.** It is new, and a later version may change how it stores your notes. Keep anything you can't lose somewhere else as well; `/pad-export` writes a session's notes and timeline to a Markdown file.
 
-Session Pad is a Claude Code mod: it runs in Claude Code 2.1.299 or later, in the Desktop app's Code tab or a terminal, and not in claude.ai chat or Cowork.
+Session Pad is a Claude Code mod: it runs in Claude Code 2.1.299 or later, in the Desktop app's Code tab or a terminal, and not in claude.ai chat, Cowork or the Desktop app's WSL sessions.
 
 ## What it adds
 
@@ -22,8 +22,16 @@ Session Pad is a Claude Code mod: it runs in Claude Code 2.1.299 or later, in th
 
 - **Nothing leaves your machine unless you turn on summary lines.** The mod makes no network calls of its own.
 - **Summary lines are off until you turn them on**, with **Turn on summaries** in the Timeline tab or the `summaryModel` setting. With them on, after each turn the mod asks Claude Haiku, on your own plan or API key, for a one-line summary. It sends the prompt's first 200 characters, the start of Claude's final answer (1,500 characters at most), the names of the files written (not their paths or contents) and the number of commands run. A call is about 500 tokens in and 20 out, roughly 6 cents per 1,000 turns on Haiku 5.5 at the API prices of October 2026 (ten times that if your Claude Code's `haiku` is Haiku 4.5); the Timeline tab shows the running total.
-- **Programs it runs:** `git`, read-only, in the session's folder, for the branch and the worktrees; `du -sk` from your home folder, in the background, to measure worktree sizes (the `measureDisk` setting turns this off); and `rm`, only on the mod's own timeline files, when old sessions are pruned.
-- **What it stores, all on your machine:** headlines and notes in the mod's key-value store under `~/.claude/plugins/store/`; one timeline file a session under `~/.claude/sessionpad/timeline/`; exports under `~/.claude/sessionpad/exports/` unless you name a path. The two `~/.claude` folders are under `CLAUDE_CONFIG_DIR` instead when that is set. A session nobody has opened for `retentionDays` (90 by default) is pruned; exports are never touched.
+- **What it watches in the session:** it hooks each prompt you send, each turn's start and end, and each Edit, Write, NotebookEdit and Bash call, to write the timeline: the prompt's first 200 characters, the paths of the files written (up to 25 a turn) and how many commands ran. These hooks only observe: they pass every prompt and call on unchanged, and never block one.
+- **Programs it runs:** `git`, read-only, in the session's folder, for the branch and the worktrees; `du -sk` from your home folder (the root folder where there is none), in the background, to measure worktree sizes (the `measureDisk` setting turns this off); and `rm`, only on the mod's own timeline files, when old sessions are pruned (where there is no `rm`, as on Windows, those files are emptied instead).
+- **What it stores, all on your machine:**
+  - in the mod's key-value store, a JSON file under `~/.claude/plugins/store/`: each session's headline and notes; an index of sessions, with each one's working folder, repository root and when it was last seen; each worktree's measured size, keyed by its path; the running total of summary calls; whether the summary offer was answered; and when the last prune ran;
+  - one timeline file a session under `~/.claude/sessionpad/timeline/`, each entry holding when the turn ended and how long it ran, the prompt's first 200 characters, the summary line, up to 25 paths written, the number of commands, the branch, the worktree's path and the turn's token counts;
+  - exports under `~/.claude/sessionpad/exports/` unless you name a path.
+
+  The two `~/.claude` folders are under `CLAUDE_CONFIG_DIR` instead when that is set.
+
+- **What it deletes:** a session nobody has opened for `retentionDays` (90 by default) loses its pad, its timeline file (and any copy of one put aside as unreadable) and its index row; sizes measured that long ago go too, and so do timeline files that old that no session in the index owns. Exports are never touched.
 - **Settings it changes:** only its own `summaryModel`, when you press **Turn on summaries**.
 
 ## Settings
@@ -38,7 +46,9 @@ Session Pad is a Claude Code mod: it runs in Claude Code 2.1.299 or later, in th
 
 ## Install, update, uninstall
 
-In a terminal session: `/plugin install sessionpad --marketplace j127/sessionpad`. In the Desktop app: **+** next to the prompt box, **Plugins**, **Add marketplace** with `j127/sessionpad`, then **Add plugin**. Update with `claude plugin update sessionpad@sessionpad`, and uninstall with `claude plugin uninstall sessionpad@sessionpad`; uninstalling leaves your notes and timelines where they are.
+Added from the plugin directory on claude.ai, it reaches Claude Code through your account (as `sessionpad@synced`), and you update or remove it there.
+
+From the author's own marketplace instead: in a terminal session, `/plugin install sessionpad --marketplace j127/sessionpad`; in the Desktop app, **+** next to the prompt box, **Plugins**, **Add marketplace** with `j127/sessionpad`, then **Add plugin**. That copy updates with `claude plugin update sessionpad@sessionpad` and uninstalls with `claude plugin uninstall sessionpad@sessionpad`. Uninstalling leaves your notes and timelines where they are.
 
 The full README, with the design notes, how to run the tests and what each setting does in detail, is at [github.com/j127/sessionpad](https://github.com/j127/sessionpad).
 
