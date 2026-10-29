@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.2.1 (not released yet)
+## 0.3.0 (not released yet)
+
+### Added
+
+- An **Open pad** button in the band above the prompt, in the Desktop app, in every session: the pane opens with a click instead of `/pad`. A terminal's band is unchanged. `showBand` hides it.
 
 ### Fixed
 

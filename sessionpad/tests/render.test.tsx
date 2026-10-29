@@ -127,11 +127,58 @@ describe("the headline band", () => {
     }
   });
 
-  test("draws nothing of its own without a headline", async ($, on) => {
+  test("in a terminal, draws nothing of its own without a headline", async ($, on) => {
     world(on);
     await start($);
     const ui = await $.ui.mount(bandTarget("terminal"));
     expect(await ui.find({ type: "Text", text: /^pad:/ })).toBeUndefined();
+    expect(await ui.find({ key: "open-pad" })).toBeUndefined();
+    await ui.unmount();
+  });
+
+  test("on Desktop, an Open pad button is always there, and opens the pad", async ($, on) => {
+    const w = world(on, { beneath: "another mod" });
+    await start($);
+    for (const columns of [30, 120]) {
+      const ui = await $.ui.mount(bandTarget("desktop", columns));
+      expect(await ui.find({ type: "Text", text: /^pad:/ })).toBeUndefined();
+      expect((await ui.find({ key: "open-pad" }))?.props.label).toBe(
+        "Open pad"
+      );
+      expect(
+        await ui.find({ type: "Text", text: /another mod/ })
+      ).toBeDefined();
+      await ui.unmount();
+    }
+    await runCommand($, "headline", "Ship the beta");
+    const ui = await $.ui.mount(bandTarget("desktop"));
+    expect((await ui.find({ type: "Text", text: /^pad:/ }))?.text).toBe(
+      "pad: Ship the beta"
+    );
+    await ui.press({ key: "open-pad" });
+    expect(w.opened).toEqual(["sessionpad"]);
+    expect(w.toasts).toEqual([]);
+    await ui.unmount();
+  });
+
+  test("a terminal shows the headline but no button, which it can't click", async ($, on) => {
+    world(on);
+    await start($);
+    await runCommand($, "headline", "Typed only");
+    const ui = await $.ui.mount(bandTarget("terminal"));
+    expect((await ui.find({ type: "Text", text: /^pad:/ }))?.text).toBe(
+      "pad: Typed only"
+    );
+    expect(await ui.find({ key: "open-pad" })).toBeUndefined();
+    await ui.unmount();
+  });
+
+  test("Open pad says when the pane waits for room", async ($, on) => {
+    const w = world(on, { placed: false });
+    await start($);
+    const ui = await $.ui.mount(bandTarget("desktop"));
+    await ui.press({ key: "open-pad" });
+    expect(w.toasts.join("\n")).toContain("not drawn yet");
     await ui.unmount();
   });
 
@@ -142,9 +189,12 @@ describe("the headline band", () => {
       world(on);
       await start($);
       await runCommand($, "headline", "Hidden");
-      const ui = await $.ui.mount(bandTarget("desktop"));
-      expect(await ui.find({ type: "Text", text: /^pad:/ })).toBeUndefined();
-      await ui.unmount();
+      for (const surface of SURFACES) {
+        const ui = await $.ui.mount(bandTarget(surface));
+        expect(await ui.find({ type: "Text", text: /^pad:/ })).toBeUndefined();
+        expect(await ui.find({ key: "open-pad" })).toBeUndefined();
+        await ui.unmount();
+      }
     }
   );
 
@@ -152,9 +202,12 @@ describe("the headline band", () => {
     world(on);
     await start($);
     await runCommand($, "headline", "Hidden by survey");
-    const ui = await $.ui.mount(bandTarget("terminal", 80, true));
-    expect(await ui.find({ type: "Text", text: /^pad:/ })).toBeUndefined();
-    await ui.unmount();
+    for (const surface of SURFACES) {
+      const ui = await $.ui.mount(bandTarget(surface, 80, true));
+      expect(await ui.find({ type: "Text", text: /^pad:/ })).toBeUndefined();
+      expect(await ui.find({ key: "open-pad" })).toBeUndefined();
+      await ui.unmount();
+    }
   });
 });
 

@@ -838,22 +838,66 @@ function turnBefore(
 }
 
 /** One dim line, `pad: <headline>`, above whatever else draws in the band. */
+/** Opens the pad beside the transcript, or brings it forward. */
+export async function openPane($: EngineInterface): Promise<{ text?: string }> {
+  const opened = await $.ui.open({
+    id: PANE_ID,
+    title: PANE_TITLE,
+    focus: true,
+  });
+  // Opening on the Workspace tab is opening the tab.
+  if ((await readTab($).catch(() => "notes")) === "workspace") {
+    scheduleRefresh($, "stale");
+  }
+  return opened.isPlaced
+    ? {}
+    : { text: `The pad is open but not drawn yet: ${opened.reason}` };
+}
+
+/** Whether the band draws even with no headline: everywhere it can be clicked. */
+export const isBandAlways = (e: BandInput): boolean => e.surface !== "terminal";
+
+/**
+ * The band above the prompt: `pad: <headline>` when there is one, and,
+ * where the band can be clicked (not a terminal), an Open pad button at its
+ * right, since the app has no place a mod can put one in its own toolbar.
+ */
 export function renderBand(
   $: EngineInterface,
   e: BandInput,
   headline: string,
   beneath: RenderElement
 ): RenderElement {
-  const { Box, Text } = $.ui.resolve(e);
+  const { Box, Text, Button } = $.ui.resolve(e);
+  const line =
+    headline === "" ? null : (
+      <Text dimColor wrap="truncate-end">
+        pad: {headline}
+      </Text>
+    );
   // The width goes on the line's own Box: the band refuses an engine node,
   // `beneath`, under a Box with a width.
   return (
     <Box flexDirection="column">
-      <Box width="100%">
-        <Text dimColor wrap="truncate-end">
-          pad: {headline}
-        </Text>
-      </Box>
+      {isBandAlways(e) ? (
+        <Box width="100%" flexDirection="row" columnGap={1}>
+          <Box flexGrow={1} flexShrink={1}>
+            {line}
+          </Box>
+          <Button
+            key="open-pad"
+            label="Open pad"
+            onPress={() =>
+              guarded($, "opening the pad", async () => {
+                const opened = await openPane($);
+                if (opened.text !== undefined) $.ui.toast(opened.text);
+              })
+            }
+          />
+        </Box>
+      ) : (
+        <Box width="100%">{line}</Box>
+      )}
       {beneath}
     </Box>
   );
