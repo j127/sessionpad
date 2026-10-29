@@ -36,6 +36,7 @@ import type {
 } from "../types";
 import {
   editDraftText,
+  emptyNoteField,
   forgetEditDraft,
   forgetEditDrafts,
   keepEditDraft,
@@ -152,11 +153,9 @@ async function submitNote($: EngineInterface, value: string): Promise<void> {
   await guarded($, "adding the note", async () => {
     const added = await addThisNote($, value, "user");
     if (added.status === "added" || added.status === "blank") {
-      keepNoteDraft("");
-      // Drawn again to empty the field: a field holds the value it is drawn
-      // with "until the hook draws another", any draw, so "" empties it even
-      // though typing drew nothing since. An added note would redraw anyway.
-      $.ui.invalidate("ui.render");
+      // What was submitted is what the field holds, whatever onInput saw.
+      keepNoteDraft(value);
+      emptyNoteField($);
     }
     const isQuiet =
       added.status === "blank" ||

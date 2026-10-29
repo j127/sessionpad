@@ -9,6 +9,14 @@
 // empties, and a note open for editing stays open but shows its own text
 // again, losing what was typed in it and not saved.
 
+import type { EngineInterface } from "claude-code";
+
+/**
+ * The wait between the two draws that empty the note field: longer than the
+ * tenth of a second redraws are held to, so the two aren't folded into one.
+ */
+export const EMPTY_GAP_MS = 250;
+
 let noteDraft = "";
 let editDraft: { id: string; text: string } | null = null;
 
@@ -38,8 +46,20 @@ export function forgetEditDrafts(): void {
   editDraft = null;
 }
 
-/** Drops both, for a session that starts afresh (/clear, /resume, /branch). */
-export function forgetDrafts(): void {
-  noteDraft = "";
-  editDraft = null;
+/**
+ * Empties the note field. A field takes the value it is drawn with only when
+ * that value changed since its last draw (seen in the Desktop app), and
+ * typing draws nothing, so the field may last have been drawn empty, and
+ * drawing it empty again would leave the typed text in it. So it is drawn
+ * once with what it holds, then, once that draw is out, empty. If more is
+ * typed meanwhile, the field keeps it.
+ */
+export function emptyNoteField($: EngineInterface): void {
+  const held = noteDraft;
+  $.ui.invalidate("ui.render");
+  $.clock.after(EMPTY_GAP_MS, () => {
+    if (noteDraft !== held) return;
+    noteDraft = "";
+    $.ui.invalidate("ui.render");
+  });
 }

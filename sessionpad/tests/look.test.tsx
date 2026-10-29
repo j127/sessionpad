@@ -2,6 +2,7 @@ import { describe, expect, test } from "claude-code/testing";
 
 import { describeEdit, describeRestore } from "../src/pad";
 import { MAX_NOTES, MAX_NOTE_LENGTH, notesKey } from "../src/store";
+import { EMPTY_GAP_MS } from "../src/drafts";
 import { FILL } from "../src/ui";
 
 import {
@@ -81,20 +82,50 @@ describe("the note field", () => {
     await ui.unmount();
   });
 
-  test("empties once a note is added", async ($, on) => {
-    world(on);
+  test("empties once a note is added, drawn with its text and then empty", async ($, on) => {
+    const w = world(on);
     await start($);
     for (const surface of SURFACES) {
       const ui = await $.ui.mount(paneTarget(surface));
       await ui.input({ key: "add-note", text: "first", kind: "change" });
       await ui.input({ key: "add-note", text: "first" });
+      // A field takes a value only when it changes, and it was last drawn
+      // empty: so first it is drawn with what it holds, then empty.
+      expect((await ui.find({ key: "add-note" }))?.props.value).toBe("first");
+      await w.clock.advance(EMPTY_GAP_MS);
       expect((await ui.find({ key: "add-note" }))?.props.value).toBe("");
       await ui.unmount();
     }
   });
 
+  test("a note sent with no typing seen first is still drawn with its text", async ($, on) => {
+    const w = world(on);
+    await start($);
+    const ui = await $.ui.mount(paneTarget("desktop"));
+    await ui.input({ key: "add-note", text: "pasted and sent" });
+    expect((await ui.find({ key: "add-note" }))?.props.value).toBe(
+      "pasted and sent"
+    );
+    await w.clock.advance(EMPTY_GAP_MS);
+    expect((await ui.find({ key: "add-note" }))?.props.value).toBe("");
+    await ui.unmount();
+  });
+
+  test("typing during the gap keeps what was typed", async ($, on) => {
+    const w = world(on);
+    await start($);
+    const ui = await $.ui.mount(paneTarget("desktop"));
+    await ui.input({ key: "add-note", text: "first" });
+    await ui.input({ key: "add-note", text: "firstx", kind: "change" });
+    await w.clock.advance(EMPTY_GAP_MS);
+    await ui.press({ key: "tab-timeline" });
+    await ui.press({ key: "tab-notes" });
+    expect((await ui.find({ key: "add-note" }))?.props.value).toBe("firstx");
+    await ui.unmount();
+  });
+
   test("a blank note empties the field too", async ($, on) => {
-    world(on);
+    const w = world(on);
     await start($);
     const ui = await $.ui.mount(paneTarget("desktop"));
     await ui.input({ key: "add-note", text: "   ", kind: "change" });
@@ -102,6 +133,7 @@ describe("the note field", () => {
     await ui.press({ key: "tab-notes" });
     expect((await ui.find({ key: "add-note" }))?.props.value).toBe("   ");
     await ui.input({ key: "add-note", text: "   " });
+    await w.clock.advance(EMPTY_GAP_MS);
     expect((await ui.find({ key: "add-note" }))?.props.value).toBe("");
     await ui.unmount();
   });
@@ -142,6 +174,11 @@ describe("the note field", () => {
       w.sessionId = `22222222-aaaa-bbbb-cccc-00000000000${n + 2}`;
       await $.classic.SessionStart({ source, session_id: w.sessionId });
       await w.clock.settle();
+      // Drawn with what it holds first, so the emptying is a change.
+      expect((await ui.find({ key: "add-note" }))?.props.value).toBe(
+        "half a thought"
+      );
+      await w.clock.advance(EMPTY_GAP_MS);
       expect((await ui.find({ key: "add-note" }))?.props.value).toBe("");
     }
     await ui.unmount();

@@ -5,7 +5,7 @@
 import type { EngineInterface, Register, Timer } from "claude-code";
 
 import type { Pad } from "../types";
-import { forgetDrafts } from "../src/drafts";
+import { emptyNoteField, forgetEditDrafts } from "../src/drafts";
 import { describeExport, exportThisSession } from "../src/export";
 import { formatTime } from "../src/format";
 import { openingOf, submissionFor } from "../src/origin";
@@ -473,10 +473,10 @@ export const register: Register = (on, options) => {
     "classic.SessionStart",
     { source: ["clear", "resume", "fork"] },
     async ($, e, next) => {
-      // First, so no redraw the move makes draws the old session's typing;
-      // the writes below (the pad, the open note, the Undo card) draw a Notes
-      // tab left open again, empty.
-      forgetDrafts();
+      // The old session's typing goes: an open note's at once, the note
+      // field's in two draws (see emptyNoteField), whatever the move draws.
+      forgetEditDrafts();
+      emptyNoteField($);
       try {
         const id = e.session_id || (await $.session.id());
         const previous = loadedId ?? endedId;
