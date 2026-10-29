@@ -13,14 +13,15 @@ check: format_check validate type_check dollar_check test
 # Fail when a call on $ is split across lines or a property of $ is read:
 # the plugin directory reads $ only as whole $.noun.method(...) calls. It
 # reads each line with its comments taken off; it doesn't see a $ taken
-# apart by destructuring, or a call split between noun and method.
+# apart by destructuring, a call split between noun and method, or anything
+# after a "//" inside a string on the same line.
 dollar_check:
   #!/usr/bin/env bash
   set -uo pipefail
   lines=$(grep -rnE '\$\.' sessionpad/src sessionpad/hooks)
   status=$?
   if [ "$status" -gt 1 ]; then echo "dollar_check: grep failed"; exit "$status"; fi
-  found=$(printf '%s\n' "$lines" | sed -E 's#//.*$##; s#/\*.*\*/##g' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*\*' | grep -E '\$\.[a-z]+(\.[a-zA-Z]+)?[[:space:]]*$|\$\.[a-z]+\.[a-zA-Z]+[^a-zA-Z(<]' || true)
+  found=$(printf '%s\n' "$lines" | sed -E 's#//.*$##; s#/\*.*\*/##g' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*\*' | grep -E '\$\.[a-z]+(\.[a-zA-Z]+)?[[:space:]]*$|\$\.[a-z]+\.[a-zA-Z]+[^a-zA-Z(<]|\$\.[a-z]+[^a-zA-Z.]' || true)
   if [ -n "$found" ]; then echo "$found"; echo "Write each call on \$ whole, on one line: \$.noun.method(...)"; exit 1; fi
 
 # Check formatting of the mod, the marketplace file and the docs

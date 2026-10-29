@@ -8,6 +8,7 @@ import type { EngineInterface, ToolCallResult, TurnUsage } from "claude-code";
 import type { TimelineEntry, TurnTokens } from "../types";
 import { gitPlace } from "./git";
 import { showTimeline, showUsage } from "./state";
+import { touchSeen } from "./store";
 import { isWorthSummary, modelSummary } from "./summary";
 import {
   addEntry,
@@ -18,7 +19,6 @@ import {
   withSummary,
 } from "./timeline";
 import type { FinishedTurn, TurnLog } from "./timeline";
-import { touchSeen } from "./store";
 import { isSpent, recordUsage } from "./usage";
 import { scheduleRefresh } from "./workspace";
 
@@ -164,8 +164,7 @@ export async function finishTurn(
 /**
  * After a turn ends, on a timer so the next prompt never waits for git or
  * the model: measures the tree when the turn may have changed it, renews the
- * session's last-seen time (a session at work stays seen, however long it
- * stays open), and writes the turn's entry. A failure to write the entry is
+ * session's last-seen time, and writes the turn's entry. A failure to write the entry is
  * logged, and toasted once per session (`warned` holds the ones told).
  */
 export function finishTurnLater(
@@ -178,6 +177,7 @@ export function finishTurnLater(
 ): void {
   $.clock.after(0, () => {
     scheduleRefresh($, isChanged ? "changed" : "none");
+    // A session at work stays seen, however long it stays open.
     touchSeen($, finished.sessionId, finished.at).catch(() => undefined);
     finishTurn($, finished, settings, followers).catch((error: unknown) => {
       const why = String(error);

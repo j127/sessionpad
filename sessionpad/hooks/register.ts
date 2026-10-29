@@ -353,7 +353,8 @@ export const register: Register = (on, options) => {
       forgetEditDrafts();
       emptyNoteField($);
       try {
-        const id = e.session_id || (await $.session.id());
+        let id = e.session_id;
+        if (!id) id = await $.session.id();
         const previous = loadedId ?? endedId;
         loadedId = id;
         if (previous !== undefined && previous !== id) {
@@ -375,7 +376,8 @@ export const register: Register = (on, options) => {
             // Set before the carry, so a turn's entry written meanwhile is
             // sent on too; dropped if the new id kept a timeline of its own.
             if (how === "clear") {
-              clearedTo.set(previous, { to: id, at: await $.clock.now() });
+              const at = await $.clock.now();
+              clearedTo.set(previous, { to: id, at });
             }
             let isTaken = false;
             if (how !== undefined) {
@@ -398,7 +400,11 @@ export const register: Register = (on, options) => {
       // $.state was reset, the Workspace tab's with it, whatever the pad did.
       // The Undo card and an open note belonged to the pad left behind, so
       // they go too, should a host keep $.state.
-      await forgetPaneEdits($).catch(() => undefined);
+      try {
+        await forgetPaneEdits($);
+      } catch {
+        // Left as they were: the next delete or open replaces them.
+      }
       await refreshOffer($, isSummaryOff);
       await showWorkspace($);
       return next(e);
@@ -541,9 +547,11 @@ export const register: Register = (on, options) => {
     const log = turn?.turnId === e.turnId ? turn : newTurnLog(e.turnId, "");
     turn = undefined;
     try {
+      const sessionId = await $.session.id();
+      const at = await $.clock.now();
       const finished = {
-        sessionId: await $.session.id(),
-        at: await $.clock.now(),
+        sessionId,
+        at,
         log,
         durationMs: e.durationMs,
         isAborted: e.isAborted,
