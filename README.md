@@ -10,7 +10,7 @@ A Claude Code mod that gives every session a small notepad: a one-line headline 
 >
 > To turn them on, press **Turn on summaries** in the Timeline tab, or set `summaryModel` to `haiku` in `/config` (or with `/plugin configure sessionpad@sessionpad`). To turn them off, set it back to `off`. Sessions already open in other windows may keep the old setting until they start again. While they are off, each turn's line in the Timeline is its prompt's first line, and the mod makes no model calls at all.
 
-Status: alpha. Version 0.2.0, not released yet; 0.1.0 was released 2026-10-29, with all four milestones built (notes, timeline, workspace, pruning).
+Status: alpha. Version 0.2.0, released 2026-10-29, with all four milestones built (notes, timeline, workspace, pruning).
 
 ## What it does
 
