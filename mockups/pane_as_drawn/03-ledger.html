@@ -4,679 +4,202 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <!-- DP:CSP -->
+<meta
+  id="dp-csp"
+  http-equiv="Content-Security-Policy"
+  content="default-src 'none'; img-src data:; font-src data:; media-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'"
+/>
+<!-- /DP:CSP -->
     <title>03 · Ledger — mockup</title>
     <meta
       name="mockup-direction"
       content="Dense and aligned: monospace throughout, striped rows in fixed columns, compact H E X pills with a key line, a Recently deleted shelf, and a tinted headline strip."
     />
+    <!-- prettier-ignore -->
     <style>
       /* 1. Palette blocks: the accent theme key the pane uses. Pasted from the kit. */
       [data-palette="claude"] {
-        --c-bg: #f4f2ef;
-        --c-surface: #ffffff;
-        --c-text: #1b1b1b;
-        --c-muted: #6b6b6b;
-        --c-accent: #c8643f;
-        --c-on-accent: #ffffff;
-        --c-border: #e2e0dc;
-        --d-accent: #c8643f;
-        --t-accent: #d78787;
-        --d-bg: #ffffff;
-        --d-text: #1b1b1b;
-        --d-dim: #8c8c8c;
-        --d-faint: #e6e6e6;
-        --d-shade: #dcdcdc;
-        --d-green: #d7efd9;
-        --d-pink: #fbd8e0;
-        --d-btn: #ececec;
-        --d-btn-text: #1b1b1b;
-        --d-btn-dim: #f3f3f3;
-        --d-btn-dim-text: #9b9b9b;
-        --d-primary: #1f1f1f;
-        --d-primary-text: #ffffff;
-        --d-field-bg: #ffffff;
-        --d-field-border: #e2e2e2;
-        --d-placeholder: #9a9a9a;
-        --d-success: #2e9b45;
-        --d-error: #c62828;
-        --d-warning: #b7791f;
-        --d-frame: #e5e5e5;
-        --t-bg: #262626;
-        --t-text: #ffffff;
-        --t-dim: #949494;
-        --t-blue: #afd7ff;
-        --t-success: #87d787;
-        --t-error: #ff87af;
-        --t-warning: #ffd700;
-        --t-subtle: #4e4e4e;
-        --t-grey: #808080;
-        --t-line: #585858;
+        --c-bg: #f4f2ef; --c-surface: #ffffff; --c-text: #1b1b1b; --c-muted: #6b6b6b;
+        --c-accent: #c8643f; --c-on-accent: #ffffff; --c-border: #e2e0dc;
+        --d-accent: #c8643f; --t-accent: #d78787;
+        --d-bg: #ffffff; --d-text: #1b1b1b; --d-dim: #8c8c8c; --d-faint: #e6e6e6;
+        --d-shade: #cecece; --d-green: #d7edda; --d-pink: #f9d5dd;
+        --d-btn: rgba(0, 0, 0, 0.05); --d-btn-text: #1b1b1b; --d-btn-dim: rgba(0, 0, 0, 0.05); --d-btn-dim-text: #9b9b9b;
+        --d-primary: #181818; --d-primary-text: #ffffff;
+        --d-field-bg: #ffffff; --d-field-border: #e2e2e2; --d-placeholder: #9a9a9a;
+        --d-success: #2e9b45; --d-error: #c62828; --d-warning: #b7791f; --d-frame: #e5e5e5;
+        --t-bg: #262626; --t-text: #ffffff; --t-dim: #949494; --t-blue: #afd7ff;
+        --t-success: #87d787; --t-error: #ff87af; --t-warning: #ffd700;
+        --t-subtle: #4e4e4e; --t-grey: #808080; --t-line: #585858;
       }
       [data-palette="claude"][data-theme="dark"] {
-        --c-bg: #121212;
-        --c-surface: #1a1a1a;
-        --c-text: #e8e8e8;
-        --c-muted: #9a9a9a;
-        --c-accent: #d97757;
-        --c-on-accent: #111111;
-        --c-border: #2e2e2e;
-        --d-accent: #d97757;
-        --t-accent: #d78787;
-        --d-bg: #1e1e1e;
-        --d-text: #e8e8e8;
-        --d-dim: #9a9a9a;
-        --d-faint: #2e2e2e;
-        --d-shade: #3a3a3a;
-        --d-green: #233a27;
-        --d-pink: #3d2327;
-        --d-btn: #3a3a3a;
-        --d-btn-text: #e8e8e8;
-        --d-btn-dim: #2c2c2c;
-        --d-btn-dim-text: #8a8a8a;
-        --d-primary: #f2f2f2;
-        --d-primary-text: #111111;
-        --d-field-bg: #262626;
-        --d-field-border: #3a3a3a;
-        --d-placeholder: #7a7a7a;
-        --d-success: #4ec36a;
-        --d-error: #ff6b5b;
-        --d-warning: #f5a623;
-        --d-frame: #2e2e2e;
-        --t-bg: #262626;
-        --t-text: #ffffff;
-        --t-dim: #949494;
-        --t-blue: #afd7ff;
-        --t-success: #87d787;
-        --t-error: #ff87af;
-        --t-warning: #ffd700;
-        --t-subtle: #4e4e4e;
-        --t-grey: #808080;
-        --t-line: #585858;
+        --c-bg: #121212; --c-surface: #1a1a1a; --c-text: #e8e8e8; --c-muted: #9a9a9a;
+        --c-accent: #d97757; --c-on-accent: #111111; --c-border: #2e2e2e;
+        --d-accent: #d97757; --t-accent: #d78787;
+        --d-bg: #181818; --d-text: #e8e8e8; --d-dim: #9a9a9a; --d-faint: #2e2e2e;
+        --d-shade: #474747; --d-green: #223f23; --d-pink: #472024;
+        --d-btn: rgba(255, 255, 255, 0.15); --d-btn-text: #e8e8e8; --d-btn-dim: rgba(255, 255, 255, 0.15); --d-btn-dim-text: #8a8a8a;
+        --d-primary: #efefef; --d-primary-text: #111111;
+        --d-field-bg: #252525; --d-field-border: #3a3a3a; --d-placeholder: #7a7a7a;
+        --d-success: #4ec36a; --d-error: #ff6b5b; --d-warning: #f5a623; --d-frame: #2e2e2e;
+        --t-bg: #262626; --t-text: #ffffff; --t-dim: #949494; --t-blue: #afd7ff;
+        --t-success: #87d787; --t-error: #ff87af; --t-warning: #ffd700;
+        --t-subtle: #4e4e4e; --t-grey: #808080; --t-line: #585858;
       }
       [data-palette="merged"] {
-        --c-bg: #f4f2ef;
-        --c-surface: #ffffff;
-        --c-text: #1b1b1b;
-        --c-muted: #6b6b6b;
-        --c-accent: #8e5cd9;
-        --c-on-accent: #ffffff;
-        --c-border: #e2e0dc;
-        --d-accent: #8e5cd9;
-        --t-accent: #afafff;
-        --d-bg: #ffffff;
-        --d-text: #1b1b1b;
-        --d-dim: #8c8c8c;
-        --d-faint: #e6e6e6;
-        --d-shade: #dcdcdc;
-        --d-green: #d7efd9;
-        --d-pink: #fbd8e0;
-        --d-btn: #ececec;
-        --d-btn-text: #1b1b1b;
-        --d-btn-dim: #f3f3f3;
-        --d-btn-dim-text: #9b9b9b;
-        --d-primary: #1f1f1f;
-        --d-primary-text: #ffffff;
-        --d-field-bg: #ffffff;
-        --d-field-border: #e2e2e2;
-        --d-placeholder: #9a9a9a;
-        --d-success: #2e9b45;
-        --d-error: #c62828;
-        --d-warning: #b7791f;
-        --d-frame: #e5e5e5;
-        --t-bg: #262626;
-        --t-text: #ffffff;
-        --t-dim: #949494;
-        --t-blue: #afd7ff;
-        --t-success: #87d787;
-        --t-error: #ff87af;
-        --t-warning: #ffd700;
-        --t-subtle: #4e4e4e;
-        --t-grey: #808080;
-        --t-line: #585858;
+        --c-bg: #f4f2ef; --c-surface: #ffffff; --c-text: #1b1b1b; --c-muted: #6b6b6b;
+        --c-accent: #8e5cd9; --c-on-accent: #ffffff; --c-border: #e2e0dc;
+        --d-accent: #8e5cd9; --t-accent: #afafff;
+        --d-bg: #ffffff; --d-text: #1b1b1b; --d-dim: #8c8c8c; --d-faint: #e6e6e6;
+        --d-shade: #cecece; --d-green: #d7edda; --d-pink: #f9d5dd;
+        --d-btn: rgba(0, 0, 0, 0.05); --d-btn-text: #1b1b1b; --d-btn-dim: rgba(0, 0, 0, 0.05); --d-btn-dim-text: #9b9b9b;
+        --d-primary: #181818; --d-primary-text: #ffffff;
+        --d-field-bg: #ffffff; --d-field-border: #e2e2e2; --d-placeholder: #9a9a9a;
+        --d-success: #2e9b45; --d-error: #c62828; --d-warning: #b7791f; --d-frame: #e5e5e5;
+        --t-bg: #262626; --t-text: #ffffff; --t-dim: #949494; --t-blue: #afd7ff;
+        --t-success: #87d787; --t-error: #ff87af; --t-warning: #ffd700;
+        --t-subtle: #4e4e4e; --t-grey: #808080; --t-line: #585858;
       }
       [data-palette="merged"][data-theme="dark"] {
-        --c-bg: #121212;
-        --c-surface: #1a1a1a;
-        --c-text: #e8e8e8;
-        --c-muted: #9a9a9a;
-        --c-accent: #b39dfb;
-        --c-on-accent: #111111;
-        --c-border: #2e2e2e;
-        --d-accent: #b39dfb;
-        --t-accent: #afafff;
-        --d-bg: #1e1e1e;
-        --d-text: #e8e8e8;
-        --d-dim: #9a9a9a;
-        --d-faint: #2e2e2e;
-        --d-shade: #3a3a3a;
-        --d-green: #233a27;
-        --d-pink: #3d2327;
-        --d-btn: #3a3a3a;
-        --d-btn-text: #e8e8e8;
-        --d-btn-dim: #2c2c2c;
-        --d-btn-dim-text: #8a8a8a;
-        --d-primary: #f2f2f2;
-        --d-primary-text: #111111;
-        --d-field-bg: #262626;
-        --d-field-border: #3a3a3a;
-        --d-placeholder: #7a7a7a;
-        --d-success: #4ec36a;
-        --d-error: #ff6b5b;
-        --d-warning: #f5a623;
-        --d-frame: #2e2e2e;
-        --t-bg: #262626;
-        --t-text: #ffffff;
-        --t-dim: #949494;
-        --t-blue: #afd7ff;
-        --t-success: #87d787;
-        --t-error: #ff87af;
-        --t-warning: #ffd700;
-        --t-subtle: #4e4e4e;
-        --t-grey: #808080;
-        --t-line: #585858;
+        --c-bg: #121212; --c-surface: #1a1a1a; --c-text: #e8e8e8; --c-muted: #9a9a9a;
+        --c-accent: #b39dfb; --c-on-accent: #111111; --c-border: #2e2e2e;
+        --d-accent: #b39dfb; --t-accent: #afafff;
+        --d-bg: #181818; --d-text: #e8e8e8; --d-dim: #9a9a9a; --d-faint: #2e2e2e;
+        --d-shade: #474747; --d-green: #223f23; --d-pink: #472024;
+        --d-btn: rgba(255, 255, 255, 0.15); --d-btn-text: #e8e8e8; --d-btn-dim: rgba(255, 255, 255, 0.15); --d-btn-dim-text: #8a8a8a;
+        --d-primary: #efefef; --d-primary-text: #111111;
+        --d-field-bg: #252525; --d-field-border: #3a3a3a; --d-placeholder: #7a7a7a;
+        --d-success: #4ec36a; --d-error: #ff6b5b; --d-warning: #f5a623; --d-frame: #2e2e2e;
+        --t-bg: #262626; --t-text: #ffffff; --t-dim: #949494; --t-blue: #afd7ff;
+        --t-success: #87d787; --t-error: #ff87af; --t-warning: #ffd700;
+        --t-subtle: #4e4e4e; --t-grey: #808080; --t-line: #585858;
       }
       [data-palette="success"] {
-        --c-bg: #f4f2ef;
-        --c-surface: #ffffff;
-        --c-text: #1b1b1b;
-        --c-muted: #6b6b6b;
-        --c-accent: #2e9b45;
-        --c-on-accent: #ffffff;
-        --c-border: #e2e0dc;
-        --d-accent: #2e9b45;
-        --t-accent: #87d787;
-        --d-bg: #ffffff;
-        --d-text: #1b1b1b;
-        --d-dim: #8c8c8c;
-        --d-faint: #e6e6e6;
-        --d-shade: #dcdcdc;
-        --d-green: #d7efd9;
-        --d-pink: #fbd8e0;
-        --d-btn: #ececec;
-        --d-btn-text: #1b1b1b;
-        --d-btn-dim: #f3f3f3;
-        --d-btn-dim-text: #9b9b9b;
-        --d-primary: #1f1f1f;
-        --d-primary-text: #ffffff;
-        --d-field-bg: #ffffff;
-        --d-field-border: #e2e2e2;
-        --d-placeholder: #9a9a9a;
-        --d-success: #2e9b45;
-        --d-error: #c62828;
-        --d-warning: #b7791f;
-        --d-frame: #e5e5e5;
-        --t-bg: #262626;
-        --t-text: #ffffff;
-        --t-dim: #949494;
-        --t-blue: #afd7ff;
-        --t-success: #87d787;
-        --t-error: #ff87af;
-        --t-warning: #ffd700;
-        --t-subtle: #4e4e4e;
-        --t-grey: #808080;
-        --t-line: #585858;
+        --c-bg: #f4f2ef; --c-surface: #ffffff; --c-text: #1b1b1b; --c-muted: #6b6b6b;
+        --c-accent: #2e9b45; --c-on-accent: #ffffff; --c-border: #e2e0dc;
+        --d-accent: #2e9b45; --t-accent: #87d787;
+        --d-bg: #ffffff; --d-text: #1b1b1b; --d-dim: #8c8c8c; --d-faint: #e6e6e6;
+        --d-shade: #cecece; --d-green: #d7edda; --d-pink: #f9d5dd;
+        --d-btn: rgba(0, 0, 0, 0.05); --d-btn-text: #1b1b1b; --d-btn-dim: rgba(0, 0, 0, 0.05); --d-btn-dim-text: #9b9b9b;
+        --d-primary: #181818; --d-primary-text: #ffffff;
+        --d-field-bg: #ffffff; --d-field-border: #e2e2e2; --d-placeholder: #9a9a9a;
+        --d-success: #2e9b45; --d-error: #c62828; --d-warning: #b7791f; --d-frame: #e5e5e5;
+        --t-bg: #262626; --t-text: #ffffff; --t-dim: #949494; --t-blue: #afd7ff;
+        --t-success: #87d787; --t-error: #ff87af; --t-warning: #ffd700;
+        --t-subtle: #4e4e4e; --t-grey: #808080; --t-line: #585858;
       }
       [data-palette="success"][data-theme="dark"] {
-        --c-bg: #121212;
-        --c-surface: #1a1a1a;
-        --c-text: #e8e8e8;
-        --c-muted: #9a9a9a;
-        --c-accent: #4ec36a;
-        --c-on-accent: #111111;
-        --c-border: #2e2e2e;
-        --d-accent: #4ec36a;
-        --t-accent: #87d787;
-        --d-bg: #1e1e1e;
-        --d-text: #e8e8e8;
-        --d-dim: #9a9a9a;
-        --d-faint: #2e2e2e;
-        --d-shade: #3a3a3a;
-        --d-green: #233a27;
-        --d-pink: #3d2327;
-        --d-btn: #3a3a3a;
-        --d-btn-text: #e8e8e8;
-        --d-btn-dim: #2c2c2c;
-        --d-btn-dim-text: #8a8a8a;
-        --d-primary: #f2f2f2;
-        --d-primary-text: #111111;
-        --d-field-bg: #262626;
-        --d-field-border: #3a3a3a;
-        --d-placeholder: #7a7a7a;
-        --d-success: #4ec36a;
-        --d-error: #ff6b5b;
-        --d-warning: #f5a623;
-        --d-frame: #2e2e2e;
-        --t-bg: #262626;
-        --t-text: #ffffff;
-        --t-dim: #949494;
-        --t-blue: #afd7ff;
-        --t-success: #87d787;
-        --t-error: #ff87af;
-        --t-warning: #ffd700;
-        --t-subtle: #4e4e4e;
-        --t-grey: #808080;
-        --t-line: #585858;
+        --c-bg: #121212; --c-surface: #1a1a1a; --c-text: #e8e8e8; --c-muted: #9a9a9a;
+        --c-accent: #4ec36a; --c-on-accent: #111111; --c-border: #2e2e2e;
+        --d-accent: #4ec36a; --t-accent: #87d787;
+        --d-bg: #181818; --d-text: #e8e8e8; --d-dim: #9a9a9a; --d-faint: #2e2e2e;
+        --d-shade: #474747; --d-green: #223f23; --d-pink: #472024;
+        --d-btn: rgba(255, 255, 255, 0.15); --d-btn-text: #e8e8e8; --d-btn-dim: rgba(255, 255, 255, 0.15); --d-btn-dim-text: #8a8a8a;
+        --d-primary: #efefef; --d-primary-text: #111111;
+        --d-field-bg: #252525; --d-field-border: #3a3a3a; --d-placeholder: #7a7a7a;
+        --d-success: #4ec36a; --d-error: #ff6b5b; --d-warning: #f5a623; --d-frame: #2e2e2e;
+        --t-bg: #262626; --t-text: #ffffff; --t-dim: #949494; --t-blue: #afd7ff;
+        --t-success: #87d787; --t-error: #ff87af; --t-warning: #ffd700;
+        --t-subtle: #4e4e4e; --t-grey: #808080; --t-line: #585858;
       }
 
       /* 2a. Kit CSS, pasted verbatim: the only styles inside .desk and .term */
       /* ---- Desktop pane ---- */
-      .desk {
-        width: 400px;
-        background: var(--d-bg);
-        color: var(--d-text);
-        border: 1px solid var(--d-frame);
-        border-radius: 12px;
-        overflow: hidden;
-        font:
-          15px/1.5 system-ui,
-          -apple-system,
-          "Segoe UI",
-          sans-serif;
-      }
-      .desk .bar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 8px 14px;
-        border-bottom: 1px solid var(--d-faint);
-        color: var(--d-dim);
-        font-size: 14px;
-      }
-      .desk .body {
-        padding: 16px 20px 20px;
-        display: flex;
-        flex-direction: column;
-      }
+      .desk { width: 400px; background: var(--d-bg); color: var(--d-text);
+        border: 1px solid var(--d-frame); border-radius: 12px; overflow: hidden;
+        font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+      .desk .bar { display: flex; justify-content: space-between; align-items: center;
+        padding: 8px 14px; border-bottom: 1px solid var(--d-faint); color: var(--d-dim); font-size: 14px; }
+      .desk .body { padding: 16px 20px 20px; display: flex; flex-direction: column; }
       /* spacing: one cell across is about 10px, one row about 12px */
-      .desk .row {
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-      }
-      .desk .col {
-        display: flex;
-        flex-direction: column;
-      }
-      .desk .wrap {
-        flex-wrap: wrap;
-      }
-      .desk .gap1 {
-        gap: 10px;
-      }
-      .desk .gap2 {
-        gap: 20px;
-      }
-      .desk .rgap1 {
-        row-gap: 12px;
-      }
-      .desk .mt1 {
-        margin-top: 12px;
-      }
-      .desk .mt2 {
-        margin-top: 24px;
-      }
-      .desk .grow {
-        flex: 1 1 auto;
-        min-width: 0;
-      }
-      .desk .noshrink {
-        flex: 0 0 auto;
-      }
-      .desk .px1 {
-        padding-left: 11px;
-        padding-right: 11px;
-      }
+      .desk .row { display: flex; flex-direction: row; align-items: center; }
+      .desk .col { display: flex; flex-direction: column; }
+      .desk .wrap { flex-wrap: wrap; }
+      .desk .gap1 { gap: 10px; } .desk .gap2 { gap: 20px; }
+      .desk .rgap1 { row-gap: 12px; }
+      .desk .mt1 { margin-top: 12px; } .desk .mt2 { margin-top: 24px; }
+      .desk .grow { flex: 1 1 auto; min-width: 0; } .desk .noshrink { flex: 0 0 auto; }
+      .desk .px1 { padding-left: 11px; padding-right: 11px; }
       /* text: size, weight, color, style */
-      .desk .caption {
-        font-size: 12px;
-      }
-      .desk .footnote {
-        font-size: 13px;
-      }
-      .desk .heading {
-        font-size: 17px;
-      }
-      .desk .title {
-        font-size: 22px;
-        line-height: 1.3;
-      }
-      .desk .medium {
-        font-weight: 500;
-      }
-      .desk .semibold {
-        font-weight: 600;
-      }
-      .desk .bold {
-        font-weight: 700;
-      }
-      .desk .italic {
-        font-style: italic;
-      }
-      .desk .underline {
-        text-decoration: underline;
-      }
-      .desk .dim {
-        color: var(--d-dim);
-      }
-      .desk .accent {
-        color: var(--d-accent);
-      }
-      .desk .ok {
-        color: var(--d-success);
-      }
-      .desk .bad {
-        color: var(--d-error);
-      }
-      .desk .warn {
-        color: var(--d-warning);
-      }
-      .desk .mono {
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: 14px;
-      }
-      .desk .inverse {
-        background: var(--d-text);
-        color: var(--d-bg);
-      }
-      .desk code {
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: 13.5px;
-        background: var(--d-shade);
-        padding: 1px 4px;
-        border-radius: 4px;
-      }
+      .desk .caption { font-size: 12px; } .desk .footnote { font-size: 13px; }
+      .desk .heading { font-size: 17px; } .desk .title { font-size: 22px; line-height: 1.3; }
+      .desk .medium { font-weight: 500; } .desk .semibold { font-weight: 600; } .desk .bold { font-weight: 700; }
+      .desk .italic { font-style: italic; } .desk .underline { text-decoration: underline; }
+      .desk .dim { color: var(--d-dim); }
+      .desk .accent { color: var(--d-accent); } .desk .ok { color: var(--d-success); }
+      .desk .bad { color: var(--d-error); } .desk .warn { color: var(--d-warning); }
+      .desk .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px; }
+      .desk .inverse { background: var(--d-text); color: var(--d-bg); }
+      .desk code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13.5px;
+        background: var(--d-shade); padding: 1px 4px; border-radius: 4px; }
       /* backgrounds: plain rectangles (no rounding), the three soft shades only */
-      .desk .shade {
-        background: var(--d-shade);
-      }
-      .desk .green {
-        background: var(--d-green);
-      }
-      .desk .pink {
-        background: var(--d-pink);
-      }
+      .desk .shade { background: var(--d-shade); } .desk .green { background: var(--d-green); }
+      .desk .pink { background: var(--d-pink); }
       /* borders: rounded cards; a border adds about 17px above and below and 11px at the sides */
-      .desk .card {
-        border: 1px solid var(--d-accent);
-        border-radius: 10px;
-        padding: 17px 11px;
-      }
-      .desk .card.faint {
-        border-color: var(--d-faint);
-      }
-      .desk .card.filled {
-        border-color: var(--d-shade);
-        background: var(--d-shade);
-      }
-      .desk .card.filled-green {
-        border-color: var(--d-green);
-        background: var(--d-green);
-      }
-      .desk .card.filled-pink {
-        border-color: var(--d-pink);
-        background: var(--d-pink);
-      }
-      .desk .card.tight {
-        padding-left: 11px;
-        padding-right: 11px;
-      } /* paddingX 1 is already in */
+      .desk .card { border: 1px solid var(--d-accent); border-radius: 10px; padding: 17px 11px; }
+      .desk .card.faint { border-color: var(--d-faint); }
+      .desk .card.filled { border-color: var(--d-shade); background: var(--d-shade); }
+      .desk .card.filled-green { border-color: var(--d-green); background: var(--d-green); }
+      .desk .card.filled-pink { border-color: var(--d-pink); background: var(--d-pink); }
+      .desk .card.tight { padding-left: 11px; padding-right: 11px; } /* paddingX 1 is already in */
       /* buttons, drawn by the app: pills; labels are plain text */
-      .desk .btn {
-        display: inline-flex;
-        align-items: center;
-        height: 32px;
-        padding: 0 14px;
-        border-radius: 10px;
-        background: var(--d-btn);
-        color: var(--d-btn-text);
-        font-size: 15px;
-        white-space: nowrap;
-        flex: 0 0 auto;
-      }
-      .desk .btn.primary {
-        background: var(--d-primary);
-        color: var(--d-primary-text);
-      }
-      .desk .btn.dimbtn {
-        background: var(--d-btn-dim);
-        color: var(--d-btn-dim-text);
-      }
-      .desk .btn.plain {
-        background: none;
-        padding: 0 2px;
-      }
+      .desk .btn { display: inline-flex; align-items: center; height: 32px; padding: 0 14px;
+        border-radius: 10px; background: var(--d-btn); color: var(--d-btn-text); font-size: 15px;
+        white-space: nowrap; flex: 0 0 auto; }
+      .desk .btn.primary { background: var(--d-primary); color: var(--d-primary-text); }
+      .desk .btn.dimbtn { background: var(--d-btn-dim); color: var(--d-btn-dim-text); }
+      .desk .btn.plain { background: none; padding: 0 2px; }
       /* fields */
-      .desk .field {
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
-      }
-      .desk .field .label {
-        line-height: 32px;
-      }
-      .desk .field .box {
-        flex: 1 1 auto;
-        height: 32px;
-        border: 1px solid var(--d-field-border);
-        border-radius: 8px;
-        background: var(--d-field-bg);
-        padding: 0 12px;
-        line-height: 30px;
-        color: var(--d-placeholder);
-        white-space: nowrap;
-        overflow: hidden;
-      }
-      .desk .field .box.filled {
-        color: var(--d-text);
-      }
-      .desk .field .box.rows3 {
-        height: 88px;
-        line-height: 1.45;
-        padding-top: 6px;
-        white-space: normal;
-      }
+      .desk .field { display: flex; align-items: flex-start; gap: 10px; }
+      .desk .field .label { line-height: 32px; }
+      .desk .field .box { flex: 1 1 auto; height: 32px; border: 1px solid var(--d-field-border);
+        border-radius: 8px; background: var(--d-field-bg); padding: 0 12px; line-height: 30px;
+        color: var(--d-placeholder); white-space: nowrap; overflow: hidden; }
+      .desk .field .box.filled { color: var(--d-text); }
+      .desk .field .box.rows3 { height: 88px; line-height: 1.45; padding-top: 6px; white-space: normal; }
       /* fixed widths for columns, in cells of about 8.5px */
-      .desk .w4 {
-        width: 34px;
-      }
-      .desk .w6 {
-        width: 51px;
-      }
-      .desk .w8 {
-        width: 68px;
-      }
-      .desk .w10 {
-        width: 85px;
-      }
-      .desk .w12 {
-        width: 102px;
-      }
-      .desk .w16 {
-        width: 136px;
-      }
+      .desk .w4 { width: 34px; } .desk .w6 { width: 51px; } .desk .w8 { width: 68px; }
+      .desk .w10 { width: 85px; } .desk .w12 { width: 102px; } .desk .w16 { width: 136px; }
 
       /* ---- Terminal pane (always the dark terminal) ---- */
-      .term {
-        width: calc(56ch + 2px);
-        background: var(--t-bg);
-        color: var(--t-text);
-        font:
-          13px/18px ui-monospace,
-          SFMono-Regular,
-          Menlo,
-          monospace;
-        border-left: 1px solid var(--t-line);
-        white-space: pre-wrap;
-      }
-      .term .tbar {
-        display: flex;
-        justify-content: flex-end;
-        padding: 0 1ch;
-        color: var(--t-dim);
-      }
-      .term .tbody {
-        padding: 0 1ch 18px;
-        display: flex;
-        flex-direction: column;
-      }
-      .term .row {
-        display: flex;
-        flex-direction: row;
-      }
-      .term .col {
-        display: flex;
-        flex-direction: column;
-      }
-      .term .wrap {
-        flex-wrap: wrap;
-      }
-      .term .gap1 {
-        column-gap: 1ch;
-      }
-      .term .gap2 {
-        column-gap: 2ch;
-      }
-      .term .mt1 {
-        margin-top: 18px;
-      }
-      .term .grow {
-        flex: 1 1 auto;
-        min-width: 0;
-      }
-      .term .noshrink {
-        flex: 0 0 auto;
-      }
-      .term .px1 {
-        padding-left: 1ch;
-        padding-right: 1ch;
-      }
-      .term .bold {
-        font-weight: 700;
-      }
-      .term .underline {
-        text-decoration: underline;
-      }
-      .term .dim {
-        color: var(--t-dim);
-      }
-      .term .accent {
-        color: var(--t-accent);
-      }
-      .term .ok {
-        color: var(--t-success);
-      }
-      .term .bad {
-        color: var(--t-error);
-      }
-      .term .warn {
-        color: var(--t-warning);
-      }
-      .term .blue {
-        color: var(--t-blue);
-      }
-      .term .inverse {
-        background: var(--t-text);
-        color: var(--t-bg);
-      }
-      .term .fill-subtle {
-        background: var(--t-subtle);
-      }
-      .term .fill-grey {
-        background: var(--t-grey);
-      }
+      .term { width: calc(56ch + 2px); background: var(--t-bg); color: var(--t-text);
+        font: 13px/18px ui-monospace, SFMono-Regular, Menlo, monospace;
+        border-left: 1px solid var(--t-line); white-space: pre-wrap; }
+      .term .tbar { display: flex; justify-content: flex-end; padding: 0 1ch; color: var(--t-dim); }
+      .term .tbody { padding: 0 1ch 18px; display: flex; flex-direction: column; }
+      .term .row { display: flex; flex-direction: row; } .term .col { display: flex; flex-direction: column; }
+      .term .wrap { flex-wrap: wrap; } .term .gap1 { column-gap: 1ch; } .term .gap2 { column-gap: 2ch; }
+      .term .mt1 { margin-top: 18px; } .term .grow { flex: 1 1 auto; min-width: 0; }
+      .term .noshrink { flex: 0 0 auto; }
+      .term .px1 { padding-left: 1ch; padding-right: 1ch; }
+      .term .bold { font-weight: 700; } .term .underline { text-decoration: underline; }
+      .term .dim { color: var(--t-dim); } .term .accent { color: var(--t-accent); }
+      .term .ok { color: var(--t-success); } .term .bad { color: var(--t-error); }
+      .term .warn { color: var(--t-warning); } .term .blue { color: var(--t-blue); }
+      .term .inverse { background: var(--t-text); color: var(--t-bg); }
+      .term .fill-subtle { background: var(--t-subtle); } .term .fill-grey { background: var(--t-grey); }
       /* box-drawn frame: one cell of border around, drawn as lines in the cell's middle */
-      .term .frame {
-        border: 1px solid var(--t-accent);
-        border-radius: 7px;
-        margin: 9px 0.5ch;
-        padding: 8px 0.5ch;
-      }
-      .term .frame.faint {
-        border-color: var(--t-line);
-      }
-      .term .frame.square {
-        border-radius: 0;
-      }
+      .term .frame { border: 1px solid var(--t-accent); border-radius: 7px;
+        margin: 9px 0.5ch; padding: 8px 0.5ch; }
+      .term .frame.faint { border-color: var(--t-line); }
+      .term .frame.square { border-radius: 0; }
       /* buttons: [ label ] */
-      .term .btn::before {
-        content: "[ ";
-      }
-      .term .btn::after {
-        content: " ]";
-      }
-      .term .btn.primary {
-        color: var(--t-blue);
-      }
-      .term .btn.secondary {
-        font-weight: 700;
-      }
-      .term .btn.dimbtn {
-        color: var(--t-dim);
-      }
-      .term .field {
-        display: flex;
-      }
-      .term .field .ph {
-        color: var(--t-dim);
-      }
-      .term .w4 {
-        width: 4ch;
-      }
-      .term .w6 {
-        width: 6ch;
-      }
-      .term .w8 {
-        width: 8ch;
-      }
-      .term .w10 {
-        width: 10ch;
-      }
-      .term .w12 {
-        width: 12ch;
-      }
-      .term .w16 {
-        width: 16ch;
-      }
-      .term code {
-        color: var(--t-accent);
-      }
+      .term .btn::before { content: "[ "; } .term .btn::after { content: " ]"; }
+      .term .btn.primary { color: var(--t-blue); } .term .btn.secondary { font-weight: 700; }
+      .term .btn.dimbtn { color: var(--t-dim); }
+      .term .field { display: flex; } .term .field .ph { color: var(--t-dim); }
+      .term .w4 { width: 4ch; } .term .w6 { width: 6ch; } .term .w8 { width: 8ch; }
+      .term .w10 { width: 10ch; } .term .w12 { width: 12ch; } .term .w16 { width: 16ch; }
+      .term code { color: var(--t-accent); }
 
       /* ---- the band above the prompt ---- */
-      .band-desk {
-        width: 640px;
-        background: var(--d-bg);
-        color: var(--d-dim);
-        font:
-          13px/1.5 system-ui,
-          sans-serif;
-        border: 1px solid var(--d-frame);
-        border-radius: 12px;
-        padding: 10px 14px;
-      }
-      .band-desk .prompt {
-        margin-top: 8px;
-        border: 1px solid var(--d-field-border);
-        border-radius: 10px;
-        padding: 10px 12px;
-        color: var(--d-placeholder);
-        font-size: 15px;
-      }
-      .band-term {
-        width: 80ch;
-        background: var(--t-bg);
-        color: var(--t-dim);
-        font:
-          13px/18px ui-monospace,
-          SFMono-Regular,
-          Menlo,
-          monospace;
-        padding: 0 1ch 4px;
-      }
-      .band-term .prompt {
-        border-top: 1px solid var(--t-line);
-        border-bottom: 1px solid var(--t-line);
-        color: var(--t-text);
-      }
+      .band-desk { width: 640px; background: var(--d-bg); color: var(--d-dim); font: 13px/1.5 system-ui, sans-serif;
+        border: 1px solid var(--d-frame); border-radius: 12px; padding: 10px 14px; }
+      .band-desk .prompt { margin-top: 8px; border: 1px solid var(--d-field-border); border-radius: 10px;
+        padding: 10px 12px; color: var(--d-placeholder); font-size: 15px; }
+      .band-term { width: 80ch; background: var(--t-bg); color: var(--t-dim);
+        font: 13px/18px ui-monospace, SFMono-Regular, Menlo, monospace; padding: 0 1ch 4px; }
+      .band-term .prompt { border-top: 1px solid var(--t-line); border-bottom: 1px solid var(--t-line); color: var(--t-text); }
 
       /* 2b. Page chrome, outside the frames: contract variables only */
       body {
@@ -688,12 +211,9 @@
       .page {
         max-width: 1460px;
         margin: 0 auto;
-        padding: calc(var(--density, 1) * 32px) calc(var(--density, 1) * 24px)
-          calc(var(--density, 1) * 56px);
+        padding: calc(var(--density, 1) * 32px) calc(var(--density, 1) * 24px) calc(var(--density, 1) * 56px);
       }
-      .page-head {
-        max-width: 78ch;
-      }
+      .page-head { max-width: 78ch; }
       .page-head .eyebrow {
         margin: 0;
         color: var(--c-muted);
@@ -707,12 +227,7 @@
         font-weight: 650;
         margin: calc(var(--density, 1) * 6px) 0 calc(var(--density, 1) * 8px);
       }
-      .page-head .lede {
-        margin: 0;
-        color: var(--c-muted);
-        font-size: 16px;
-        line-height: 1.55;
-      }
+      .page-head .lede { margin: 0; color: var(--c-muted); font-size: 16px; line-height: 1.55; }
       .legend {
         display: flex;
         flex-wrap: wrap;
@@ -730,63 +245,32 @@
         font-size: 13px;
         color: var(--c-muted);
       }
-      .legend .chip b {
-        color: var(--c-text);
-        font-weight: 600;
-      }
-      .swatch {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        background: var(--c-accent);
-        display: inline-block;
-      }
-      .keyname::after {
-        content: "claude";
-      }
-      [data-palette="merged"] .keyname::after {
-        content: "merged";
-      }
-      [data-palette="success"] .keyname::after {
-        content: "success";
-      }
-      .stage {
-        margin-top: calc(var(--density, 1) * 40px);
-      }
+      .legend .chip b { color: var(--c-text); font-weight: 600; }
+      .swatch { width: 10px; height: 10px; border-radius: 50%; background: var(--c-accent); display: inline-block; }
+      .keyname::after { content: "claude"; }
+      [data-palette="merged"] .keyname::after { content: "merged"; }
+      [data-palette="success"] .keyname::after { content: "success"; }
+      .stage { margin-top: calc(var(--density, 1) * 40px); }
       .stage > h2 {
         font-family: var(--font-heading, system-ui, sans-serif);
         font-size: 19px;
         font-weight: 600;
         margin: 0 0 calc(var(--density, 1) * 14px);
         display: flex;
+        flex-wrap: wrap;
         align-items: baseline;
-        gap: 12px;
+        gap: 4px 12px;
       }
-      .stage > h2 small {
-        font-size: 13px;
-        font-weight: 400;
-        color: var(--c-muted);
-      }
+      .stage > h2 small { font-size: 13px; font-weight: 400; color: var(--c-muted); }
       .frames {
         display: flex;
         flex-wrap: wrap;
         align-items: flex-start;
         gap: calc(var(--density, 1) * 28px) calc(var(--density, 1) * 24px);
       }
-      .slot {
-        margin: 0;
-        display: flex;
-        flex-direction: column;
-        gap: calc(var(--density, 1) * 8px);
-      }
-      .slot-label {
-        font-size: 13px;
-        color: var(--c-muted);
-      }
-      .slot-label b {
-        color: var(--c-text);
-        font-weight: 600;
-      }
+      .slot { margin: 0; display: flex; flex-direction: column; gap: calc(var(--density, 1) * 8px); }
+      .slot-label { font-size: 13px; color: var(--c-muted); }
+      .slot-label b { color: var(--c-text); font-weight: 600; }
       .cap {
         margin: calc(var(--density, 1) * 16px) 0 0;
         max-width: 96ch;
@@ -798,10 +282,7 @@
         font-size: 14px;
         line-height: 1.6;
       }
-      .cap b {
-        color: var(--c-text);
-        font-weight: 600;
-      }
+      .cap b { color: var(--c-text); font-weight: 600; }
       .cap code,
       .design-notes code {
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -831,21 +312,11 @@
         margin: calc(var(--density, 1) * 22px) 0 calc(var(--density, 1) * 6px);
       }
       .design-notes p,
-      .design-notes ul {
-        margin: 0 0 calc(var(--density, 1) * 8px);
-        color: var(--c-muted);
-      }
-      .design-notes li {
-        margin-bottom: calc(var(--density, 1) * 4px);
-      }
+      .design-notes ul { margin: 0 0 calc(var(--density, 1) * 8px); color: var(--c-muted); }
+      .design-notes li { margin-bottom: calc(var(--density, 1) * 4px); }
       .design-notes li b,
-      .design-notes p b {
-        color: var(--c-text);
-        font-weight: 600;
-      }
-      .map-wrap {
-        overflow-x: auto;
-      }
+      .design-notes p b { color: var(--c-text); font-weight: 600; }
+      .map-wrap { overflow-x: auto; }
       .map {
         border-collapse: collapse;
         width: 100%;
@@ -857,21 +328,10 @@
         text-align: left;
         vertical-align: top;
         border-top: 1px solid var(--c-border);
-        padding: calc(var(--density, 1) * 8px) calc(var(--density, 1) * 10px)
-          calc(var(--density, 1) * 8px) 0;
+        padding: calc(var(--density, 1) * 8px) calc(var(--density, 1) * 10px) calc(var(--density, 1) * 8px) 0;
       }
-      .map th {
-        color: var(--c-text);
-        font-weight: 600;
-        white-space: nowrap;
-      }
-      .map thead th {
-        border-top: 0;
-        font-size: 12px;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        color: var(--c-muted);
-      }
+      .map th { color: var(--c-text); font-weight: 600; white-space: nowrap; }
+      .map thead th { border-top: 0; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c-muted); }
     </style>
   </head>
   <body>
@@ -958,13 +418,9 @@
                         <span class="box rows3 filled"
                           >Ask J for the two README screenshots.</span
                         >
-                        <div class="col rgap1 noshrink">
-                          <div class="row">
-                            <span class="btn primary">save</span>
-                          </div>
-                          <div class="row"><span class="btn">cancel</span></div>
-                        </div>
+                        <span class="btn noshrink">save</span>
                       </div>
+                      <div class="row mt1"><span class="btn">cancel</span></div>
                       <span class="footnote dim mono">Enter saves</span>
                     </div>
                     <div class="row gap1 px1 shade">
@@ -1032,7 +488,7 @@
                 <div class="col mt1">
                   <div class="row px1">
                     <div class="grow">
-                      <span class="dim mono">8 turns, newest first</span>
+                      <span class="dim mono">7 turns, newest first</span>
                     </div>
                     <span class="btn">Export</span>
                   </div>
@@ -1212,7 +668,7 @@
             </section>
           </figure>
 
-          <!-- Desktop · Workspace -->
+          <!-- Desktop · Workspace. Paths carry a zero-width space after each slash (&#8203;), which the mod adds on Desktop so a long path can wrap. -->
           <figure class="slot">
             <figcaption class="slot-label">
               <b>Workspace</b> · this worktree and three others
@@ -1240,7 +696,7 @@
                     </div>
                     <div class="grow">
                       <span class="mono"
-                        >…/worktrees/sessionpad-mod-865578</span
+                        >…/&#8203;worktrees/&#8203;sessionpad-mod-865578</span
                       >
                     </div>
                   </div>
@@ -1265,7 +721,9 @@
                         <span class="mono">main</span>
                       </div>
                       <div class="grow">
-                        <span class="mono dim">/Users/pv/code/sessionpad</span>
+                        <span class="mono dim"
+                          >/Users/&#8203;pv/&#8203;code/&#8203;sessionpad</span
+                        >
                       </div>
                       <div class="w10 noshrink row">
                         <div class="grow"></div>
@@ -1277,7 +735,9 @@
                         <span class="mono">feat/notes-ui</span>
                       </div>
                       <div class="grow">
-                        <span class="mono dim">…/worktrees/notes-ui</span>
+                        <span class="mono dim"
+                          >…/&#8203;worktrees/&#8203;notes-ui</span
+                        >
                       </div>
                       <div class="w10 noshrink row">
                         <div class="grow"></div>
@@ -1289,7 +749,9 @@
                         <span class="mono">detached at 9f8e7d6</span>
                       </div>
                       <div class="grow col">
-                        <span class="mono dim">…/worktrees/old-try</span>
+                        <span class="mono dim"
+                          >…/&#8203;worktrees/&#8203;old-try</span
+                        >
                         <span class="footnote mono dim">size unavailable</span>
                       </div>
                       <div class="w10 noshrink"></div>
@@ -1314,6 +776,7 @@
       </section>
 
       <!-- ================= Terminal ================= -->
+      <!-- Terminal frames keep runs of spaces (white-space: pre-wrap), so their markup holds no whitespace between blocks and the formatter leaves it alone. -->
       <section class="stage" aria-labelledby="stage-term">
         <h2 id="stage-term">
           Terminal <small>the same tree in a dark terminal, 56 columns</small>
@@ -1324,113 +787,47 @@
             <figcaption class="slot-label">
               <b>Notes</b> · note 2 open for editing
             </figcaption>
-            <section class="term" aria-label="Terminal pane, Notes tab">
-              <div class="tbar">✕</div>
-              <div class="tbody">
-                <div class="row gap2">
-                  <span class="bold underline accent">1 Notes</span
-                  ><span class="dim">2 Timeline</span
-                  ><span class="dim">3 Workspace</span>
-                </div>
-                <div class="dim">
-                  ──────────────────────────────────────────────────────
+            <!-- prettier-ignore -->
+            <section class="term" aria-label="Terminal pane, Notes tab"><div class="tbar">✕</div><div class="tbody">
+              <div class="row gap2"><span class="bold underline accent">1 Notes</span><span class="dim">2 Timeline</span><span class="dim">3 Workspace</span></div>
+              <div class="dim">──────────────────────────────────────────────────────</div>
+              <div class="col mt1">
+                <div class="row fill-subtle px1"><div class="w4 noshrink"><span class="accent bold">pad</span></div><div class="grow"><span class="bold">Ship sessionpad 0.1.0: pruning, release, and the pane's look</span></div></div>
+                <div class="field gap1 mt1"><span class="accent">›</span><span class="ph">Add a note…</span></div>
+                <div class="dim px1 mt1">H headline · E edit · X delete</div>
+                <div class="col">
+                  <div class="row gap1 px1 fill-subtle">
+                    <div class="col grow"><span>Use <span class="accent">prune:at</span> so sessions prune about once a day.</span><span class="dim">Claude · 09:12</span></div>
+                    <div class="row gap1 noshrink"><span class="btn">H</span><span class="btn">E</span><span class="btn">X</span></div>
+                  </div>
+                  <div class="frame col">
+                    <div class="col px1">
+                      <div class="row gap1">
+                        <div class="col grow"><span>Ask J for the two README screenshots.<span class="inverse"> </span></span><span>&nbsp;</span><span>&nbsp;</span></div>
+                        <div class="col noshrink"><div class="row"><span class="btn">save</span></div><div class="row"><span class="btn">cancel</span></div></div>
+                      </div>
+                      <span class="dim">Enter saves</span>
+                    </div>
+                  </div>
+                  <div class="row gap1 px1 fill-subtle">
+                    <div class="col grow"><span>Minimum version is <span class="bold">2.1.299</span>: earlier releases refuse the hooks module.</span><span class="dim">Claude · 11:40</span></div>
+                    <div class="row gap1 noshrink"><span class="btn">H</span><span class="btn">E</span><span class="btn">X</span></div>
+                  </div>
+                  <div class="row gap1 px1">
+                    <div class="col grow"><span>Desktop's file pane can't open files outside the project; <span class="accent">/pad-export notes/pad.md</span> works.</span><span class="dim">you · 12:15</span></div>
+                    <div class="row gap1 noshrink"><span class="btn">H</span><span class="btn">E</span><span class="btn">X</span></div>
+                  </div>
                 </div>
                 <div class="col mt1">
-                  <div class="row fill-subtle px1">
-                    <div class="w4 noshrink">
-                      <span class="accent bold">pad</span>
-                    </div>
-                    <div class="grow">
-                      <span class="bold"
-                        >Ship sessionpad 0.1.0: pruning, release, and the pane's
-                        look</span
-                      >
-                    </div>
+                  <span class="bold px1">Recently deleted (1)</span>
+                  <div class="row gap1 px1 fill-subtle">
+                    <div class="col grow"><span>Check du from the home folder.</span><span class="dim">you · 12:20</span></div>
+                    <div class="row noshrink"><span class="btn">Restore</span></div>
                   </div>
-                  <div class="field gap1 mt1">
-                    <span class="accent">›</span
-                    ><span class="ph">Add a note…</span>
-                  </div>
-                  <div class="dim px1 mt1">H headline · E edit · X delete</div>
-                  <div class="col">
-                    <div class="row gap1 px1 fill-subtle">
-                      <div class="col grow">
-                        <span
-                          >Use <span class="accent">prune:at</span> so sessions
-                          prune about once a day.</span
-                        ><span class="dim">Claude · 09:12</span>
-                      </div>
-                      <div class="row gap1 noshrink">
-                        <span class="btn">H</span><span class="btn">E</span
-                        ><span class="btn">X</span>
-                      </div>
-                    </div>
-                    <div class="frame col">
-                      <div class="col px1">
-                        <div class="row gap1">
-                          <div class="col grow">
-                            <span
-                              >Ask J for the two README screenshots.<span
-                                class="inverse"
-                              >
-                              </span></span
-                            ><span>&nbsp;</span><span>&nbsp;</span>
-                          </div>
-                          <div class="col noshrink">
-                            <div class="row">
-                              <span class="btn primary">save</span>
-                            </div>
-                            <div class="row">
-                              <span class="btn">cancel</span>
-                            </div>
-                          </div>
-                        </div>
-                        <span class="dim">Enter saves</span>
-                      </div>
-                    </div>
-                    <div class="row gap1 px1 fill-subtle">
-                      <div class="col grow">
-                        <span
-                          >Minimum version is <span class="bold">2.1.299</span>:
-                          earlier releases refuse the hooks module.</span
-                        ><span class="dim">Claude · 11:40</span>
-                      </div>
-                      <div class="row gap1 noshrink">
-                        <span class="btn">H</span><span class="btn">E</span
-                        ><span class="btn">X</span>
-                      </div>
-                    </div>
-                    <div class="row gap1 px1">
-                      <div class="col grow">
-                        <span
-                          >Desktop's file pane can't open files outside the
-                          project;
-                          <span class="accent">/pad-export notes/pad.md</span>
-                          works.</span
-                        ><span class="dim">you · 12:15</span>
-                      </div>
-                      <div class="row gap1 noshrink">
-                        <span class="btn">H</span><span class="btn">E</span
-                        ><span class="btn">X</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="col mt1">
-                    <span class="bold px1">Recently deleted (1)</span>
-                    <div class="row gap1 px1 fill-subtle">
-                      <div class="col grow">
-                        <span>Check du from the home folder.</span
-                        ><span class="dim">you · 12:20</span>
-                      </div>
-                      <div class="row noshrink">
-                        <span class="btn">Restore</span>
-                      </div>
-                    </div>
-                    <span class="dim px1">Kept until the session ends</span>
-                  </div>
+                  <span class="dim px1">Kept until the session ends</span>
                 </div>
               </div>
-            </section>
+            </div></section>
           </figure>
 
           <!-- Terminal · Timeline -->
@@ -1438,162 +835,46 @@
             <figcaption class="slot-label">
               <b>Timeline</b> · two days, newest first
             </figcaption>
-            <section class="term" aria-label="Terminal pane, Timeline tab">
-              <div class="tbar">✕</div>
-              <div class="tbody">
-                <div class="row gap2">
-                  <span class="dim">1 Notes</span
-                  ><span class="bold underline accent">2 Timeline</span
-                  ><span class="dim">3 Workspace</span>
-                </div>
-                <div class="dim">
-                  ──────────────────────────────────────────────────────
+            <!-- prettier-ignore -->
+            <section class="term" aria-label="Terminal pane, Timeline tab"><div class="tbar">✕</div><div class="tbody">
+              <div class="row gap2"><span class="dim">1 Notes</span><span class="bold underline accent">2 Timeline</span><span class="dim">3 Workspace</span></div>
+              <div class="dim">──────────────────────────────────────────────────────</div>
+              <div class="col mt1">
+                <div class="row px1"><div class="grow"><span class="dim">7 turns, newest first</span></div><span class="btn">Export</span></div>
+                <span class="dim px1">f files · c commands</span>
+                <div class="col mt1">
+                  <div class="fill-subtle px1"><span class="bold">2026-10-28</span></div>
+                  <div class="col px1">
+                    <div class="row gap1"><div class="w6 noshrink">12:31</div><div class="w6 noshrink"><span class="dim">4m10s</span></div><div class="grow">Restyled the pane: tabs, note cards and a wrapping timeline</div><div class="w10 noshrink row"><div class="grow"></div><span class="dim">3f 12c</span></div></div>
+                  </div>
+                  <div class="col px1 fill-subtle">
+                    <div class="row gap1"><div class="w6 noshrink">11:52</div><div class="w6 noshrink"><span class="dim">1m05s</span></div><div class="grow">Found that 2.1.299 is the first release that loads the mod</div><div class="w10 noshrink row"><div class="grow"></div><span class="dim">9c</span></div></div>
+                  </div>
+                  <div class="col px1">
+                    <div class="row gap1"><div class="w6 noshrink">11:20</div><div class="w6 noshrink"><span class="dim">38s</span></div><div class="grow">Answered how to do the manual pass</div><div class="w10 noshrink row"><div class="grow"></div><span class="warn">stopped</span></div></div>
+                  </div>
+                  <div class="col px1 fill-subtle">
+                    <div class="row gap1"><div class="w6 noshrink">10:44</div><div class="w6 noshrink"><span class="dim">6m20s</span></div><div class="grow">Fixed the review findings for pruning</div><div class="w10 noshrink row"><div class="grow"></div><span class="dim">4f 21c</span></div></div>
+                    <div class="row gap1"><div class="w6 noshrink"></div><div class="w6 noshrink"></div><div class="grow"><span class="accent">→ feat/pane-look</span></div></div>
+                  </div>
                 </div>
                 <div class="col mt1">
-                  <div class="row px1">
-                    <div class="grow">
-                      <span class="dim">8 turns, newest first</span>
-                    </div>
-                    <span class="btn">Export</span>
+                  <div class="fill-subtle px1"><span class="bold">2026-10-27</span></div>
+                  <div class="col px1">
+                    <div class="row gap1"><div class="w6 noshrink">16:03</div><div class="w6 noshrink"><span class="dim">10m41s</span></div><div class="grow">Followed up on a message from another session</div><div class="w10 noshrink row"><div class="grow"></div><span class="dim">1f 11c</span></div></div>
                   </div>
-                  <span class="dim px1">f files · c commands</span>
-                  <div class="col mt1">
-                    <div class="fill-subtle px1">
-                      <span class="bold">2026-10-28</span>
-                    </div>
-                    <div class="col px1">
-                      <div class="row gap1">
-                        <div class="w6 noshrink">12:31</div>
-                        <div class="w6 noshrink">
-                          <span class="dim">4m10s</span>
-                        </div>
-                        <div class="grow">
-                          Restyled the pane: tabs, note cards and a wrapping
-                          timeline
-                        </div>
-                        <div class="w10 noshrink row">
-                          <div class="grow"></div>
-                          <span class="dim">3f 12c</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="col px1 fill-subtle">
-                      <div class="row gap1">
-                        <div class="w6 noshrink">11:52</div>
-                        <div class="w6 noshrink">
-                          <span class="dim">1m05s</span>
-                        </div>
-                        <div class="grow">
-                          Found that 2.1.299 is the first release that loads the
-                          mod
-                        </div>
-                        <div class="w10 noshrink row">
-                          <div class="grow"></div>
-                          <span class="dim">9c</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="col px1">
-                      <div class="row gap1">
-                        <div class="w6 noshrink">11:20</div>
-                        <div class="w6 noshrink">
-                          <span class="dim">38s</span>
-                        </div>
-                        <div class="grow">
-                          Answered how to do the manual pass
-                        </div>
-                        <div class="w10 noshrink row">
-                          <div class="grow"></div>
-                          <span class="warn">stopped</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="col px1 fill-subtle">
-                      <div class="row gap1">
-                        <div class="w6 noshrink">10:44</div>
-                        <div class="w6 noshrink">
-                          <span class="dim">6m20s</span>
-                        </div>
-                        <div class="grow">
-                          Fixed the review findings for pruning
-                        </div>
-                        <div class="w10 noshrink row">
-                          <div class="grow"></div>
-                          <span class="dim">4f 21c</span>
-                        </div>
-                      </div>
-                      <div class="row gap1">
-                        <div class="w6 noshrink"></div>
-                        <div class="w6 noshrink"></div>
-                        <div class="grow">
-                          <span class="accent">→ feat/pane-look</span>
-                        </div>
-                      </div>
-                    </div>
+                  <div class="col px1 fill-subtle">
+                    <div class="row gap1"><div class="w6 noshrink">15:48</div><div class="w6 noshrink"><span class="dim">8m02s</span></div><div class="grow">Named the turns that Claude Code starts instead of showing markup</div><div class="w10 noshrink row"><div class="grow"></div><span class="dim">2f 25c</span></div></div>
                   </div>
-                  <div class="col mt1">
-                    <div class="fill-subtle px1">
-                      <span class="bold">2026-10-27</span>
-                    </div>
-                    <div class="col px1">
-                      <div class="row gap1">
-                        <div class="w6 noshrink">16:03</div>
-                        <div class="w6 noshrink">
-                          <span class="dim">10m41s</span>
-                        </div>
-                        <div class="grow">
-                          Followed up on a message from another session
-                        </div>
-                        <div class="w10 noshrink row">
-                          <div class="grow"></div>
-                          <span class="dim">1f 11c</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="col px1 fill-subtle">
-                      <div class="row gap1">
-                        <div class="w6 noshrink">15:48</div>
-                        <div class="w6 noshrink">
-                          <span class="dim">8m02s</span>
-                        </div>
-                        <div class="grow">
-                          Named the turns that Claude Code starts instead of
-                          showing markup
-                        </div>
-                        <div class="w10 noshrink row">
-                          <div class="grow"></div>
-                          <span class="dim">2f 25c</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="col px1">
-                      <div class="row gap1">
-                        <div class="w6 noshrink">
-                          <span class="dim">15:40</span>
-                        </div>
-                        <div class="w6 noshrink"></div>
-                        <div class="grow">
-                          <span class="dim">The conversation was cleared.</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="col px1 fill-subtle">
-                      <div class="row gap1">
-                        <div class="w6 noshrink">15:12</div>
-                        <div class="w6 noshrink">
-                          <span class="dim">2m30s</span>
-                        </div>
-                        <div class="grow">Added the MIT license</div>
-                        <div class="w10 noshrink row">
-                          <div class="grow"></div>
-                          <span class="dim">2f 3c</span>
-                        </div>
-                      </div>
-                    </div>
+                  <div class="col px1">
+                    <div class="row gap1"><div class="w6 noshrink"><span class="dim">15:40</span></div><div class="w6 noshrink"></div><div class="grow"><span class="dim">The conversation was cleared.</span></div></div>
+                  </div>
+                  <div class="col px1 fill-subtle">
+                    <div class="row gap1"><div class="w6 noshrink">15:12</div><div class="w6 noshrink"><span class="dim">2m30s</span></div><div class="grow">Added the MIT license</div><div class="w10 noshrink row"><div class="grow"></div><span class="dim">2f 3c</span></div></div>
                   </div>
                 </div>
               </div>
-            </section>
+            </div></section>
           </figure>
 
           <!-- Terminal · Workspace -->
@@ -1601,77 +882,23 @@
             <figcaption class="slot-label">
               <b>Workspace</b> · this worktree and three others
             </figcaption>
-            <section class="term" aria-label="Terminal pane, Workspace tab">
-              <div class="tbar">✕</div>
-              <div class="tbody">
-                <div class="row gap2">
-                  <span class="dim">1 Notes</span
-                  ><span class="dim">2 Timeline</span
-                  ><span class="bold underline accent">3 Workspace</span>
-                </div>
-                <div class="dim">
-                  ──────────────────────────────────────────────────────
-                </div>
+            <!-- prettier-ignore -->
+            <section class="term" aria-label="Terminal pane, Workspace tab"><div class="tbar">✕</div><div class="tbody">
+              <div class="row gap2"><span class="dim">1 Notes</span><span class="dim">2 Timeline</span><span class="bold underline accent">3 Workspace</span></div>
+              <div class="dim">──────────────────────────────────────────────────────</div>
+              <div class="col mt1">
+                <div class="row px1"><div class="w10 noshrink"><span class="dim">branch</span></div><div class="grow">claude/sessionpad-mod-865578</div></div>
+                <div class="row px1"><div class="w10 noshrink"><span class="dim">worktree</span></div><div class="grow">…/worktrees/sessionpad-mod-865578</div></div>
+                <div class="row px1"><div class="w10 noshrink"><span class="dim">size</span></div><div class="grow">412 MB</div><span class="btn">Refresh</span></div>
+                <div class="row px1"><div class="w10 noshrink"></div><div class="grow"><span class="dim">measured 12:30</span></div></div>
                 <div class="col mt1">
-                  <div class="row px1">
-                    <div class="w10 noshrink">
-                      <span class="dim">branch</span>
-                    </div>
-                    <div class="grow">claude/sessionpad-mod-865578</div>
-                  </div>
-                  <div class="row px1">
-                    <div class="w10 noshrink">
-                      <span class="dim">worktree</span>
-                    </div>
-                    <div class="grow">…/worktrees/sessionpad-mod-865578</div>
-                  </div>
-                  <div class="row px1">
-                    <div class="w10 noshrink">
-                      <span class="dim">size</span>
-                    </div>
-                    <div class="grow">412 MB</div>
-                    <span class="btn">Refresh</span>
-                  </div>
-                  <div class="row px1">
-                    <div class="w10 noshrink"></div>
-                    <div class="grow">
-                      <span class="dim">measured 12:30</span>
-                    </div>
-                  </div>
-                  <div class="col mt1">
-                    <span class="bold px1">other worktrees (3)</span>
-                    <div class="row px1 fill-subtle">
-                      <div class="w16 noshrink">main</div>
-                      <div class="grow">
-                        <span class="dim">/Users/pv/code/sessionpad</span>
-                      </div>
-                      <div class="w10 noshrink row">
-                        <div class="grow"></div>
-                        <span>2.3 GB</span>
-                      </div>
-                    </div>
-                    <div class="row px1">
-                      <div class="w16 noshrink">feat/notes-ui</div>
-                      <div class="grow">
-                        <span class="dim">…/worktrees/notes-ui</span>
-                      </div>
-                      <div class="w10 noshrink row">
-                        <div class="grow"></div>
-                        <span class="dim">measuring…</span>
-                      </div>
-                    </div>
-                    <div class="row px1 fill-subtle">
-                      <div class="w16 noshrink">detached at 9f8e7d6</div>
-                      <div class="grow col">
-                        <span class="dim">…/worktrees/old-try</span
-                        ><span class="dim">size unavailable</span>
-                      </div>
-                      <div class="w10 noshrink"></div>
-                    </div>
-                  </div>
+                  <span class="bold px1">other worktrees (3)</span>
+                  <div class="row px1 fill-subtle"><div class="w16 noshrink">main</div><div class="grow"><span class="dim">/Users/pv/code/sessionpad</span></div><div class="w10 noshrink row"><div class="grow"></div><span>2.3 GB</span></div></div>
+                  <div class="row px1"><div class="w16 noshrink">feat/notes-ui</div><div class="grow"><span class="dim">…/worktrees/notes-ui</span></div><div class="w10 noshrink row"><div class="grow"></div><span class="dim">measuring…</span></div></div>
+                  <div class="row px1 fill-subtle"><div class="w16 noshrink">detached at 9f8e7d6</div><div class="grow col"><span class="dim">…/worktrees/old-try</span><span class="dim">size unavailable</span></div><div class="w10 noshrink"></div></div>
                 </div>
               </div>
-            </section>
+            </div></section>
           </figure>
         </div>
         <p class="cap">
@@ -1898,17 +1125,19 @@
                   >. Inside:
                   <code
                     >&lt;Box marginTop={desk ? 1 : 0} flexDirection="row"
-                    columnGap={1}&gt;&lt;Input rows={3} value={text}/&gt;&lt;Box
-                    flexDirection="column" rowGap={desk ? 1 : 0}
-                    flexShrink={0}&gt;&lt;Box&gt;&lt;Button variant="primary"
-                    label="save"/&gt;&lt;/Box&gt;&lt;Box&gt;&lt;Button
-                    label="cancel"/&gt;&lt;/Box&gt;&lt;/Box&gt;&lt;/Box&gt;</code
+                    columnGap={1}&gt;&lt;Input rows={3} value={text}
+                    submitLabel="save"/&gt;&lt;/Box&gt;&lt;Box
+                    marginTop={desk ? 1 : 0}&gt;&lt;Button
+                    label="cancel"/&gt;&lt;/Box&gt;</code
                   >, then
                   <code
                     >&lt;Text size="footnote" dimColor mono&gt;Enter
                     saves&lt;/Text&gt;</code
-                  >. Each button sits in its own Box so the column doesn't
-                  stretch it.
+                  >. save is the Input's own submit button: Desktop draws it as
+                  a grey pill beside the field's top, and a primary Button
+                  can't stand in, since the Input would still draw its pill. In
+                  a terminal the submit label shows beside the focused field,
+                  drawn here as <code>[ save ]</code>; not yet seen there.
                 </td>
               </tr>
               <tr>
@@ -1934,7 +1163,7 @@
                 <td>
                   <code
                     >&lt;Box flexDirection="row" paddingX={1}&gt;&lt;Box
-                    flexGrow={1}&gt;&lt;Text mono dimColor&gt;8 turns, newest
+                    flexGrow={1}&gt;&lt;Text mono dimColor&gt;7 turns, newest
                     first&lt;/Text&gt;&lt;/Box&gt;&lt;Button
                     label="Export"/&gt;&lt;/Box&gt;</code
                   >
@@ -2027,6 +1256,16 @@
                   stays empty.
                 </td>
               </tr>
+              <tr>
+                <th>Paths on Desktop</th>
+                <td>
+                  A path has no space to break at, so in a narrow column it runs
+                  into the next one. On Desktop the mod passes
+                  <code>path.replaceAll("/", "/​")</code>, a zero-width space
+                  after each slash, and the path wraps at its slashes. The
+                  terminal wraps by cells and gets the plain path.
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -2088,7 +1327,242 @@
     </main>
 
     <!-- DP:STYLE -->
+<style id="dp-style">
+  #design-panel {
+    all: initial;
+    --dp-bg: rgba(28, 30, 34, 0.92);
+    --dp-text: #e7e9ee;
+    --dp-muted: #9aa1ad;
+    --dp-line: rgba(255, 255, 255, 0.14);
+    --dp-active: #6ea8fe;
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 99999;
+    width: 240px;
+    max-height: min(70vh, 560px);
+    overflow: auto;
+    background: var(--dp-bg);
+    color: var(--dp-text);
+    font:
+      12px/1.45 system-ui,
+      -apple-system,
+      "Segoe UI",
+      sans-serif;
+    border: 1px solid var(--dp-line);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(6px);
+  }
+  #design-panel * {
+    all: revert;
+    box-sizing: border-box;
+    font: inherit;
+    color: inherit;
+  }
+  #design-panel header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--dp-line);
+  }
+  #design-panel header strong {
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  #dp-toggle {
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 6px;
+    line-height: 1;
+  }
+  #dp-toggle:hover {
+    background: var(--dp-line);
+  }
+  #design-panel[data-collapsed="true"] {
+    width: auto;
+    max-height: none;
+    overflow: hidden;
+  }
+  #design-panel[data-collapsed="true"] #dp-body {
+    display: none;
+  }
+  #design-panel[data-collapsed="true"] header {
+    border-bottom: 0;
+  }
+  #dp-body {
+    padding: 10px 12px 12px;
+    display: grid;
+    gap: 12px;
+  }
+  #design-panel fieldset {
+    border: 0;
+    margin: 0;
+    padding: 0;
+  }
+  #design-panel legend {
+    padding: 0 0 6px;
+    color: var(--dp-muted);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+  }
+  #design-panel .dp-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  #design-panel .dp-options label {
+    border: 1px solid var(--dp-line);
+    border-radius: 999px;
+    padding: 3px 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+  #design-panel .dp-options input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  #design-panel .dp-options input:checked + span {
+    color: var(--dp-active);
+  }
+  #design-panel .dp-options label:has(input:checked) {
+    border-color: var(--dp-active);
+  }
+  #design-panel .dp-options label:has(input:focus-visible) {
+    outline: 2px solid var(--dp-active);
+    outline-offset: 2px;
+  }
+  #design-panel .dp-slider {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 8px;
+  }
+  #design-panel .dp-slider input[type="range"] {
+    width: 100%;
+    accent-color: var(--dp-active);
+  }
+  #design-panel .dp-slider output {
+    min-width: 42px;
+    text-align: right;
+    color: var(--dp-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  #dp-reset,
+  #dp-copy {
+    width: 100%;
+    border: 1px solid var(--dp-line);
+    background: transparent;
+    border-radius: 8px;
+    padding: 6px 0;
+    cursor: pointer;
+  }
+  #dp-reset:hover,
+  #dp-copy:hover {
+    border-color: var(--dp-active);
+    color: var(--dp-active);
+  }
+  #design-panel [hidden] {
+    display: none;
+  }
+  #dp-copy-status {
+    margin: 0;
+    color: var(--dp-muted);
+  }
+  #dp-settings {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 6px 8px;
+    resize: vertical;
+    border: 1px solid var(--dp-line);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.25);
+    font:
+      11px/1.4 ui-monospace,
+      SFMono-Regular,
+      Menlo,
+      Consolas,
+      monospace;
+  }
+</style>
+<!-- /DP:STYLE -->
     <!-- DP:MARKUP -->
+<aside
+  id="design-panel"
+  data-collapsed="false"
+  aria-label="Design control panel"
+>
+  <header>
+    <strong>Design panel</strong>
+    <button
+      id="dp-toggle"
+      type="button"
+      aria-expanded="true"
+      title="Collapse panel"
+    >
+      −
+    </button>
+  </header>
+  <div id="dp-body">
+    <fieldset data-dp-group="mode">
+      <legend>Mode</legend>
+      <div class="dp-options"></div>
+    </fieldset>
+    <fieldset data-dp-group="palette">
+      <legend>Palette</legend>
+      <div class="dp-options"></div>
+    </fieldset>
+    <fieldset data-dp-group="font">
+      <legend>Font</legend>
+      <div class="dp-options"></div>
+    </fieldset>
+    <fieldset>
+      <legend>Radius</legend>
+      <div class="dp-slider">
+        <input
+          type="range"
+          data-dp-range="radius"
+          min="0"
+          max="24"
+          step="1"
+          aria-label="Radius"
+        />
+        <output data-dp-out="radius"></output>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Density</legend>
+      <div class="dp-slider">
+        <input
+          type="range"
+          data-dp-range="density"
+          min="0.8"
+          max="1.3"
+          step="0.05"
+          aria-label="Density"
+        />
+        <output data-dp-out="density"></output>
+      </div>
+    </fieldset>
+    <button id="dp-reset" type="button">Reset to defaults</button>
+    <button id="dp-copy" type="button">Copy settings</button>
+    <p id="dp-copy-status" role="status" hidden></p>
+    <textarea
+      id="dp-settings"
+      rows="6"
+      readonly
+      hidden
+      aria-label="Design settings as JSON"
+    ></textarea>
+  </div>
+</aside>
+<!-- /DP:MARKUP -->
     <script type="application/json" id="dp-config">
       {
         "slug": "03-ledger",
@@ -2121,5 +1595,278 @@
       }
     </script>
     <!-- DP:SCRIPT -->
+<script id="dp-script">
+  (function () {
+    function readConfig() {
+      var node = document.getElementById("dp-config");
+      if (!node) return null;
+      try {
+        return JSON.parse(node.textContent);
+      } catch (error) {
+        return null;
+      }
+    }
+    var config = window.DP_CONFIG || readConfig();
+    if (
+      !config ||
+      !config.slug ||
+      !Array.isArray(config.palettes) ||
+      !Array.isArray(config.fonts) ||
+      !config.defaults
+    ) {
+      console.error(
+        "design-panel: the dp-config JSON block (or window.DP_CONFIG) is missing or malformed"
+      );
+      return;
+    }
+    // The set folder is the last directory segment of the page's own path,
+    // so 01-editorial in two sets keeps two states. A page with no directory
+    // segment keeps the plain slug key.
+    var folder = window.location.pathname.split("/").slice(0, -1).pop();
+    var KEY = "design-panel:" + (folder ? folder + "/" : "") + config.slug;
+    var root = document.documentElement;
+    var panel = document.getElementById("design-panel");
+    var defaults = {
+      mode: config.defaults.mode === "dark" ? "dark" : "light",
+      palette: idOrFirst(config.palettes, config.defaults.palette),
+      font: idOrFirst(config.fonts, config.defaults.font),
+      radius: clamp(num(config.defaults.radius, 8), 0, 24),
+      density: clamp(num(config.defaults.density, 1), 0.8, 1.3),
+      collapsed: false,
+    };
+
+    function idOrFirst(list, id) {
+      for (var i = 0; i < list.length; i += 1) {
+        if (list[i].id === id) return id;
+      }
+      return list.length > 0 ? list[0].id : "";
+    }
+    function hasId(list, id) {
+      for (var i = 0; i < list.length; i += 1) {
+        if (list[i].id === id) return true;
+      }
+      return false;
+    }
+    function num(value, fallback) {
+      return typeof value === "number" && isFinite(value) ? value : fallback;
+    }
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+    function findFont(id) {
+      for (var i = 0; i < config.fonts.length; i += 1) {
+        if (config.fonts[i].id === id) return config.fonts[i];
+      }
+      return config.fonts[0];
+    }
+
+    function load() {
+      var state = {};
+      try {
+        state = JSON.parse(localStorage.getItem(KEY) || "{}") || {};
+      } catch (error) {
+        state = {};
+      }
+      return {
+        mode:
+          state.mode === "dark" || state.mode === "light"
+            ? state.mode
+            : defaults.mode,
+        palette: hasId(config.palettes, state.palette)
+          ? state.palette
+          : defaults.palette,
+        font: hasId(config.fonts, state.font) ? state.font : defaults.font,
+        radius: clamp(num(state.radius, defaults.radius), 0, 24),
+        density: clamp(num(state.density, defaults.density), 0.8, 1.3),
+        collapsed: state.collapsed === true,
+      };
+    }
+    function save() {
+      try {
+        localStorage.setItem(
+          KEY,
+          JSON.stringify(Object.assign({ v: 1 }, current))
+        );
+      } catch (error) {
+        /* storage unavailable (e.g. some file:// modes): live state still works */
+      }
+    }
+
+    var current = load();
+
+    function apply() {
+      root.setAttribute("data-theme", current.mode);
+      root.setAttribute("data-palette", current.palette);
+      root.setAttribute("data-font", current.font);
+      root.style.setProperty("--radius", current.radius + "px");
+      root.style.setProperty("--density", String(current.density));
+      var font = findFont(current.font);
+      root.style.setProperty("--font-body", font.body);
+      root.style.setProperty("--font-heading", font.heading || font.body);
+      panel.setAttribute("data-collapsed", String(current.collapsed));
+      var toggle = document.getElementById("dp-toggle");
+      toggle.textContent = current.collapsed ? "✦" : "−";
+      toggle.setAttribute("aria-expanded", String(!current.collapsed));
+      toggle.setAttribute(
+        "title",
+        current.collapsed ? "Expand panel" : "Collapse panel"
+      );
+      document.getElementById("dp-settings").hidden = true;
+      document.getElementById("dp-copy-status").hidden = true;
+      syncControls();
+    }
+
+    function radioGroup(group, options) {
+      var container = panel.querySelector(
+        '[data-dp-group="' + group + '"] .dp-options'
+      );
+      options.forEach(function (option) {
+        var label = document.createElement("label");
+        var input = document.createElement("input");
+        input.type = "radio";
+        input.name = "dp-" + group + "-" + config.slug;
+        input.setAttribute("value", option.id);
+        input.addEventListener("change", function () {
+          current[group] = option.id;
+          save();
+          apply();
+        });
+        var text = document.createElement("span");
+        text.textContent = option.label;
+        label.appendChild(input);
+        label.appendChild(text);
+        container.appendChild(label);
+      });
+    }
+
+    function syncControls() {
+      ["mode", "palette", "font"].forEach(function (group) {
+        var inputs = panel.querySelectorAll(
+          '[data-dp-group="' + group + '"] input'
+        );
+        inputs.forEach(function (input) {
+          input.checked = input.value === current[group];
+        });
+      });
+      var radius = panel.querySelector('[data-dp-range="radius"]');
+      var density = panel.querySelector('[data-dp-range="density"]');
+      radius.value = String(current.radius);
+      density.value = String(current.density);
+      var radiusText = current.radius + "px";
+      var densityText = "×" + current.density.toFixed(2);
+      panel.querySelector('[data-dp-out="radius"]').textContent = radiusText;
+      panel.querySelector('[data-dp-out="density"]').textContent = densityText;
+      radius.setAttribute("aria-valuetext", radiusText);
+      density.setAttribute("aria-valuetext", densityText);
+    }
+
+    radioGroup("mode", [
+      { id: "light", label: "Light" },
+      { id: "dark", label: "Dark" },
+    ]);
+    radioGroup("palette", config.palettes);
+    radioGroup("font", config.fonts);
+
+    panel
+      .querySelector('[data-dp-range="radius"]')
+      .addEventListener("input", function (event) {
+        current.radius = clamp(
+          num(Number(event.target.value), defaults.radius),
+          0,
+          24
+        );
+        save();
+        apply();
+      });
+    panel
+      .querySelector('[data-dp-range="density"]')
+      .addEventListener("input", function (event) {
+        current.density = clamp(
+          num(Number(event.target.value), defaults.density),
+          0.8,
+          1.3
+        );
+        save();
+        apply();
+      });
+    document.getElementById("dp-toggle").addEventListener("click", function () {
+      current.collapsed = !current.collapsed;
+      save();
+      apply();
+    });
+    document.getElementById("dp-reset").addEventListener("click", function () {
+      try {
+        localStorage.removeItem(KEY);
+      } catch (error) {
+        /* ignore */
+      }
+      current = load();
+      apply();
+    });
+
+    var TOKENS = [
+      "--c-bg",
+      "--c-surface",
+      "--c-text",
+      "--c-muted",
+      "--c-accent",
+      "--c-on-accent",
+      "--c-border",
+    ];
+    function tokensFor(mode) {
+      var tokens = {};
+      root.setAttribute("data-theme", mode);
+      var computed = window.getComputedStyle(root);
+      TOKENS.forEach(function (name) {
+        tokens[name] = computed.getPropertyValue(name).trim();
+      });
+      root.setAttribute("data-theme", current.mode);
+      return tokens;
+    }
+    function settings() {
+      var font = findFont(current.font);
+      return {
+        v: 1,
+        slug: config.slug,
+        mode: current.mode,
+        palette: current.palette,
+        font: current.font,
+        radius: current.radius,
+        density: current.density,
+        fontStacks: { body: font.body, heading: font.heading || font.body },
+        tokens: { light: tokensFor("light"), dark: tokensFor("dark") },
+      };
+    }
+    document.getElementById("dp-copy").addEventListener("click", function () {
+      var json = JSON.stringify(settings(), null, 2);
+      var field = document.getElementById("dp-settings");
+      var status = document.getElementById("dp-copy-status");
+      function manual() {
+        status.textContent = "Select the text below and copy it.";
+        field.focus();
+        field.select();
+      }
+      field.value = json;
+      field.hidden = false;
+      status.textContent = "Copying…";
+      status.hidden = false;
+      var clipboard = window.navigator && window.navigator.clipboard;
+      if (!clipboard || typeof clipboard.writeText !== "function") {
+        manual();
+        return;
+      }
+      try {
+        clipboard.writeText(json).then(function () {
+          status.textContent = "Copied to clipboard.";
+        }, manual);
+      } catch (error) {
+        manual();
+      }
+    });
+
+    apply();
+  })();
+</script>
+<!-- /DP:SCRIPT -->
   </body>
 </html>

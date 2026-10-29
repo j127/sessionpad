@@ -1,0 +1,184 @@
+<!doctype html>
+<!--
+  MOCKUP GALLERY — template. scripts/build_mockups.ts writes each set's
+  <set>/index.html from this file: it fills the page placeholders
+  (SET_TITLE, ONE_LINE_BRIEF) and repeats the block between the CARD and
+  /CARD comments once per mockup, in numbered order, filling FILE, NN, TITLE
+  and DIRECTION. Edit this template, not a generated index.html; the next
+  build overwrites it. The gallery-title and gallery-brief meta tags let a
+  later build without flags reuse the title and brief, and the root index
+  reads them for the set's card. The title must keep ending in
+  "— design mockups": that suffix marks a gallery as written by the build.
+
+  The static link to ../index.html leads back to the root index, which lists
+  every set (assets/root_template.html).
+
+  The links are the contract; the iframe previews are best-effort decoration:
+  some browsers restrict file://-inside-file:// iframes or partition their
+  localStorage. If previews render blank, the links still work — do not
+  "fix" this by adding network resources.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>sessionpad pane, as the mod draws it — design mockups</title>
+    <meta name="gallery-title" content="sessionpad pane, as the mod draws it" />
+    <meta name="gallery-brief" content="Three directions for the redesigned pane, each drawn only with what the mod can draw on Desktop (light and dark) and in a terminal, as measured in sessionpad_pane/RENDERING.md." />
+    <style>
+      :root {
+        --bg: #f5f6f8;
+        --surface: #ffffff;
+        --text: #16181d;
+        --muted: #5c6470;
+        --border: #e2e5ea;
+        --accent: #2563eb;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #111317;
+          --surface: #1a1d23;
+          --text: #e7e9ee;
+          --muted: #9aa1ad;
+          --border: #2a2e36;
+          --accent: #6ea8fe;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          15px/1.5 system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+      main {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 32px 20px 64px;
+      }
+      p.back {
+        margin: 0 0 12px;
+        font-size: 13px;
+      }
+      p.back a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      p.back a:hover {
+        text-decoration: underline;
+      }
+      h1 {
+        font-size: 22px;
+        margin: 0 0 4px;
+      }
+      p.lead {
+        margin: 0 0 28px;
+        color: var(--muted);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .card .preview {
+        height: 200px;
+        overflow: hidden;
+        border-bottom: 1px solid var(--border);
+        background: var(--bg);
+      }
+      .card .preview iframe {
+        width: 400%;
+        height: 800px;
+        border: 0;
+        transform: scale(0.25);
+        transform-origin: top left;
+        pointer-events: none;
+      }
+      .card .meta {
+        padding: 14px 16px 16px;
+      }
+      .card h2 {
+        font-size: 16px;
+        margin: 0 0 4px;
+      }
+      .card h2 a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      .card h2 a:hover {
+        text-decoration: underline;
+      }
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="back"><a href="../index.html">← All mockup sets</a></p>
+      <h1>sessionpad pane, as the mod draws it — design mockups</h1>
+      <p class="lead">
+        Three directions for the redesigned pane, each drawn only with what the mod can draw on Desktop (light and dark) and in a terminal, as measured in sessionpad_pane/RENDERING.md. Open a mockup and use its design panel to explore
+        modes, palettes, fonts, radius, and density.
+      </p>
+      <div class="grid">
+        <!-- one card per mockup; keep numbered order -->
+        <article class="card">
+          <div class="preview">
+            <iframe
+              src="01-pills.html"
+              title="Pills preview"
+              loading="lazy"
+            ></iframe>
+          </div>
+          <div class="meta">
+            <h2><a href="01-pills.html">01 · Pills</a></h2>
+            <p>The open tab as a black pill among grey ones, a headline card in the accent, notes on grey shading with pill buttons, an inline undo, and the timeline as shaded day groups.</p>
+          </div>
+        </article>
+        <article class="card">
+          <div class="preview">
+            <iframe
+              src="02-cards.html"
+              title="Cards preview"
+              loading="lazy"
+            ></iframe>
+          </div>
+          <div class="meta">
+            <h2><a href="02-cards.html">02 · Cards</a></h2>
+            <p>Soft rounded cards everywhere: the headline, each note, each timeline day and the workspace sit on filled grey cards, with the open tab a black pill beside plain-text tabs and an undo card at the top.</p>
+          </div>
+        </article>
+        <article class="card">
+          <div class="preview">
+            <iframe
+              src="03-ledger.html"
+              title="Ledger preview"
+              loading="lazy"
+            ></iframe>
+          </div>
+          <div class="meta">
+            <h2><a href="03-ledger.html">03 · Ledger</a></h2>
+            <p>Dense and aligned: monospace throughout, striped rows in fixed columns, compact H E X pills with a key line, a Recently deleted shelf, and a tinted headline strip.</p>
+          </div>
+        </article>
+      </div>
+    </main>
+  </body>
+</html>

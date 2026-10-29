@@ -4,6 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <!-- DP:CSP -->
+<meta
+  id="dp-csp"
+  http-equiv="Content-Security-Policy"
+  content="default-src 'none'; img-src data:; font-src data:; media-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'"
+/>
+<!-- /DP:CSP -->
     <title>01 · Pills — mockup</title>
     <meta
       name="mockup-direction"
@@ -939,10 +945,10 @@
                             <div class="box rows3 filled">
                               Ask J for the two README screenshots.
                             </div>
-                            <div class="col noshrink">
-                              <span class="btn primary">save</span>
-                              <span class="btn mt1">Cancel</span>
-                            </div>
+                            <span class="btn noshrink">save</span>
+                          </div>
+                          <div class="row mt1">
+                            <span class="btn">Cancel</span>
                           </div>
                         </div>
                         <div class="mt1"></div>
@@ -1227,7 +1233,7 @@
                       <div class="col mt1">
                         <div class="field gap1">
                           <div class="col grow"><div>Ask J for the two README screenshots.</div><div>&nbsp;</div><div>&nbsp;</div></div>
-                          <div class="col noshrink"><span class="btn primary">save</span><span class="btn mt1">Cancel</span></div>
+                          <div class="col noshrink"><span class="btn">save</span><span class="btn mt1">Cancel</span></div>
                         </div>
                       </div>
                       <div class="mt1"></div>
@@ -1368,8 +1374,9 @@
         <p>
           Pills, because the Desktop app already draws every Button as one. The
           open tab is the single <code>primary</code> pill, black in light mode
-          and white in dark; the other tabs, the note actions, save's partner
-          Cancel, Undo, Export and Refresh sizes are the default grey pill.
+          and white in dark; the other tabs, the note actions, the edit
+          field's save and its Cancel, Undo, Export and Refresh sizes are the
+          default grey pill.
           Grouping comes from shading rather than borders: each note is a
           <code>promptBorder</code> rectangle, the deleted note leaves a
           <code>diffRemovedDimmed</code> row in its place, and the timeline
@@ -1549,21 +1556,24 @@
               <tr>
                 <td>save, Cancel</td>
                 <td>
-                  <code>&lt;Box flexDirection="column" flexShrink={0}&gt;</code>
-                  with
-                  <code>&lt;Button variant="primary" label="save"&gt;</code> and
+                  save is the Input's own submit button,
+                  <code>submitLabel="save"</code>, which Desktop draws as a grey
+                  pill beside the field's top; then
                   <code
                     >&lt;Box marginTop={1}&gt;&lt;Button
                     label="Cancel"&gt;&lt;/Box&gt;</code
-                  >; save reads the draft kept by <code>onInput</code>
+                  >
+                  under the field. A primary Button can't stand in for save:
+                  the Input would still draw its own pill beside it.
                 </td>
                 <td>
-                  <code>.col</code>, <code>.btn.primary</code>,
-                  <code>.btn.mt1</code>
+                  <code>.btn</code> inside the <code>.field</code>, then
+                  <code>.row.mt1</code> with <code>.btn</code>
                 </td>
                 <td>
-                  <code>[ save ]</code> in blue, a blank line,
-                  <code>[ Cancel ]</code>
+                  the field's submit label beside the focused field (drawn
+                  here as <code>[ save ]</code>; not yet seen in a terminal), a
+                  blank line, <code>[ Cancel ]</code>
                 </td>
               </tr>
               <tr>
@@ -1775,7 +1785,8 @@
           </li>
           <li>
             <b>Buttons and fields.</b> Pills become <code>[ label ]</code>, and
-            the primary save is a blue label rather than a black or white pill.
+            the open tab, the one primary button, is a blue label rather than a
+            black or white pill.
             The note field shows <code>Note: Add a note…</code> with no add
             button: Enter adds. The edit field is only its text, so
             <code>[ save ]</code> beside it is what says the note is being
@@ -1847,7 +1858,242 @@
     </main>
 
     <!-- DP:STYLE -->
+<style id="dp-style">
+  #design-panel {
+    all: initial;
+    --dp-bg: rgba(28, 30, 34, 0.92);
+    --dp-text: #e7e9ee;
+    --dp-muted: #9aa1ad;
+    --dp-line: rgba(255, 255, 255, 0.14);
+    --dp-active: #6ea8fe;
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 99999;
+    width: 240px;
+    max-height: min(70vh, 560px);
+    overflow: auto;
+    background: var(--dp-bg);
+    color: var(--dp-text);
+    font:
+      12px/1.45 system-ui,
+      -apple-system,
+      "Segoe UI",
+      sans-serif;
+    border: 1px solid var(--dp-line);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(6px);
+  }
+  #design-panel * {
+    all: revert;
+    box-sizing: border-box;
+    font: inherit;
+    color: inherit;
+  }
+  #design-panel header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--dp-line);
+  }
+  #design-panel header strong {
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  #dp-toggle {
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 6px;
+    line-height: 1;
+  }
+  #dp-toggle:hover {
+    background: var(--dp-line);
+  }
+  #design-panel[data-collapsed="true"] {
+    width: auto;
+    max-height: none;
+    overflow: hidden;
+  }
+  #design-panel[data-collapsed="true"] #dp-body {
+    display: none;
+  }
+  #design-panel[data-collapsed="true"] header {
+    border-bottom: 0;
+  }
+  #dp-body {
+    padding: 10px 12px 12px;
+    display: grid;
+    gap: 12px;
+  }
+  #design-panel fieldset {
+    border: 0;
+    margin: 0;
+    padding: 0;
+  }
+  #design-panel legend {
+    padding: 0 0 6px;
+    color: var(--dp-muted);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+  }
+  #design-panel .dp-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  #design-panel .dp-options label {
+    border: 1px solid var(--dp-line);
+    border-radius: 999px;
+    padding: 3px 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+  #design-panel .dp-options input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  #design-panel .dp-options input:checked + span {
+    color: var(--dp-active);
+  }
+  #design-panel .dp-options label:has(input:checked) {
+    border-color: var(--dp-active);
+  }
+  #design-panel .dp-options label:has(input:focus-visible) {
+    outline: 2px solid var(--dp-active);
+    outline-offset: 2px;
+  }
+  #design-panel .dp-slider {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 8px;
+  }
+  #design-panel .dp-slider input[type="range"] {
+    width: 100%;
+    accent-color: var(--dp-active);
+  }
+  #design-panel .dp-slider output {
+    min-width: 42px;
+    text-align: right;
+    color: var(--dp-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  #dp-reset,
+  #dp-copy {
+    width: 100%;
+    border: 1px solid var(--dp-line);
+    background: transparent;
+    border-radius: 8px;
+    padding: 6px 0;
+    cursor: pointer;
+  }
+  #dp-reset:hover,
+  #dp-copy:hover {
+    border-color: var(--dp-active);
+    color: var(--dp-active);
+  }
+  #design-panel [hidden] {
+    display: none;
+  }
+  #dp-copy-status {
+    margin: 0;
+    color: var(--dp-muted);
+  }
+  #dp-settings {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 6px 8px;
+    resize: vertical;
+    border: 1px solid var(--dp-line);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.25);
+    font:
+      11px/1.4 ui-monospace,
+      SFMono-Regular,
+      Menlo,
+      Consolas,
+      monospace;
+  }
+</style>
+<!-- /DP:STYLE -->
     <!-- DP:MARKUP -->
+<aside
+  id="design-panel"
+  data-collapsed="false"
+  aria-label="Design control panel"
+>
+  <header>
+    <strong>Design panel</strong>
+    <button
+      id="dp-toggle"
+      type="button"
+      aria-expanded="true"
+      title="Collapse panel"
+    >
+      −
+    </button>
+  </header>
+  <div id="dp-body">
+    <fieldset data-dp-group="mode">
+      <legend>Mode</legend>
+      <div class="dp-options"></div>
+    </fieldset>
+    <fieldset data-dp-group="palette">
+      <legend>Palette</legend>
+      <div class="dp-options"></div>
+    </fieldset>
+    <fieldset data-dp-group="font">
+      <legend>Font</legend>
+      <div class="dp-options"></div>
+    </fieldset>
+    <fieldset>
+      <legend>Radius</legend>
+      <div class="dp-slider">
+        <input
+          type="range"
+          data-dp-range="radius"
+          min="0"
+          max="24"
+          step="1"
+          aria-label="Radius"
+        />
+        <output data-dp-out="radius"></output>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Density</legend>
+      <div class="dp-slider">
+        <input
+          type="range"
+          data-dp-range="density"
+          min="0.8"
+          max="1.3"
+          step="0.05"
+          aria-label="Density"
+        />
+        <output data-dp-out="density"></output>
+      </div>
+    </fieldset>
+    <button id="dp-reset" type="button">Reset to defaults</button>
+    <button id="dp-copy" type="button">Copy settings</button>
+    <p id="dp-copy-status" role="status" hidden></p>
+    <textarea
+      id="dp-settings"
+      rows="6"
+      readonly
+      hidden
+      aria-label="Design settings as JSON"
+    ></textarea>
+  </div>
+</aside>
+<!-- /DP:MARKUP -->
     <script type="application/json" id="dp-config">
       {
         "slug": "01-pills",
@@ -1880,5 +2126,278 @@
       }
     </script>
     <!-- DP:SCRIPT -->
+<script id="dp-script">
+  (function () {
+    function readConfig() {
+      var node = document.getElementById("dp-config");
+      if (!node) return null;
+      try {
+        return JSON.parse(node.textContent);
+      } catch (error) {
+        return null;
+      }
+    }
+    var config = window.DP_CONFIG || readConfig();
+    if (
+      !config ||
+      !config.slug ||
+      !Array.isArray(config.palettes) ||
+      !Array.isArray(config.fonts) ||
+      !config.defaults
+    ) {
+      console.error(
+        "design-panel: the dp-config JSON block (or window.DP_CONFIG) is missing or malformed"
+      );
+      return;
+    }
+    // The set folder is the last directory segment of the page's own path,
+    // so 01-editorial in two sets keeps two states. A page with no directory
+    // segment keeps the plain slug key.
+    var folder = window.location.pathname.split("/").slice(0, -1).pop();
+    var KEY = "design-panel:" + (folder ? folder + "/" : "") + config.slug;
+    var root = document.documentElement;
+    var panel = document.getElementById("design-panel");
+    var defaults = {
+      mode: config.defaults.mode === "dark" ? "dark" : "light",
+      palette: idOrFirst(config.palettes, config.defaults.palette),
+      font: idOrFirst(config.fonts, config.defaults.font),
+      radius: clamp(num(config.defaults.radius, 8), 0, 24),
+      density: clamp(num(config.defaults.density, 1), 0.8, 1.3),
+      collapsed: false,
+    };
+
+    function idOrFirst(list, id) {
+      for (var i = 0; i < list.length; i += 1) {
+        if (list[i].id === id) return id;
+      }
+      return list.length > 0 ? list[0].id : "";
+    }
+    function hasId(list, id) {
+      for (var i = 0; i < list.length; i += 1) {
+        if (list[i].id === id) return true;
+      }
+      return false;
+    }
+    function num(value, fallback) {
+      return typeof value === "number" && isFinite(value) ? value : fallback;
+    }
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+    function findFont(id) {
+      for (var i = 0; i < config.fonts.length; i += 1) {
+        if (config.fonts[i].id === id) return config.fonts[i];
+      }
+      return config.fonts[0];
+    }
+
+    function load() {
+      var state = {};
+      try {
+        state = JSON.parse(localStorage.getItem(KEY) || "{}") || {};
+      } catch (error) {
+        state = {};
+      }
+      return {
+        mode:
+          state.mode === "dark" || state.mode === "light"
+            ? state.mode
+            : defaults.mode,
+        palette: hasId(config.palettes, state.palette)
+          ? state.palette
+          : defaults.palette,
+        font: hasId(config.fonts, state.font) ? state.font : defaults.font,
+        radius: clamp(num(state.radius, defaults.radius), 0, 24),
+        density: clamp(num(state.density, defaults.density), 0.8, 1.3),
+        collapsed: state.collapsed === true,
+      };
+    }
+    function save() {
+      try {
+        localStorage.setItem(
+          KEY,
+          JSON.stringify(Object.assign({ v: 1 }, current))
+        );
+      } catch (error) {
+        /* storage unavailable (e.g. some file:// modes): live state still works */
+      }
+    }
+
+    var current = load();
+
+    function apply() {
+      root.setAttribute("data-theme", current.mode);
+      root.setAttribute("data-palette", current.palette);
+      root.setAttribute("data-font", current.font);
+      root.style.setProperty("--radius", current.radius + "px");
+      root.style.setProperty("--density", String(current.density));
+      var font = findFont(current.font);
+      root.style.setProperty("--font-body", font.body);
+      root.style.setProperty("--font-heading", font.heading || font.body);
+      panel.setAttribute("data-collapsed", String(current.collapsed));
+      var toggle = document.getElementById("dp-toggle");
+      toggle.textContent = current.collapsed ? "✦" : "−";
+      toggle.setAttribute("aria-expanded", String(!current.collapsed));
+      toggle.setAttribute(
+        "title",
+        current.collapsed ? "Expand panel" : "Collapse panel"
+      );
+      document.getElementById("dp-settings").hidden = true;
+      document.getElementById("dp-copy-status").hidden = true;
+      syncControls();
+    }
+
+    function radioGroup(group, options) {
+      var container = panel.querySelector(
+        '[data-dp-group="' + group + '"] .dp-options'
+      );
+      options.forEach(function (option) {
+        var label = document.createElement("label");
+        var input = document.createElement("input");
+        input.type = "radio";
+        input.name = "dp-" + group + "-" + config.slug;
+        input.setAttribute("value", option.id);
+        input.addEventListener("change", function () {
+          current[group] = option.id;
+          save();
+          apply();
+        });
+        var text = document.createElement("span");
+        text.textContent = option.label;
+        label.appendChild(input);
+        label.appendChild(text);
+        container.appendChild(label);
+      });
+    }
+
+    function syncControls() {
+      ["mode", "palette", "font"].forEach(function (group) {
+        var inputs = panel.querySelectorAll(
+          '[data-dp-group="' + group + '"] input'
+        );
+        inputs.forEach(function (input) {
+          input.checked = input.value === current[group];
+        });
+      });
+      var radius = panel.querySelector('[data-dp-range="radius"]');
+      var density = panel.querySelector('[data-dp-range="density"]');
+      radius.value = String(current.radius);
+      density.value = String(current.density);
+      var radiusText = current.radius + "px";
+      var densityText = "×" + current.density.toFixed(2);
+      panel.querySelector('[data-dp-out="radius"]').textContent = radiusText;
+      panel.querySelector('[data-dp-out="density"]').textContent = densityText;
+      radius.setAttribute("aria-valuetext", radiusText);
+      density.setAttribute("aria-valuetext", densityText);
+    }
+
+    radioGroup("mode", [
+      { id: "light", label: "Light" },
+      { id: "dark", label: "Dark" },
+    ]);
+    radioGroup("palette", config.palettes);
+    radioGroup("font", config.fonts);
+
+    panel
+      .querySelector('[data-dp-range="radius"]')
+      .addEventListener("input", function (event) {
+        current.radius = clamp(
+          num(Number(event.target.value), defaults.radius),
+          0,
+          24
+        );
+        save();
+        apply();
+      });
+    panel
+      .querySelector('[data-dp-range="density"]')
+      .addEventListener("input", function (event) {
+        current.density = clamp(
+          num(Number(event.target.value), defaults.density),
+          0.8,
+          1.3
+        );
+        save();
+        apply();
+      });
+    document.getElementById("dp-toggle").addEventListener("click", function () {
+      current.collapsed = !current.collapsed;
+      save();
+      apply();
+    });
+    document.getElementById("dp-reset").addEventListener("click", function () {
+      try {
+        localStorage.removeItem(KEY);
+      } catch (error) {
+        /* ignore */
+      }
+      current = load();
+      apply();
+    });
+
+    var TOKENS = [
+      "--c-bg",
+      "--c-surface",
+      "--c-text",
+      "--c-muted",
+      "--c-accent",
+      "--c-on-accent",
+      "--c-border",
+    ];
+    function tokensFor(mode) {
+      var tokens = {};
+      root.setAttribute("data-theme", mode);
+      var computed = window.getComputedStyle(root);
+      TOKENS.forEach(function (name) {
+        tokens[name] = computed.getPropertyValue(name).trim();
+      });
+      root.setAttribute("data-theme", current.mode);
+      return tokens;
+    }
+    function settings() {
+      var font = findFont(current.font);
+      return {
+        v: 1,
+        slug: config.slug,
+        mode: current.mode,
+        palette: current.palette,
+        font: current.font,
+        radius: current.radius,
+        density: current.density,
+        fontStacks: { body: font.body, heading: font.heading || font.body },
+        tokens: { light: tokensFor("light"), dark: tokensFor("dark") },
+      };
+    }
+    document.getElementById("dp-copy").addEventListener("click", function () {
+      var json = JSON.stringify(settings(), null, 2);
+      var field = document.getElementById("dp-settings");
+      var status = document.getElementById("dp-copy-status");
+      function manual() {
+        status.textContent = "Select the text below and copy it.";
+        field.focus();
+        field.select();
+      }
+      field.value = json;
+      field.hidden = false;
+      status.textContent = "Copying…";
+      status.hidden = false;
+      var clipboard = window.navigator && window.navigator.clipboard;
+      if (!clipboard || typeof clipboard.writeText !== "function") {
+        manual();
+        return;
+      }
+      try {
+        clipboard.writeText(json).then(function () {
+          status.textContent = "Copied to clipboard.";
+        }, manual);
+      } catch (error) {
+        manual();
+      }
+    });
+
+    apply();
+  })();
+</script>
+<!-- /DP:SCRIPT -->
   </body>
 </html>
