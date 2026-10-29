@@ -34,6 +34,13 @@ import type {
   Worktree,
   WorkspaceView,
 } from "../types";
+import {
+  editDraftText,
+  forgetEditDraft,
+  keepEditDraft,
+  keepNoteDraft,
+  noteDraftText,
+} from "./drafts";
 import { describeExport, exportThisSession, formatTokens } from "./export";
 import { formatClock, formatDay, formatDuration, formatTime } from "./format";
 import {
@@ -49,7 +56,6 @@ import {
 } from "./pad";
 import {
   readDeleted,
-  readDraft,
   readEditing,
   readHeadline,
   readNotes,
@@ -62,9 +68,7 @@ import {
   forgetDeleted,
   holdDeleted,
   keepDeleted,
-  showDraft,
   showEditing,
-  showEditingText,
   showOffer,
   showTab,
 } from "./state";
@@ -147,7 +151,9 @@ async function submitNote($: EngineInterface, value: string): Promise<void> {
   await guarded($, "adding the note", async () => {
     const added = await addThisNote($, value, "user");
     if (added.status === "added" || added.status === "blank") {
-      await showDraft($, "");
+      keepNoteDraft("");
+      // Drawn again to empty the field; an added note would redraw anyway.
+      $.ui.invalidate("ui.render");
     }
     const isQuiet =
       added.status === "blank" ||
@@ -212,6 +218,7 @@ async function submitEdit(
       return;
     }
     await closeEditing($, id);
+    forgetEditDraft(id);
     if (result.status === "missing" || result.isShortened) {
       $.ui.toast(describeEdit(result));
     }
@@ -313,7 +320,7 @@ async function renderNotesTab(
   const isTerminal = e.surface === "terminal";
   const headline = await readHeadline($);
   const notes = await readNotes($);
-  const draft = await readDraft($);
+  const draft = noteDraftText();
   const editing = await readEditing($);
   const deleted = await readDeleted($);
   const now = await $.clock.now();
@@ -444,13 +451,10 @@ async function renderNotesTab(
         <Input
           key="edit-note"
           rows={3}
-          value={open.text}
+          value={editDraftText(note.id, open.text)}
           submitLabel="Save"
           autoFocus
-          onInput={(value) => {
-            // Keeping the text is a convenience, as the note field's draft.
-            showEditingText($, note.id, value).catch(() => undefined);
-          }}
+          onInput={(value) => keepEditDraft(note.id, value)}
           onSubmit={(value) => submitEdit($, note.id, value)}
         />
         <Box flexDirection="row" columnGap={1} marginTop={isTerminal ? 0 : 1}>
@@ -458,7 +462,10 @@ async function renderNotesTab(
             key="cancel-edit"
             label="Cancel"
             onPress={() =>
-              guarded($, "closing the note", () => closeEditing($, note.id))
+              guarded($, "closing the note", async () => {
+                await closeEditing($, note.id);
+                forgetEditDraft(note.id);
+              })
             }
           />
         </Box>
@@ -476,11 +483,7 @@ async function renderNotesTab(
             placeholder="Add a note…"
             value={draft}
             submitLabel="add"
-            onInput={(value) => {
-              // Keeping the draft is a convenience: a write that fails loses
-              // only the field's emptying after the next note.
-              showDraft($, value).catch(() => undefined);
-            }}
+            onInput={(value) => keepNoteDraft(value)}
             onSubmit={(value) => submitNote($, value)}
           />
         </Box>

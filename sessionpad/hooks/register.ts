@@ -5,6 +5,7 @@
 import type { EngineInterface, Register, Timer } from "claude-code";
 
 import type { Pad } from "../types";
+import { forgetDrafts } from "../src/drafts";
 import { describeExport, exportThisSession } from "../src/export";
 import { formatTime } from "../src/format";
 import { openingOf, submissionFor } from "../src/origin";
@@ -537,6 +538,7 @@ export const register: Register = (on, options) => {
       // The Undo card and an open note belonged to the pad left behind, so
       // they go too, should a host keep $.state.
       await forgetPaneEdits($).catch(() => undefined);
+      forgetDrafts();
       await refreshOffer($);
       await showWorkspace($);
       return next(e);

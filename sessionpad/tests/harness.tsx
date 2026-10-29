@@ -100,6 +100,8 @@ export type World = {
   unreadable: Set<string>;
   /** Paths whose `$.fs.stat` is refused as a permission error. */
   statFails: Set<string>;
+  /** The key of each `$.state` write, in order. */
+  stateWrites: string[];
   /** Each setting changed through `$.config.set`, in order. */
   configSets: { key: string; value: unknown }[];
   /** Why a `$.config.set` is refused, or undefined to write it. */
@@ -212,6 +214,7 @@ export function world(on: On, options: WorldOptions = {}): World {
     readFails: false,
     unreadable: new Set(),
     statFails: new Set(),
+    stateWrites: [],
     configSets: [],
     configDeny: undefined,
     configRewrite: undefined,
@@ -299,6 +302,10 @@ export function world(on: On, options: WorldOptions = {}): World {
   });
 
   on("env.get", (_, e) => ({ value: state.env[e.name] }));
+  on("state.set", (_, e, next) => {
+    state.stateWrites.push(String(e.key));
+    return next(e);
+  });
   on("config.set", (_, e) => {
     if (state.configDeny !== undefined) return { deny: state.configDeny };
     const value = state.configRewrite ?? e.value;

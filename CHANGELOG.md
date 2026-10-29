@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1 (not released yet)
+
+### Fixed
+
+- In the Desktop app, the note field's border, and an open note's, no longer flashes at every keystroke. Typing used to draw the pane again each time; what is typed is now kept without a redraw, and still comes back if the pane is drawn again for another reason.
+
 ## 0.2.0 (2026-10-29)
 
 ### Changed

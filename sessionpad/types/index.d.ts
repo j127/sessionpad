@@ -27,7 +27,10 @@ export type Pad = {
 
 export type Tab = "notes" | "timeline" | "workspace";
 
-/** The note open for editing in the pane, with what its field holds so far. */
+/**
+ * The note open for editing in the pane, with its text as it was opened;
+ * what is typed is kept apart (src/drafts.ts), since a write here redraws.
+ */
 export type Editing = { id: string; text: string };
 
 /** The note deleted last in the pane, kept so Undo can put it back. */
@@ -175,8 +178,6 @@ declare module "claude-code" {
       /** The timeline's newest entries, oldest first, at most 50. */
       recent: TimelineEntry[];
       workspace: WorkspaceView;
-      /** What the Notes tab's field holds as it is typed, "" once added. */
-      draft: string;
       /** The note being edited, or null. */
       editing: Editing | null;
       /** The note Undo would bring back, or null. */
