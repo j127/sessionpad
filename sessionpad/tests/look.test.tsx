@@ -2,6 +2,7 @@ import { describe, expect, test } from "claude-code/testing";
 
 import { describeEdit, describeRestore } from "../src/pad";
 import { MAX_NOTES, MAX_NOTE_LENGTH, notesKey } from "../src/store";
+import { FILL } from "../src/ui";
 
 import {
   REPO,
@@ -170,8 +171,8 @@ describe("a note's buttons", () => {
     });
     expect((await ui.find({ key: "headline" }))?.props).toMatchObject({
       borderStyle: "round",
-      borderColor: "promptBorder",
-      backgroundColor: "promptBorder",
+      borderDimColor: true,
+      backgroundColor: FILL.neutral,
     });
     expect(
       (await ui.find({ type: "Text", text: /^HEADLINE$/ }))?.props.color
@@ -405,7 +406,7 @@ describe("undoing a delete", () => {
     }
   });
 
-  test("the card is soft pink on Desktop and a grey frame in a terminal", async ($, on) => {
+  test("the card is tinted red on Desktop and a grey frame in a terminal", async ($, on) => {
     const w = world(on);
     await start($);
     await runCommand($, "note", "pink");
@@ -415,8 +416,8 @@ describe("undoing a delete", () => {
     await desktop.press({ key: `delete-${id}` });
     expect((await desktop.find({ key: "undo" }))?.props).toMatchObject({
       borderStyle: "round",
-      borderColor: "diffRemovedDimmed",
-      backgroundColor: "diffRemovedDimmed",
+      borderDimColor: true,
+      backgroundColor: FILL.removed,
     });
     await desktop.unmount();
     const terminal = await $.ui.mount(paneTarget("terminal"));
@@ -444,6 +445,61 @@ describe("undoing a delete", () => {
       "second",
       "third",
     ]);
+    await ui.unmount();
+  });
+
+  test("Dismiss takes the card away and leaves the note deleted", async ($, on) => {
+    const w = world(on);
+    await start($);
+    for (const text of ["one", "two"]) {
+      await runCommand($, "note", text);
+    }
+    for (const surface of SURFACES) {
+      const ui = await $.ui.mount(paneTarget(surface));
+      const first = w.pad(SESSION).notes[0]!;
+      await ui.press({ key: `delete-${first.id}` });
+      expect((await ui.find({ key: "dismiss-undo" }))?.props).toMatchObject({
+        label: "Dismiss",
+      });
+      await ui.press({ key: "dismiss-undo" });
+      expect(await ui.find({ key: "undo" })).toBeUndefined();
+      expect(w.pad(SESSION).notes.some((one) => one.id === first.id)).toBe(
+        false
+      );
+      await runCommand($, "note", `back to two, on ${surface}`);
+      await ui.unmount();
+    }
+    expect(w.toasts).toEqual([]);
+  });
+
+  test("Dismiss on a card waiting for room lets the next delete have its own", async ($, on) => {
+    const notes = Array.from({ length: MAX_NOTES }, (_, n) => ({
+      id: `n${n}`,
+      text: `note ${n}`,
+      at: n,
+      by: "user",
+    }));
+    const w = world(on, {
+      store: { [notesKey(SESSION)]: { headline: "", notes } },
+    });
+    await start($);
+    const ui = await $.ui.mount(paneTarget("desktop"));
+    await ui.press({ key: "delete-n5" });
+    await runCommand($, "note", "fills the gap");
+    await ui.press({ key: "undo-delete" });
+    expect(
+      await ui.find({ type: "Text", text: /^The pad is full: delete another/ })
+    ).toBeDefined();
+    await ui.press({ key: "dismiss-undo" });
+    expect(await ui.find({ key: "undo" })).toBeUndefined();
+    await ui.press({ key: "delete-n0" });
+    expect(
+      (await ui.find({ type: "Text", text: /^Note deleted:/ }))?.text
+    ).toBe("Note deleted: note 0");
+    await ui.press({ key: "undo-delete" });
+    const ids = w.pad(SESSION).notes.map((one) => one.id);
+    expect(ids[0]).toBe("n0");
+    expect(ids).not.toContain("n5");
     await ui.unmount();
   });
 
@@ -600,7 +656,7 @@ describe("the timeline and workspace", () => {
     });
     expect((await ui.find({ key: "here" }))?.props).toMatchObject({
       borderStyle: "round",
-      backgroundColor: "promptBorder",
+      backgroundColor: FILL.neutral,
     });
     await ui.press({ key: "tab-notes" });
     await ui.unmount();
@@ -648,8 +704,8 @@ describe("the look", () => {
     await runTurn($, w);
     const filled = {
       borderStyle: "round",
-      borderColor: "promptBorder",
-      backgroundColor: "promptBorder",
+      borderDimColor: true,
+      backgroundColor: FILL.neutral,
     };
     for (const surface of SURFACES) {
       const ui = await $.ui.mount(paneTarget(surface));
@@ -671,6 +727,16 @@ describe("the look", () => {
       }
       await ui.press({ key: "tab-notes" });
       await ui.unmount();
+    }
+  });
+
+  test("Desktop's card fills are see-through, so they stay light in either mode", () => {
+    for (const fill of Object.values(FILL)) {
+      const match = /^rgba\(\s*\d+,\s*\d+,\s*\d+,\s*([\d.]+)\)$/.exec(fill);
+      expect(match).not.toBeNull();
+      const alpha = Number(match![1]);
+      expect(alpha).toBeGreaterThan(0);
+      expect(alpha).toBeLessThanOrEqual(0.2);
     }
   });
 

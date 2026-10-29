@@ -30,6 +30,7 @@ describe("the design test page", () => {
           /^10\. Hover/,
           /^11\. Filled cards/,
           /^12\. Hover around a button/,
+          /^13\. See-through fills/,
         ]) {
           expect(await ui.find({ type: "Text", text: title })).toBeDefined();
         }

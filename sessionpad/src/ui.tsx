@@ -2,9 +2,11 @@
 // every change happens in a press or submit handler, never while drawing.
 //
 // The look is the Cards direction, mockups/pane_as_drawn/02-cards.html: each
-// group of content is a card. On Desktop a card is a round border and a
-// background both in promptBorder, one of the theme's soft shades that follow
-// light and dark mode. A terminal would fill that with a mid grey block, so
+// group of content is a card. On Desktop a card is a faint round border
+// around a see-through grey fill (see FILL), which follows light and dark mode
+// as the theme's soft shades do but is lighter than any of them: filled with
+// promptBorder, the lightest neutral one, dim text and the button pills on it
+// were hard to read. A terminal would fill a card with a mid grey block, so
 // there a card is a grey frame alone. mockups/sessionpad_pane/RENDERING.md
 // says what each surface draws.
 //
@@ -89,19 +91,28 @@ const AUTHOR_LABEL: Record<NoteAuthor, string> = {
 const PREVIEW_LENGTH = 60;
 
 /**
- * A card's border and fill: on Desktop the soft shade fills a rounded card in
- * either mode; a terminal draws a grey frame, since it has no soft shade.
+ * Desktop's card fills: a color laid over the pane at low opacity, so it
+ * draws as a light tint on the white pane and a dark one on the near-black
+ * pane, the way a theme key follows the mode. Grey for cards, red for the
+ * Undo card.
  */
-function cardLook(
-  isTerminal: boolean,
-  shade: "promptBorder" | "diffRemovedDimmed" = "promptBorder"
-) {
+export const FILL = {
+  neutral: "rgba(128, 128, 128, 0.12)",
+  removed: "rgba(220, 60, 80, 0.12)",
+} as const;
+
+/**
+ * A card's border and fill: on Desktop a faint border around a see-through
+ * fill, the border still marking the card should a surface not draw the
+ * fill; a terminal draws a grey frame, since it has no soft shade.
+ */
+function cardLook(isTerminal: boolean, fill: keyof typeof FILL = "neutral") {
   return isTerminal
     ? { borderStyle: "round" as const, borderColor: "promptBorder" as const }
     : {
         borderStyle: "round" as const,
-        borderColor: shade,
-        backgroundColor: shade,
+        borderDimColor: true,
+        backgroundColor: FILL[fill],
       };
 }
 
@@ -166,6 +177,16 @@ async function pressUndo(
     }
     await forgetDeleted($, deleted.note.id);
   });
+}
+
+/** Takes the Undo card away; the deleted note is gone for good. */
+async function pressDismiss(
+  $: EngineInterface,
+  deleted: DeletedNote
+): Promise<void> {
+  await guarded($, "dismissing the deleted note", () =>
+    forgetDeleted($, deleted.note.id)
+  );
 }
 
 /**
@@ -328,7 +349,7 @@ async function renderNotesTab(
       columnGap={1}
       marginTop={1}
       paddingX={1}
-      {...cardLook(isTerminal, "diffRemovedDimmed")}
+      {...cardLook(isTerminal, "removed")}
     >
       <Box flexGrow={1} flexShrink={1} flexDirection="column">
         <Text wrap="wrap">Note deleted: {preview(gone.note.text)}</Text>
@@ -343,6 +364,11 @@ async function renderNotesTab(
         label="Undo"
         variant="primary"
         onPress={() => pressUndo($, gone)}
+      />
+      <Button
+        key="dismiss-undo"
+        label="Dismiss"
+        onPress={() => pressDismiss($, gone)}
       />
     </Box>
   );

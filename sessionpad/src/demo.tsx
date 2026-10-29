@@ -53,6 +53,17 @@ const RAW_COLORS: readonly string[] = [
   "#22303f",
 ];
 
+/**
+ * See-through fills, which would follow the mode as a theme key does: the
+ * same grey as rgba and as 8-digit hex, then the Undo card's red. The engine
+ * refuses hsl: a color is a theme key, a name, hex or rgba.
+ */
+const SEE_THROUGH: readonly string[] = [
+  "rgba(128, 128, 128, 0.12)",
+  "#8080801f",
+  "rgba(220, 60, 80, 0.12)",
+];
+
 const BORDER_STYLES: readonly string[] = [
   "round",
   "single",
@@ -345,6 +356,35 @@ export function renderDemo($: EngineInterface, e: PaneInput): RenderElement {
         <Text color="claude">
           Hover reaches past the button: this hint was hidden.
         </Text>
+      </Box>
+
+      {heading(
+        "h-see-through",
+        "13. See-through fills",
+        "Colors at 12% over the pane, the grey written two ways: each card should be a light tint in light mode and a dark one in dark mode. A card with only a faint border means that way of writing a color doesn't draw."
+      )}
+      <Box flexDirection="column" rowGap={1}>
+        {SEE_THROUGH.map((color, index) => (
+          <Box
+            key={`see-through-${index}`}
+            borderStyle="round"
+            borderDimColor
+            backgroundColor={color}
+            paddingX={1}
+            flexDirection="column"
+          >
+            <Text bold>Filled with {color}</Text>
+            <Text dimColor>with a dim line under it</Text>
+            <Box flexDirection="row" columnGap={1}>
+              <Button
+                key={`see-through-button-${index}`}
+                label="Edit"
+                dimColor
+                onPress={ignore}
+              />
+            </Box>
+          </Box>
+        ))}
       </Box>
     </Box>
   );

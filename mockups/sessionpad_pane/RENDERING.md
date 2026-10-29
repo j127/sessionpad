@@ -12,7 +12,8 @@ The pane body is the app's own background (white in light mode, near-black `#181
   - `promptBorder`: light grey `#cecece` in light mode, dark grey `#474747` in dark. The one neutral shade for cards and stripes.
   - `diffAddedDimmed`: pale green `#d7edda` in light mode, deep green `#223f23` in dark.
   - `diffRemovedDimmed`: pale pink `#f9d5dd` in light mode, deep maroon `#472024` in dark.
-- **Raw colors.** A hex color draws exactly as given, but doesn't follow the mode: a light tint is right in light mode and an unreadable light block under white text in dark mode, and a dark tint the reverse. So none are used.
+- **Raw colors.** A hex color draws exactly as given, but doesn't follow the mode: a light tint is right in light mode and an unreadable light block under white text in dark mode, and a dark tint the reverse. So no opaque one is used.
+- **See-through colors.** The engine admits a theme key, a color name, hex (8-digit `#rrggbbaa` too) or `rgba()`, and refuses anything else, `hsl()` among them: a tree holding one is refused whole, so the pane draws nothing. A see-through color is laid over whatever is beneath it, so a mid grey at low opacity, `rgba(128, 128, 128, 0.12)`, should be a light tint (`#f0f0f0`) on the white pane and a dark one (`#252525`) on the near-black pane: it would follow the mode as the soft keys do, but lighter. The pane's cards use it, after `promptBorder` drew too dark for dim text and button pills on it; section 13 of `/pad-demo` tries it, not yet seen on Desktop.
 - **Borders.** A Box with `borderStyle` draws as a rounded card, radius about 10px, 1px border (`bold` 2px, `double` a double line), with about 18px of padding above and below one line of text and about 11px at the sides. Every style but `bold` and `double` looks the same. `borderColor` takes a theme key; `borderDimColor` gives a very faint grey. A border and a background in the same soft theme key make one filled rounded card, its border lost in the fill: tried with all three soft keys, each draws right in both modes (section 11). A raw color fills it too, but only in one mode.
 - **Buttons.** Drawn by the app, as rounded pills about 32px tall with about 14px of side padding:
   - default and `variant="secondary"`: a see-through grey pill with normal text, black at about 5% in light mode (`#f2f2f2` on white) and white at about 15% in dark (`#3b3b3b` on `#181818`). On a shaded card it draws a step darker or lighter than the card (`#c4c4c4` on `#cecece`);
@@ -39,7 +40,7 @@ Everything is in the terminal's one monospace font and one size, on its own back
 ## So, for the design
 
 - One surface's look can't be copied to the other: the mod draws by `e.surface` where they differ (it does already for the tab digits).
-- Shading that works in both Desktop modes uses `promptBorder`, `diffAddedDimmed` or `diffRemovedDimmed`; accents come from text color and border color.
+- Shading that works in both Desktop modes uses `promptBorder`, `diffAddedDimmed` or `diffRemovedDimmed`, or a see-through color for a lighter tint; accents come from text color and border color.
 - The open tab is a `primary` button on Desktop (black or white pill) and bold or inverse in a terminal; a colored label inside a button does nothing.
 - Rounded cards on Desktop come from `borderStyle`; in a terminal the same Box is a box-drawn frame.
 - Text sizes and weights are for Desktop; a terminal has one.
