@@ -2,7 +2,7 @@
 
 A Claude Code mod that gives every session a small notepad: a one-line headline that says what the session is for, plus notes written by you or by Claude. Open any session after a few days away and see at a glance what it was doing and what is left to do.
 
-Status: version 0.1.0, all four milestones built (notes, timeline, workspace, pruning), not yet released.
+Status: version 0.1.0, released 2026-10-29, with all four milestones built (notes, timeline, workspace, pruning).
 
 ## What it does
 
