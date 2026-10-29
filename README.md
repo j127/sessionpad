@@ -109,7 +109,7 @@ Everything stays on your machine, with one exception: the summary line. The mod 
 
 The store holds at most 4 MiB for all sessions together, so a pad keeps at most 100 notes of up to 4,000 characters each, and a headline is one line of up to 200 characters. Text past a limit is cut, and the mod says so. If the store ever refuses a write, the command or pane says the note wasn't saved rather than dropping it silently.
 
-**Old sessions are pruned.** A minute after a session starts, about once a day across sessions, a session nobody has opened for `retentionDays` (90 by default) loses its pad, its timeline file and its row in the index, and a worktree size measured that long ago is dropped. A session counts as unopened only when the index hasn't seen it and its timeline hasn't been written in that time, and a session left open renews its time once a day as its turns end, so one at work in another window is never pruned. Exports are your own files and are never touched. Set `retentionDays` to 0 to keep everything.
+**Old sessions are pruned.** A minute after a session starts, about once a day across sessions, a session nobody has opened for `retentionDays` (90 by default) loses its pad, its timeline file and its row in the index, and a worktree size measured that long ago is dropped. A session counts as unopened only when the index hasn't seen it and its timeline hasn't been written in that time, and a session left open renews its time on a timer, often enough that its row is never older than half of `retentionDays`, turns or no turns, so one open in another window is never pruned. Exports are your own files and are never touched. Set `retentionDays` to 0 to keep everything.
 
 ## Uninstall
 
@@ -128,23 +128,25 @@ That leaves your data. To delete it too, delete the mod's store file, the one na
 `claude plugin validate` reads the mod the way Claude Code will and lists every event it hooks and every API call it makes. For this version it reports, in part (the full report also lists the hooks that answer for themselves and the `$.state` values, and names the function behind each call):
 
 ```
-hooks: session.start, classic.SessionStart{source=clear|resume|fork}, session.end,
+hooks: session.start, classic.SessionStart{source=clear|resume|fork},
+  config.set{key="sessionpad.summaryModel"}, session.end,
   command.run{command=pad|sessionpad}, command.run{command=note|pad-note},
   command.run{command=headline|pad-headline}, command.run{command=pad-export},
   prompt.submit, turn.start, tool.call{tool=Edit|Write|NotebookEdit|Bash},
   turn.complete, tool.call{tool=mcp__sessionpad__note},
   tool.call{tool=mcp__sessionpad__notes_read},
   ui.render{component=Pane, requestId=sessionpad}, ui.render{component=AbovePrompt}
-calls: $.clock.after, $.clock.now, $.command.list, $.command.register, $.env.get,
-  $.fs.exists, $.fs.list, $.fs.read, $.fs.stat, $.fs.write, $.model.complete,
-  $.process.run, $.session.cwd, $.session.id, $.session.repo, $.state.get,
-  $.state.set, $.store.delete, $.store.get, $.store.keys, $.store.set,
-  $.tool.register, $.ui.log, $.ui.open, $.ui.resolve, $.ui.toast
+calls: $.clock.after, $.clock.every, $.clock.now, $.command.list,
+  $.command.register, $.config.set, $.env.get, $.fs.exists, $.fs.list,
+  $.fs.read, $.fs.stat, $.fs.write, $.model.complete, $.process.run,
+  $.session.cwd, $.session.id, $.session.repo, $.state.get, $.state.set,
+  $.store.delete, $.store.get, $.store.keys, $.store.set, $.tool.register,
+  $.ui.invalidate, $.ui.log, $.ui.open, $.ui.resolve, $.ui.toast
 env reads: CLAUDE_CONFIG_DIR, HOME, USERPROFILE
 env writes: nothing
 ```
 
-There is no `$.http`: the only thing that leaves your machine is the summary line's model call, described above. `$.process.run` runs `git` (read-only commands), `du -sk` and `rm` on the mod's own files. The hooks on `prompt.submit`, `turn.start` and the `tool.call` for Edit, Write, NotebookEdit and Bash only watch: each passes the event on and hands back what came back, untouched. Run `claude plugin validate sessionpad` in a clone to see the full report.
+There is no `$.http`: the only thing that leaves your machine is the summary line's model call, described above. `$.process.run` runs `git` (read-only commands), `du -sk` and `rm` on the mod's own files. `$.config.set` changes only the mod's own `summaryModel`, when you press **Turn on summaries**, and the `config.set` hook only watches that one setting change. The hooks on `prompt.submit`, `turn.start` and the `tool.call` for Edit, Write, NotebookEdit and Bash only watch: each passes the event on and hands back what came back, untouched. Run `claude plugin validate sessionpad` in a clone to see the full report.
 
 ## Development
 

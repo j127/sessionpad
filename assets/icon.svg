@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- sessionpad's icon: a notepad with a headline and notes. The plugin
+       ships the PNG rendered from this file (sessionpad/.claude-plugin/icon.png). -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2c7a7b"/>
+      <stop offset="1" stop-color="#1b4955"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <!-- The page, over a soft shadow. -->
+  <rect x="262" y="232" width="500" height="620" rx="56" fill="#0d2a31" opacity="0.35"/>
+  <rect x="262" y="214" width="500" height="620" rx="56" fill="#fbfaf6"/>
+  <!-- The binding strip, and its three rings. -->
+  <path d="M262 270 a56 56 0 0 1 56 -56 h388 a56 56 0 0 1 56 56 v56 h-500 z" fill="#f0b443"/>
+  <rect x="356" y="166" width="34" height="104" rx="17" fill="#1b4955"/>
+  <rect x="495" y="166" width="34" height="104" rx="17" fill="#1b4955"/>
+  <rect x="634" y="166" width="34" height="104" rx="17" fill="#1b4955"/>
+  <!-- The headline, then the notes. -->
+  <rect x="330" y="404" width="300" height="44" rx="22" fill="#2c7a7b"/>
+  <rect x="330" y="500" width="364" height="26" rx="13" fill="#c7d3d5"/>
+  <rect x="330" y="568" width="324" height="26" rx="13" fill="#c7d3d5"/>
+  <rect x="330" y="636" width="364" height="26" rx="13" fill="#c7d3d5"/>
+  <rect x="330" y="704" width="220" height="26" rx="13" fill="#c7d3d5"/>
+</svg>
