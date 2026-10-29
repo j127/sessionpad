@@ -1,0 +1,10 @@
+{
+  "name": "sessionpad-dev",
+  "private": true,
+  "type": "module",
+  "trustedDependencies": [],
+  "devDependencies": {
+    "prettier": "3.9.10",
+    "typescript": "7.0.2"
+  }
+}

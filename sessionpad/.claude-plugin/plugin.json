@@ -1,0 +1,46 @@
+{
+  "name": "sessionpad",
+  "displayName": "Session Pad",
+  "version": "0.1.0",
+  "description": "A notepad for each Claude Code session: a headline and notes, a timeline of every turn, and the session's worktree and disk use, in a pane and above the prompt.",
+  "author": {
+    "name": "J"
+  },
+  "homepage": "https://github.com/j127/sessionpad",
+  "license": "MIT",
+  "repository": "https://github.com/j127/sessionpad",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "showBand": {
+      "type": "boolean",
+      "title": "Show the headline above the prompt",
+      "description": "Draw the session's headline as one dim line in the band above the prompt.",
+      "default": true
+    },
+    "measureDisk": {
+      "type": "boolean",
+      "title": "Measure disk use",
+      "description": "Run du on the repository's worktrees to show their sizes in the Workspace tab, at most every 10 minutes unless you press Refresh sizes.",
+      "default": true
+    },
+    "summaryModel": {
+      "type": "string",
+      "title": "Model for each turn's summary line",
+      "description": "After each turn, this model writes the one-line summary the Timeline tab shows, from the prompt's start, the final answer and the names of files written. Choose off to use the prompt's first line instead and make no model calls.",
+      "options": ["haiku", "off"],
+      "default": "haiku"
+    },
+    "timelineCap": {
+      "type": "number",
+      "title": "Timeline entries kept per session",
+      "description": "The newest entries a session's timeline file keeps, from 1 to 1000.",
+      "default": 500
+    },
+    "retentionDays": {
+      "type": "number",
+      "title": "Days to keep an unopened session",
+      "description": "A session nobody has opened for this many days loses its notes, its timeline file and its row in the index, and worktree sizes measured that long ago are dropped; checked a minute after a session starts, about once a day. Exports are never touched. 0 keeps everything.",
+      "default": 90
+    }
+  }
+}

@@ -40,6 +40,13 @@ jobs:
         if: hashFiles('bun.lock') != ''
       - run: bun install --frozen-lockfile
         if: hashFiles('bun.lock') != ''
+      # The claude CLI validates the mod and runs its tests. It is pinned to
+      # a release more than a week old when chosen, here the oldest release
+      # that loads the mod, the minimum the README names, so CI checks that
+      # promise and a new release can't change what CI runs; raise it, and
+      # the minimum, on purpose.
+      - run: bun add --global @anthropic-ai/claude-code@2.1.299
+      - run: claude --version
       # The justfile's check recipe is the one list of checks, run the same
       # way here and on your machine.
       - run: just check

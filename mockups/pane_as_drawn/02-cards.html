@@ -1,0 +1,1860 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-palette="claude" data-font="system">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- DP:CSP -->
+<meta
+  id="dp-csp"
+  http-equiv="Content-Security-Policy"
+  content="default-src 'none'; img-src data:; font-src data:; media-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'"
+/>
+<!-- /DP:CSP -->
+    <title>02 · Cards — mockup</title>
+    <meta
+      name="mockup-direction"
+      content="Soft rounded cards everywhere: the headline, each note, each timeline day and the workspace sit on light, see-through grey cards, with the open tab a black pill beside plain-text tabs and an undo card at the top."
+    />
+    <!-- prettier-ignore -->
+    <style>
+      /* 1. Palette blocks, pasted from the kit. Each palette is the accent theme key. */
+      [data-palette="claude"] {
+        --c-bg: #f4f2ef; --c-surface: #ffffff; --c-text: #1b1b1b; --c-muted: #6b6b6b;
+        --c-accent: #c8643f; --c-on-accent: #ffffff; --c-border: #e2e0dc;
+        --d-accent: #c8643f; --t-accent: #d78787;
+        --d-bg: #ffffff; --d-text: #1b1b1b; --d-dim: #8c8c8c; --d-faint: #e6e6e6;
+        --d-shade: #cecece; --d-green: #d7edda; --d-pink: #f9d5dd;
+        --d-tint: #f0f0f0; --d-tint-red: #fbe8ea; --d-tint-edge: #e4e4e4;
+        --d-btn: rgba(0, 0, 0, 0.05); --d-btn-text: #1b1b1b; --d-btn-dim: rgba(0, 0, 0, 0.05); --d-btn-dim-text: #9b9b9b;
+        --d-primary: #181818; --d-primary-text: #ffffff;
+        --d-field-bg: #ffffff; --d-field-border: #e2e2e2; --d-placeholder: #9a9a9a;
+        --d-success: #2e9b45; --d-error: #c62828; --d-warning: #b7791f; --d-frame: #e5e5e5;
+        --t-bg: #262626; --t-text: #ffffff; --t-dim: #949494; --t-blue: #afd7ff;
+        --t-success: #87d787; --t-error: #ff87af; --t-warning: #ffd700;
+        --t-subtle: #4e4e4e; --t-grey: #808080; --t-line: #585858;
+      }
+      [data-palette="claude"][data-theme="dark"] {
+        --c-bg: #121212; --c-surface: #1a1a1a; --c-text: #e8e8e8; --c-muted: #9a9a9a;
+        --c-accent: #d97757; --c-on-accent: #111111; --c-border: #2e2e2e;
+        --d-accent: #d97757; --t-accent: #d78787;
+        --d-bg: #181818; --d-text: #e8e8e8; --d-dim: #9a9a9a; --d-faint: #2e2e2e;
+        --d-shade: #474747; --d-green: #223f23; --d-pink: #472024;
+        --d-tint: #262626; --d-tint-red: #2f1c1f; --d-tint-edge: #2b2b2b;
+        --d-btn: rgba(255, 255, 255, 0.15); --d-btn-text: #e8e8e8; --d-btn-dim: rgba(255, 255, 255, 0.15); --d-btn-dim-text: #8a8a8a;
+        --d-primary: #efefef; --d-primary-text: #111111;
+        --d-field-bg: #252525; --d-field-border: #3a3a3a; --d-placeholder: #7a7a7a;
+        --d-success: #4ec36a; --d-error: #ff6b5b; --d-warning: #f5a623; --d-frame: #2e2e2e;
+        --t-bg: #262626; --t-text: #ffffff; --t-dim: #949494; --t-blue: #afd7ff;
+        --t-success: #87d787; --t-error: #ff87af; --t-warning: #ffd700;
+        --t-subtle: #4e4e4e; --t-grey: #808080; --t-line: #585858;
+      }
+      [data-palette="merged"] {
+        --c-bg: #f4f2ef; --c-surface: #ffffff; --c-text: #1b1b1b; --c-muted: #6b6b6b;
+        --c-accent: #8e5cd9; --c-on-accent: #ffffff; --c-border: #e2e0dc;
+        --d-accent: #8e5cd9; --t-accent: #afafff;
+        --d-bg: #ffffff; --d-text: #1b1b1b; --d-dim: #8c8c8c; --d-faint: #e6e6e6;
+        --d-shade: #cecece; --d-green: #d7edda; --d-pink: #f9d5dd;
+        --d-tint: #f0f0f0; --d-tint-red: #fbe8ea; --d-tint-edge: #e4e4e4;
+        --d-btn: rgba(0, 0, 0, 0.05); --d-btn-text: #1b1b1b; --d-btn-dim: rgba(0, 0, 0, 0.05); --d-btn-dim-text: #9b9b9b;
+        --d-primary: #181818; --d-primary-text: #ffffff;
+        --d-field-bg: #ffffff; --d-field-border: #e2e2e2; --d-placeholder: #9a9a9a;
+        --d-success: #2e9b45; --d-error: #c62828; --d-warning: #b7791f; --d-frame: #e5e5e5;
+        --t-bg: #262626; --t-text: #ffffff; --t-dim: #949494; --t-blue: #afd7ff;
+        --t-success: #87d787; --t-error: #ff87af; --t-warning: #ffd700;
+        --t-subtle: #4e4e4e; --t-grey: #808080; --t-line: #585858;
+      }
+      [data-palette="merged"][data-theme="dark"] {
+        --c-bg: #121212; --c-surface: #1a1a1a; --c-text: #e8e8e8; --c-muted: #9a9a9a;
+        --c-accent: #b39dfb; --c-on-accent: #111111; --c-border: #2e2e2e;
+        --d-accent: #b39dfb; --t-accent: #afafff;
+        --d-bg: #181818; --d-text: #e8e8e8; --d-dim: #9a9a9a; --d-faint: #2e2e2e;
+        --d-shade: #474747; --d-green: #223f23; --d-pink: #472024;
+        --d-tint: #262626; --d-tint-red: #2f1c1f; --d-tint-edge: #2b2b2b;
+        --d-btn: rgba(255, 255, 255, 0.15); --d-btn-text: #e8e8e8; --d-btn-dim: rgba(255, 255, 255, 0.15); --d-btn-dim-text: #8a8a8a;
+        --d-primary: #efefef; --d-primary-text: #111111;
+        --d-field-bg: #252525; --d-field-border: #3a3a3a; --d-placeholder: #7a7a7a;
+        --d-success: #4ec36a; --d-error: #ff6b5b; --d-warning: #f5a623; --d-frame: #2e2e2e;
+        --t-bg: #262626; --t-text: #ffffff; --t-dim: #949494; --t-blue: #afd7ff;
+        --t-success: #87d787; --t-error: #ff87af; --t-warning: #ffd700;
+        --t-subtle: #4e4e4e; --t-grey: #808080; --t-line: #585858;
+      }
+      [data-palette="success"] {
+        --c-bg: #f4f2ef; --c-surface: #ffffff; --c-text: #1b1b1b; --c-muted: #6b6b6b;
+        --c-accent: #2e9b45; --c-on-accent: #ffffff; --c-border: #e2e0dc;
+        --d-accent: #2e9b45; --t-accent: #87d787;
+        --d-bg: #ffffff; --d-text: #1b1b1b; --d-dim: #8c8c8c; --d-faint: #e6e6e6;
+        --d-shade: #cecece; --d-green: #d7edda; --d-pink: #f9d5dd;
+        --d-tint: #f0f0f0; --d-tint-red: #fbe8ea; --d-tint-edge: #e4e4e4;
+        --d-btn: rgba(0, 0, 0, 0.05); --d-btn-text: #1b1b1b; --d-btn-dim: rgba(0, 0, 0, 0.05); --d-btn-dim-text: #9b9b9b;
+        --d-primary: #181818; --d-primary-text: #ffffff;
+        --d-field-bg: #ffffff; --d-field-border: #e2e2e2; --d-placeholder: #9a9a9a;
+        --d-success: #2e9b45; --d-error: #c62828; --d-warning: #b7791f; --d-frame: #e5e5e5;
+        --t-bg: #262626; --t-text: #ffffff; --t-dim: #949494; --t-blue: #afd7ff;
+        --t-success: #87d787; --t-error: #ff87af; --t-warning: #ffd700;
+        --t-subtle: #4e4e4e; --t-grey: #808080; --t-line: #585858;
+      }
+      [data-palette="success"][data-theme="dark"] {
+        --c-bg: #121212; --c-surface: #1a1a1a; --c-text: #e8e8e8; --c-muted: #9a9a9a;
+        --c-accent: #4ec36a; --c-on-accent: #111111; --c-border: #2e2e2e;
+        --d-accent: #4ec36a; --t-accent: #87d787;
+        --d-bg: #181818; --d-text: #e8e8e8; --d-dim: #9a9a9a; --d-faint: #2e2e2e;
+        --d-shade: #474747; --d-green: #223f23; --d-pink: #472024;
+        --d-tint: #262626; --d-tint-red: #2f1c1f; --d-tint-edge: #2b2b2b;
+        --d-btn: rgba(255, 255, 255, 0.15); --d-btn-text: #e8e8e8; --d-btn-dim: rgba(255, 255, 255, 0.15); --d-btn-dim-text: #8a8a8a;
+        --d-primary: #efefef; --d-primary-text: #111111;
+        --d-field-bg: #252525; --d-field-border: #3a3a3a; --d-placeholder: #7a7a7a;
+        --d-success: #4ec36a; --d-error: #ff6b5b; --d-warning: #f5a623; --d-frame: #2e2e2e;
+        --t-bg: #262626; --t-text: #ffffff; --t-dim: #949494; --t-blue: #afd7ff;
+        --t-success: #87d787; --t-error: #ff87af; --t-warning: #ffd700;
+        --t-subtle: #4e4e4e; --t-grey: #808080; --t-line: #585858;
+      }
+
+      /* 2a. Kit CSS, pasted verbatim. Everything inside .desk and .term uses only these classes. */
+      /* ---- Desktop pane ---- */
+      .desk { width: 400px; background: var(--d-bg); color: var(--d-text);
+        border: 1px solid var(--d-frame); border-radius: 12px; overflow: hidden;
+        font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+      .desk .bar { display: flex; justify-content: space-between; align-items: center;
+        padding: 8px 14px; border-bottom: 1px solid var(--d-faint); color: var(--d-dim); font-size: 14px; }
+      .desk .body { padding: 16px 20px 20px; display: flex; flex-direction: column; }
+      /* spacing: one cell across is about 10px, one row about 12px */
+      .desk .row { display: flex; flex-direction: row; align-items: center; }
+      .desk .col { display: flex; flex-direction: column; }
+      .desk .wrap { flex-wrap: wrap; }
+      .desk .gap1 { gap: 10px; } .desk .gap2 { gap: 20px; }
+      .desk .rgap1 { row-gap: 12px; }
+      .desk .mt1 { margin-top: 12px; } .desk .mt2 { margin-top: 24px; }
+      .desk .grow { flex: 1 1 auto; min-width: 0; } .desk .noshrink { flex: 0 0 auto; }
+      .desk .px1 { padding-left: 11px; padding-right: 11px; }
+      /* text: size, weight, color, style */
+      .desk .caption { font-size: 12px; } .desk .footnote { font-size: 13px; }
+      .desk .heading { font-size: 17px; } .desk .title { font-size: 22px; line-height: 1.3; }
+      .desk .medium { font-weight: 500; } .desk .semibold { font-weight: 600; } .desk .bold { font-weight: 700; }
+      .desk .italic { font-style: italic; } .desk .underline { text-decoration: underline; }
+      .desk .dim { color: var(--d-dim); }
+      .desk .accent { color: var(--d-accent); } .desk .ok { color: var(--d-success); }
+      .desk .bad { color: var(--d-error); } .desk .warn { color: var(--d-warning); }
+      .desk .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px; }
+      .desk .inverse { background: var(--d-text); color: var(--d-bg); }
+      .desk code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13.5px;
+        background: var(--d-shade); padding: 1px 4px; border-radius: 4px; }
+      /* backgrounds: plain rectangles (no rounding), the three soft shades only */
+      .desk .shade { background: var(--d-shade); } .desk .green { background: var(--d-green); }
+      .desk .pink { background: var(--d-pink); }
+      /* borders: rounded cards; a border adds about 17px above and below and 11px at the sides */
+      .desk .card { border: 1px solid var(--d-accent); border-radius: 10px; padding: 17px 11px; }
+      .desk .card.faint { border-color: var(--d-faint); }
+      .desk .card.filled { border-color: var(--d-shade); background: var(--d-shade); }
+      .desk .card.filled-green { border-color: var(--d-green); background: var(--d-green); }
+      .desk .card.filled-pink { border-color: var(--d-pink); background: var(--d-pink); }
+      /* A see-through fill (rgba at 12%) over the pane, as measured: borderDimColor edge. */
+      .desk .card.tinted { border-color: var(--d-tint-edge); background: var(--d-tint); }
+      .desk .card.tinted-red { border-color: var(--d-tint-edge); background: var(--d-tint-red); }
+      .desk .card.tight { padding-left: 11px; padding-right: 11px; } /* paddingX 1 is already in */
+      /* buttons, drawn by the app: pills; labels are plain text */
+      .desk .btn { display: inline-flex; align-items: center; height: 32px; padding: 0 14px;
+        border-radius: 10px; background: var(--d-btn); color: var(--d-btn-text); font-size: 15px;
+        white-space: nowrap; flex: 0 0 auto; }
+      .desk .btn.primary { background: var(--d-primary); color: var(--d-primary-text); }
+      .desk .btn.dimbtn { background: var(--d-btn-dim); color: var(--d-btn-dim-text); }
+      .desk .btn.plain { background: none; padding: 0 2px; }
+      /* fields */
+      .desk .field { display: flex; align-items: flex-start; gap: 10px; }
+      .desk .field .label { line-height: 32px; }
+      .desk .field .box { flex: 1 1 auto; height: 32px; border: 1px solid var(--d-field-border);
+        border-radius: 8px; background: var(--d-field-bg); padding: 0 12px; line-height: 30px;
+        color: var(--d-placeholder); white-space: nowrap; overflow: hidden; }
+      .desk .field .box.filled { color: var(--d-text); }
+      .desk .field .box.rows3 { height: 88px; line-height: 1.45; padding-top: 6px; white-space: normal; }
+      /* fixed widths for columns, in cells of about 8.5px */
+      .desk .w4 { width: 34px; } .desk .w6 { width: 51px; } .desk .w8 { width: 68px; }
+      .desk .w10 { width: 85px; } .desk .w12 { width: 102px; } .desk .w16 { width: 136px; }
+
+      /* ---- Terminal pane (always the dark terminal) ---- */
+      .term { width: calc(56ch + 2px); background: var(--t-bg); color: var(--t-text);
+        font: 13px/18px ui-monospace, SFMono-Regular, Menlo, monospace;
+        border-left: 1px solid var(--t-line); white-space: pre-wrap; }
+      .term .tbar { display: flex; justify-content: flex-end; padding: 0 1ch; color: var(--t-dim); }
+      .term .tbody { padding: 0 1ch 18px; display: flex; flex-direction: column; }
+      .term .row { display: flex; flex-direction: row; } .term .col { display: flex; flex-direction: column; }
+      .term .wrap { flex-wrap: wrap; } .term .gap1 { column-gap: 1ch; } .term .gap2 { column-gap: 2ch; }
+      .term .mt1 { margin-top: 18px; } .term .grow { flex: 1 1 auto; min-width: 0; }
+      .term .noshrink { flex: 0 0 auto; }
+      .term .px1 { padding-left: 1ch; padding-right: 1ch; }
+      .term .bold { font-weight: 700; } .term .underline { text-decoration: underline; }
+      .term .dim { color: var(--t-dim); } .term .accent { color: var(--t-accent); }
+      .term .ok { color: var(--t-success); } .term .bad { color: var(--t-error); }
+      .term .warn { color: var(--t-warning); } .term .blue { color: var(--t-blue); }
+      .term .inverse { background: var(--t-text); color: var(--t-bg); }
+      .term .fill-subtle { background: var(--t-subtle); } .term .fill-grey { background: var(--t-grey); }
+      /* box-drawn frame: one cell of border around, drawn as lines in the cell's middle */
+      .term .frame { border: 1px solid var(--t-accent); border-radius: 7px;
+        margin: 9px 0.5ch; padding: 8px 0.5ch; }
+      .term .frame.faint { border-color: var(--t-line); }
+      .term .frame.square { border-radius: 0; }
+      /* buttons: [ label ] */
+      .term .btn::before { content: "[ "; } .term .btn::after { content: " ]"; }
+      .term .btn.primary { color: var(--t-blue); } .term .btn.secondary { font-weight: 700; }
+      .term .btn.dimbtn { color: var(--t-dim); }
+      .term .field { display: flex; } .term .field .ph { color: var(--t-dim); }
+      .term .w4 { width: 4ch; } .term .w6 { width: 6ch; } .term .w8 { width: 8ch; }
+      .term .w10 { width: 10ch; } .term .w12 { width: 12ch; } .term .w16 { width: 16ch; }
+      .term code { color: var(--t-accent); }
+
+      /* ---- the band above the prompt ---- */
+      .band-desk { width: 640px; background: var(--d-bg); color: var(--d-dim); font: 13px/1.5 system-ui, sans-serif;
+        border: 1px solid var(--d-frame); border-radius: 12px; padding: 10px 14px; }
+      .band-desk .prompt { margin-top: 8px; border: 1px solid var(--d-field-border); border-radius: 10px;
+        padding: 10px 12px; color: var(--d-placeholder); font-size: 15px; }
+      .band-term { width: 80ch; background: var(--t-bg); color: var(--t-dim);
+        font: 13px/18px ui-monospace, SFMono-Regular, Menlo, monospace; padding: 0 1ch 4px; }
+      .band-term .prompt { border-top: 1px solid var(--t-line); border-bottom: 1px solid var(--t-line); color: var(--t-text); }
+
+      /* 2b. Page chrome, outside the frames: the panel's fonts, radius and density apply here only. */
+      body {
+        margin: 0;
+        background: var(--c-bg);
+        color: var(--c-text);
+        font-family: var(--font-body, system-ui, -apple-system, "Segoe UI", sans-serif);
+        line-height: 1.5;
+      }
+      .page {
+        box-sizing: border-box;
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: calc(var(--density, 1) * 32px) 16px calc(var(--density, 1) * 56px);
+      }
+      .chrome-card {
+        box-sizing: border-box;
+        background: var(--c-surface);
+        border: 1px solid var(--c-border);
+        border-radius: var(--radius, 8px);
+        padding: calc(var(--density, 1) * 16px) calc(var(--density, 1) * 20px);
+      }
+      .head h1,
+      .stage h2,
+      .design-notes summary,
+      .design-notes h3 {
+        font-family: var(--font-heading, system-ui, -apple-system, "Segoe UI", sans-serif);
+      }
+      .kicker {
+        margin: 0;
+        color: var(--c-muted);
+        font-size: 13px;
+        letter-spacing: 0.04em;
+      }
+      .head h1 {
+        margin: calc(var(--density, 1) * 6px) 0 0;
+        display: flex;
+        align-items: center;
+        gap: calc(var(--density, 1) * 10px);
+        font-size: 28px;
+        line-height: 1.2;
+        font-weight: 650;
+      }
+      .num {
+        display: inline-block;
+        background: var(--c-accent);
+        color: var(--c-on-accent);
+        border-radius: calc(var(--radius, 8px) * 0.75);
+        padding: 2px 9px;
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .lede {
+        margin: calc(var(--density, 1) * 10px) 0 0;
+        max-width: 78ch;
+        color: var(--c-muted);
+      }
+      .lede strong {
+        color: var(--c-text);
+        font-weight: 600;
+      }
+      .stage {
+        margin-top: calc(var(--density, 1) * 40px);
+      }
+      .stage-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 4px calc(var(--density, 1) * 12px);
+        margin-bottom: calc(var(--density, 1) * 14px);
+        border-bottom: 1px solid var(--c-border);
+        padding-bottom: calc(var(--density, 1) * 8px);
+      }
+      .stage h2 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+      }
+      .stage-sub {
+        color: var(--c-muted);
+        font-size: 14px;
+      }
+      .frames {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: calc(var(--density, 1) * 24px);
+      }
+      .bands {
+        display: flex;
+        flex-direction: column;
+        gap: calc(var(--density, 1) * 16px);
+      }
+      .slot {
+        max-width: 100%;
+        overflow-x: auto;
+      }
+      .slot-label {
+        margin: 0 0 calc(var(--density, 1) * 6px);
+        color: var(--c-muted);
+        font-size: 13px;
+      }
+      .caption {
+        margin: calc(var(--density, 1) * 18px) 0 0;
+        max-width: 92ch;
+        color: var(--c-muted);
+        font-size: 14px;
+      }
+      .caption strong {
+        color: var(--c-text);
+        font-weight: 600;
+      }
+      .chrome-code,
+      .design-notes code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.88em;
+        background: var(--c-bg);
+        border: 1px solid var(--c-border);
+        border-radius: calc(var(--radius, 8px) * 0.5);
+        padding: 0 4px;
+      }
+      .design-notes {
+        margin-top: calc(var(--density, 1) * 44px);
+      }
+      .design-notes summary {
+        cursor: pointer;
+        font-size: 17px;
+        font-weight: 600;
+      }
+      .design-notes summary::marker {
+        color: var(--c-accent);
+      }
+      .design-notes h3 {
+        margin: calc(var(--density, 1) * 22px) 0 calc(var(--density, 1) * 6px);
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .design-notes p,
+      .design-notes li {
+        max-width: 92ch;
+        font-size: 14.5px;
+      }
+      .design-notes ul {
+        padding-left: 20px;
+        margin: 0;
+      }
+      .design-notes li + li {
+        margin-top: calc(var(--density, 1) * 6px);
+      }
+      .table-scroll {
+        overflow-x: auto;
+        margin-top: calc(var(--density, 1) * 8px);
+      }
+      .map {
+        border-collapse: collapse;
+        width: 100%;
+        min-width: 760px;
+        font-size: 13.5px;
+      }
+      .map th,
+      .map td {
+        text-align: left;
+        vertical-align: top;
+        padding: calc(var(--density, 1) * 8px) calc(var(--density, 1) * 10px);
+        border-bottom: 1px solid var(--c-border);
+      }
+      .map th {
+        color: var(--c-muted);
+        font-weight: 600;
+        font-size: 12.5px;
+        letter-spacing: 0.03em;
+      }
+      .map td:first-child {
+        font-weight: 600;
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 3. The mockup content -->
+    <main class="page">
+      <header class="head chrome-card">
+        <p class="kicker">sessionpad · the pane as the mod draws it</p>
+        <h1><span class="num">02</span>Cards</h1>
+        <p class="lede">
+          <strong>Soft rounded cards everywhere.</strong> The headline, each
+          note, each timeline day and the workspace sit on filled grey cards;
+          the open tab is a black pill beside plain-text tabs, and an undo card
+          waits at the top of the notes. Every frame below uses only Box, Text,
+          Button, Input and Markdown, drawn the way the Desktop app and a
+          terminal draw them.
+        </p>
+      </header>
+
+      <!-- Desktop app -->
+      <section class="stage" aria-labelledby="row-desk">
+        <div class="stage-head">
+          <h2 id="row-desk">Desktop app</h2>
+          <span class="stage-sub"
+            >Notes · Timeline · Workspace, in the app's light or dark mode</span
+          >
+        </div>
+        <div class="frames">
+          <!-- Desktop · Notes -->
+          <div class="slot">
+            <p class="slot-label">
+              Notes, with note 2 being edited and one note just deleted
+            </p>
+            <section class="desk" aria-label="Desktop pane, Notes tab">
+              <div class="bar"><span>sessionpad</span><span>⤢ ✕</span></div>
+              <div class="body">
+                <div class="row wrap gap1">
+                  <span class="btn primary">Notes</span>
+                  <span class="btn plain">Timeline</span>
+                  <span class="btn plain">Workspace</span>
+                </div>
+
+                <div class="card tinted mt1">
+                  <div class="footnote accent semibold">HEADLINE</div>
+                  <div class="title semibold">
+                    Ship sessionpad 0.1.0: pruning, release, and the pane's look
+                  </div>
+                </div>
+
+                <div class="field mt1">
+                  <span class="label">Note</span>
+                  <span class="box">Add a note…</span>
+                  <span class="btn">add</span>
+                </div>
+
+                <div class="card tinted-red mt1">
+                  <div class="row gap1">
+                    <span class="grow"
+                      >Note deleted: Check du from the home folder.</span
+                    >
+                    <span class="btn primary">Undo</span>
+                    <span class="btn">Dismiss</span>
+                  </div>
+                </div>
+
+                <div class="card tinted mt1">
+                  <div>
+                    Use <code>prune:at</code> so sessions prune about once a
+                    day.
+                  </div>
+                  <div class="footnote dim">Claude · 09:12</div>
+                  <div class="row gap1">
+                    <span class="btn dimbtn">Make headline</span>
+                    <span class="btn dimbtn">Edit</span>
+                    <span class="btn dimbtn">Delete</span>
+                  </div>
+                </div>
+
+                <div class="card faint mt1">
+                  <div class="field">
+                    <div class="box rows3 filled">
+                      Ask J for the two README screenshots.
+                    </div>
+                    <span class="btn noshrink">Save</span>
+                  </div>
+                  <div class="row gap1 mt1">
+                    <span class="btn">Cancel</span>
+                  </div>
+                </div>
+
+                <div class="card tinted mt1">
+                  <div>
+                    Minimum version is <span class="bold">2.1.299</span>:
+                    earlier releases refuse the hooks module.
+                  </div>
+                  <div class="footnote dim">Claude · 11:40</div>
+                  <div class="row gap1">
+                    <span class="btn dimbtn">Make headline</span>
+                    <span class="btn dimbtn">Edit</span>
+                    <span class="btn dimbtn">Delete</span>
+                  </div>
+                </div>
+
+                <div class="card tinted mt1">
+                  <div>
+                    Desktop's file pane can't open files outside the project;
+                    <code>/pad-export notes/pad.md</code> works.
+                  </div>
+                  <div class="footnote dim">you · 12:15</div>
+                  <div class="row gap1">
+                    <span class="btn dimbtn">Make headline</span>
+                    <span class="btn dimbtn">Edit</span>
+                    <span class="btn dimbtn">Delete</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <!-- Desktop · Timeline -->
+          <div class="slot">
+            <p class="slot-label">Timeline, one card per day</p>
+            <section class="desk" aria-label="Desktop pane, Timeline tab">
+              <div class="bar"><span>sessionpad</span><span>⤢ ✕</span></div>
+              <div class="body">
+                <div class="row wrap gap1">
+                  <span class="btn plain">Notes</span>
+                  <span class="btn primary">Timeline</span>
+                  <span class="btn plain">Workspace</span>
+                </div>
+
+                <div class="row gap1 mt1">
+                  <span class="dim grow">7 turns, newest first</span>
+                  <span class="btn">Export</span>
+                </div>
+
+                <div class="card tinted mt1">
+                  <div class="footnote semibold dim">2026-10-28</div>
+                  <div class="row gap1 mt1">
+                    <div class="col w10 noshrink">
+                      <span class="mono semibold">12:31</span>
+                      <span class="footnote dim mono">4m10s</span>
+                    </div>
+                    <div class="col grow">
+                      <span
+                        >Restyled the pane: tabs, note cards and a wrapping
+                        timeline</span
+                      >
+                      <span class="footnote dim">3 files · 12 cmds</span>
+                    </div>
+                  </div>
+                  <div class="row gap1 mt1">
+                    <div class="col w10 noshrink">
+                      <span class="mono semibold">11:52</span>
+                      <span class="footnote dim mono">1m05s</span>
+                    </div>
+                    <div class="col grow">
+                      <span
+                        >Found that 2.1.299 is the first release that loads the
+                        mod</span
+                      >
+                      <span class="footnote dim">9 cmds</span>
+                    </div>
+                  </div>
+                  <div class="row gap1 mt1">
+                    <div class="col w10 noshrink">
+                      <span class="mono semibold">11:20</span>
+                      <span class="footnote dim mono">38s</span>
+                    </div>
+                    <div class="col grow">
+                      <span>Answered how to do the manual pass</span>
+                      <span class="footnote dim"
+                        ><span class="warn">stopped</span></span
+                      >
+                    </div>
+                  </div>
+                  <div class="row gap1 mt1">
+                    <div class="col w10 noshrink">
+                      <span class="mono semibold">10:44</span>
+                      <span class="footnote dim mono">6m20s</span>
+                    </div>
+                    <div class="col grow">
+                      <span>Fixed the review findings for pruning</span>
+                      <span class="footnote dim"
+                        >4 files · 21 cmds ·
+                        <span class="accent">→ feat/pane-look</span></span
+                      >
+                    </div>
+                  </div>
+                </div>
+
+                <div class="card tinted mt1">
+                  <div class="footnote semibold dim">2026-10-27</div>
+                  <div class="row gap1 mt1">
+                    <div class="col w10 noshrink">
+                      <span class="mono semibold">16:03</span>
+                      <span class="footnote dim mono">10m41s</span>
+                    </div>
+                    <div class="col grow">
+                      <span>Followed up on a message from another session</span>
+                      <span class="footnote dim">1 file · 11 cmds</span>
+                    </div>
+                  </div>
+                  <div class="row gap1 mt1">
+                    <div class="col w10 noshrink">
+                      <span class="mono semibold">15:48</span>
+                      <span class="footnote dim mono">8m02s</span>
+                    </div>
+                    <div class="col grow">
+                      <span
+                        >Named the turns that Claude Code starts instead of
+                        showing markup</span
+                      >
+                      <span class="footnote dim">2 files · 25 cmds</span>
+                    </div>
+                  </div>
+                  <div class="row gap1 mt1">
+                    <div class="col w10 noshrink">
+                      <span class="footnote dim mono">15:40</span>
+                    </div>
+                    <div class="col grow">
+                      <span class="footnote dim italic"
+                        >The conversation was cleared.</span
+                      >
+                    </div>
+                  </div>
+                  <div class="row gap1 mt1">
+                    <div class="col w10 noshrink">
+                      <span class="mono semibold">15:12</span>
+                      <span class="footnote dim mono">2m30s</span>
+                    </div>
+                    <div class="col grow">
+                      <span>Added the MIT license</span>
+                      <span class="footnote dim">2 files · 3 cmds</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <!-- Desktop · Workspace -->
+          <div class="slot">
+            <p class="slot-label">
+              Workspace, this worktree on a card and the others outlined
+            </p>
+            <section class="desk" aria-label="Desktop pane, Workspace tab">
+              <div class="bar"><span>sessionpad</span><span>⤢ ✕</span></div>
+              <div class="body">
+                <div class="row wrap gap1">
+                  <span class="btn plain">Notes</span>
+                  <span class="btn plain">Timeline</span>
+                  <span class="btn primary">Workspace</span>
+                </div>
+
+                <div class="card tinted mt1">
+                  <div class="footnote dim">Branch</div>
+                  <div class="semibold">claude/sessionpad-mod-865578</div>
+                  <div class="footnote dim mt1">Worktree</div>
+                  <div>…/worktrees/sessionpad-mod-865578</div>
+                  <div class="row gap1 mt1">
+                    <div class="col grow">
+                      <span class="footnote dim">Size</span>
+                      <span class="title semibold">412 MB</span>
+                      <span class="footnote dim">measured 12:30</span>
+                    </div>
+                    <span class="btn primary">Refresh sizes</span>
+                  </div>
+                </div>
+
+                <div class="semibold mt2">Other worktrees (3)</div>
+
+                <div class="card faint mt1">
+                  <div class="row gap1">
+                    <div class="col grow">
+                      <span class="medium">main</span>
+                      <span class="footnote dim"
+                        >/Users/pv/code/sessionpad</span
+                      >
+                    </div>
+                    <span class="noshrink">2.3 GB</span>
+                  </div>
+                </div>
+                <div class="card faint mt1">
+                  <div class="row gap1">
+                    <div class="col grow">
+                      <span class="medium">feat/notes-ui</span>
+                      <span class="footnote dim">…/worktrees/notes-ui</span>
+                    </div>
+                    <span class="noshrink dim">measuring…</span>
+                  </div>
+                </div>
+                <div class="card faint mt1">
+                  <div class="row gap1">
+                    <div class="col grow">
+                      <span class="medium">detached at 9f8e7d6</span>
+                      <span class="footnote dim">…/worktrees/old-try</span>
+                    </div>
+                    <span class="noshrink dim">size unavailable</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+        <p class="caption">
+          <strong>One trick carries the look:</strong> a Box with
+          <code class="chrome-code">borderStyle="round"</code>,
+          <code class="chrome-code">borderDimColor</code> and the see-through
+          <code class="chrome-code">backgroundColor="rgba(128, 128, 128, 0.12)"</code>
+          draws as a soft, filled, rounded card, light grey in light mode and
+          dark grey in dark, since the grey is laid over the pane. The note
+          being edited drops the fill for a faint outline, the deleted note's
+          undo card is tinted red the same way
+          (<code class="chrome-code">rgba(220, 60, 80, 0.12)</code>), and the
+          only black (or, in dark mode, white) shapes are the app's primary
+          buttons. Switch the mode in the panel to see the Desktop app's dark
+          mode.
+        </p>
+      </section>
+
+      <!-- Terminal. Each frame is prettier-ignored: .term is white-space: pre-wrap, so reflowed text would draw as broken lines. -->
+      <section class="stage" aria-labelledby="row-term">
+        <div class="stage-head">
+          <h2 id="row-term">Terminal</h2>
+          <span class="stage-sub"
+            >the same three trees, always on the dark terminal</span
+          >
+        </div>
+        <div class="frames">
+          <!-- Terminal · Notes -->
+          <div class="slot">
+            <p class="slot-label">Notes</p>
+            <!-- prettier-ignore -->
+            <section class="term" aria-label="Terminal pane, Notes tab"><div class="tbar">✕</div><div class="tbody">
+                <div class="row wrap gap2"><span class="bold accent">1 Notes</span><span class="dim">2 Timeline</span><span class="dim">3 Workspace</span></div>
+                <div class="col mt1">
+                  <div class="frame col"><span class="accent">HEADLINE</span><span>Ship sessionpad 0.1.0: pruning, release, and the pane's look</span></div>
+                </div>
+                <div class="field mt1"><span>Note: </span><span class="ph">Add a note…</span></div>
+                <div class="col mt1">
+                  <div class="frame faint col">
+                    <div class="row gap1"><span class="grow">Note deleted: Check du from the home folder.</span><span class="btn primary noshrink">Undo</span><span class="btn noshrink">Dismiss</span></div>
+                  </div>
+                </div>
+                <div class="col mt1">
+                  <div class="frame faint col">
+                    <span>Use <code>prune:at</code> so sessions prune about once a day.</span>
+                    <span class="dim">Claude · 09:12</span>
+                    <div class="row wrap gap1"><span class="btn dimbtn">Make headline</span><span class="btn dimbtn">Edit</span><span class="btn dimbtn">Delete</span></div>
+                  </div>
+                </div>
+                <div class="col mt1">
+                  <div class="frame col">
+                    <span>Ask J for the two README screenshots.</span>
+                    <span> </span>
+                    <span> </span>
+                    <div class="row wrap gap1"><span class="btn">Save</span><span class="btn">Cancel</span></div>
+                  </div>
+                </div>
+                <div class="col mt1">
+                  <div class="frame faint col">
+                    <span>Minimum version is <span class="bold">2.1.299</span>: earlier releases refuse the hooks module.</span>
+                    <span class="dim">Claude · 11:40</span>
+                    <div class="row wrap gap1"><span class="btn dimbtn">Make headline</span><span class="btn dimbtn">Edit</span><span class="btn dimbtn">Delete</span></div>
+                  </div>
+                </div>
+                <div class="col mt1">
+                  <div class="frame faint col">
+                    <span>Desktop's file pane can't open files outside the project; <code>/pad-export notes/pad.md</code> works.</span>
+                    <span class="dim">you · 12:15</span>
+                    <div class="row wrap gap1"><span class="btn dimbtn">Make headline</span><span class="btn dimbtn">Edit</span><span class="btn dimbtn">Delete</span></div>
+                  </div>
+                </div>
+            </div></section>
+          </div>
+
+          <!-- Terminal · Timeline -->
+          <div class="slot">
+            <p class="slot-label">Timeline</p>
+            <!-- prettier-ignore -->
+            <section class="term" aria-label="Terminal pane, Timeline tab"><div class="tbar">✕</div><div class="tbody">
+                <div class="row wrap gap2"><span class="dim">1 Notes</span><span class="bold accent">2 Timeline</span><span class="dim">3 Workspace</span></div>
+                <div class="row gap1 mt1"><span class="dim grow">7 turns, newest first</span><span class="btn noshrink">Export</span></div>
+                <div class="col mt1">
+                  <div class="frame faint col">
+                    <span class="dim">2026-10-28</span>
+                    <div class="row gap1 mt1">
+                      <div class="col w6 noshrink"><span>12:31</span><span class="dim">4m10s</span></div>
+                      <div class="col grow"><span>Restyled the pane: tabs, note cards and a wrapping timeline</span><span class="dim">3 files · 12 cmds</span></div>
+                    </div>
+                    <div class="row gap1 mt1">
+                      <div class="col w6 noshrink"><span>11:52</span><span class="dim">1m05s</span></div>
+                      <div class="col grow"><span>Found that 2.1.299 is the first release that loads the mod</span><span class="dim">9 cmds</span></div>
+                    </div>
+                    <div class="row gap1 mt1">
+                      <div class="col w6 noshrink"><span>11:20</span><span class="dim">38s</span></div>
+                      <div class="col grow"><span>Answered how to do the manual pass</span><span class="dim"><span class="warn">stopped</span></span></div>
+                    </div>
+                    <div class="row gap1 mt1">
+                      <div class="col w6 noshrink"><span>10:44</span><span class="dim">6m20s</span></div>
+                      <div class="col grow"><span>Fixed the review findings for pruning</span><span class="dim">4 files · 21 cmds · <span class="accent">→ feat/pane-look</span></span></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col mt1">
+                  <div class="frame faint col">
+                    <span class="dim">2026-10-27</span>
+                    <div class="row gap1 mt1">
+                      <div class="col w6 noshrink"><span>16:03</span><span class="dim">10m41s</span></div>
+                      <div class="col grow"><span>Followed up on a message from another session</span><span class="dim">1 file · 11 cmds</span></div>
+                    </div>
+                    <div class="row gap1 mt1">
+                      <div class="col w6 noshrink"><span>15:48</span><span class="dim">8m02s</span></div>
+                      <div class="col grow"><span>Named the turns that Claude Code starts instead of showing markup</span><span class="dim">2 files · 25 cmds</span></div>
+                    </div>
+                    <div class="row gap1 mt1">
+                      <div class="col w6 noshrink"><span class="dim">15:40</span></div>
+                      <div class="col grow"><span class="dim">The conversation was cleared.</span></div>
+                    </div>
+                    <div class="row gap1 mt1">
+                      <div class="col w6 noshrink"><span>15:12</span><span class="dim">2m30s</span></div>
+                      <div class="col grow"><span>Added the MIT license</span><span class="dim">2 files · 3 cmds</span></div>
+                    </div>
+                  </div>
+                </div>
+            </div></section>
+          </div>
+
+          <!-- Terminal · Workspace -->
+          <div class="slot">
+            <p class="slot-label">Workspace</p>
+            <!-- prettier-ignore -->
+            <section class="term" aria-label="Terminal pane, Workspace tab"><div class="tbar">✕</div><div class="tbody">
+                <div class="row wrap gap2"><span class="dim">1 Notes</span><span class="dim">2 Timeline</span><span class="bold accent">3 Workspace</span></div>
+                <div class="col mt1">
+                  <div class="frame faint col">
+                    <span class="dim">Branch</span>
+                    <span>claude/sessionpad-mod-865578</span>
+                    <span class="dim mt1">Worktree</span>
+                    <span>…/worktrees/sessionpad-mod-865578</span>
+                    <div class="row gap1 mt1">
+                      <div class="col grow"><span class="dim">Size</span><span>412 MB</span><span class="dim">measured 12:30</span></div>
+                      <span class="btn primary noshrink">Refresh sizes</span>
+                    </div>
+                  </div>
+                </div>
+                <span class="mt1">Other worktrees (3)</span>
+                <div class="col mt1">
+                  <div class="frame faint col">
+                    <div class="row gap1"><div class="col grow"><span>main</span><span class="dim">/Users/pv/code/sessionpad</span></div><span class="noshrink">2.3 GB</span></div>
+                  </div>
+                </div>
+                <div class="col mt1">
+                  <div class="frame faint col">
+                    <div class="row gap1"><div class="col grow"><span>feat/notes-ui</span><span class="dim">…/worktrees/notes-ui</span></div><span class="noshrink dim">measuring…</span></div>
+                  </div>
+                </div>
+                <div class="col mt1">
+                  <div class="frame faint col">
+                    <div class="row gap1"><div class="col grow"><span>detached at 9f8e7d6</span><span class="dim">…/worktrees/old-try</span></div><span class="noshrink dim">size unavailable</span></div>
+                  </div>
+                </div>
+            </div></section>
+          </div>
+        </div>
+        <p class="caption">
+          <strong>A terminal can't fill a frame softly,</strong> so every grey
+          card becomes a grey frame drawn with round box characters, and the two
+          cards that matter most, the headline and the note being edited, take
+          the accent frame instead. One font and one size: the title, footnote,
+          mono and semibold steps all flatten, italics don't draw, buttons read
+          <code class="chrome-code">[ label ]</code>, and the tabs carry the
+          digits that switch them while the pane holds the keyboard.
+        </p>
+      </section>
+
+      <!-- Band above the prompt -->
+      <section class="stage" aria-labelledby="row-band">
+        <div class="stage-head">
+          <h2 id="row-band">Band above the prompt</h2>
+          <span class="stage-sub"
+            >one dim line, the headline, on both surfaces</span
+          >
+        </div>
+        <div class="bands">
+          <div class="slot">
+            <p class="slot-label">Desktop app</p>
+            <div class="band-desk">
+              <div>
+                pad: Ship sessionpad 0.1.0: pruning, release, and the pane's
+                look
+              </div>
+              <div class="prompt">Reply…</div>
+            </div>
+          </div>
+          <div class="slot">
+            <p class="slot-label">Terminal</p>
+            <!-- prettier-ignore -->
+            <div class="band-term"><div>pad: Ship sessionpad 0.1.0: pruning, release, and the pane's look</div><div class="prompt">❯ </div></div>
+          </div>
+        </div>
+        <p class="caption">
+          The band stays a single dim line, as it draws today: it sits in the
+          prompt's own space, so it carries no card, no button and no accent,
+          and is cut at the end when the window is narrow.
+        </p>
+      </section>
+
+      <!-- 4. Design notes -->
+      <details class="design-notes chrome-card">
+        <summary>Design notes — 02 · Cards</summary>
+
+        <h3>Direction</h3>
+        <p>
+          Every group of content is a soft card. The trick is a Box with
+          <code>borderStyle="round"</code>, <code>borderDimColor</code> and
+          <code>backgroundColor="rgba(128, 128, 128, 0.12)"</code>: on Desktop
+          it draws a filled rounded card that follows the app's mode, light
+          grey (<code>#f0f0f0</code>) in light and dark grey
+          (<code>#262626</code>) in dark, because the grey is see-through and
+          laid over the pane. (The first build filled the cards with the soft
+          theme key <code>promptBorder</code>, <code>#cecece</code> and
+          <code>#474747</code>, which drew too dark for the dim text and the
+          buttons on them.) Cards replace dividers and indentation, so the pane reads
+          as a stack of objects you act on. The open tab is the app's black
+          primary pill beside two bare-text tabs, which is the strongest "you
+          are here" a Desktop Button can draw, since a colored or bold label
+          inside a Button is ignored.
+        </p>
+
+        <h3>Element → mod call</h3>
+        <p>
+          <code>accent</code> below is the palette's theme key
+          (<code>claude</code>, <code>merged</code> or <code>success</code>).
+          <code>isTerminal</code> is <code>e.surface === "terminal"</code>,
+          which the pane already checks for the tab digits.
+        </p>
+        <div class="table-scroll">
+          <table class="map">
+            <thead>
+              <tr>
+                <th>Element</th>
+                <th>Desktop</th>
+                <th>Terminal (where it differs)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Tabs</td>
+                <td>
+                  <code
+                    >&lt;Box flexDirection="row" flexWrap="wrap"
+                    columnGap={1}&gt;</code
+                  >
+                  holding
+                  <code>&lt;Button label="Notes" variant="primary"&gt;</code>
+                  for the open tab and
+                  <code>&lt;Button label="Timeline" plain&gt;</code>,
+                  <code>&lt;Button label="Workspace" plain&gt;</code> for the
+                  others.
+                </td>
+                <td>
+                  <code>columnGap={2}</code>; every tab is
+                  <code>&lt;Button plain hotkey="1"&gt;</code>, the open one
+                  holding <code>&lt;Text bold color={accent}&gt;</code>, the
+                  others <code>dimColor</code>. Draws
+                  <code>1 Notes 2 Timeline 3 Workspace</code>.
+                </td>
+              </tr>
+              <tr>
+                <td>Headline</td>
+                <td>
+                  <code
+                    >&lt;Box borderStyle="round" borderDimColor
+                    backgroundColor="rgba(128, 128, 128, 0.12)"
+                    flexDirection="column" marginTop={1}&gt;</code
+                  >
+                  with
+                  <code
+                    >&lt;Text size="footnote" weight="semibold"
+                    color={accent}&gt;HEADLINE&lt;/Text&gt;</code
+                  >
+                  and
+                  <code
+                    >&lt;Text size="title" weight="semibold"
+                    wrap="wrap"&gt;</code
+                  >.
+                </td>
+                <td>
+                  <code>borderColor={accent}</code> and no
+                  <code>backgroundColor</code>: an accent frame. Size and weight
+                  draw nothing.
+                </td>
+              </tr>
+              <tr>
+                <td>Note input</td>
+                <td>
+                  <code
+                    >&lt;Input label="Note" placeholder="Add a note…"
+                    submitLabel="add"&gt;</code
+                  >, inside a <code>&lt;Box marginTop={1}&gt;</code>.
+                </td>
+                <td>
+                  Same call; draws <code>Note: Add a note…</code> on one line.
+                </td>
+              </tr>
+              <tr>
+                <td>Undo card</td>
+                <td>
+                  <code
+                    >&lt;Box borderStyle="round" borderDimColor
+                    backgroundColor="rgba(220, 60, 80, 0.12)" flexDirection="row"
+                    columnGap={1}&gt;</code
+                  >
+                  with
+                  <code
+                    >&lt;Box flexGrow={1} flexShrink={1}&gt;&lt;Text
+                    wrap="wrap"&gt;Note deleted:
+                    …&lt;/Text&gt;&lt;/Box&gt;</code
+                  >
+                  and
+                  <code>&lt;Button label="Undo" variant="primary"&gt;</code>,
+                  then <code>&lt;Button label="Dismiss"&gt;</code>, which takes
+                  the card away and leaves the note deleted. First child of the
+                  notes list.
+                </td>
+                <td>
+                  <code>borderColor="promptBorder"</code>, no background (a
+                  terminal has no soft tint); <code>[ Undo ]</code> in light
+                  blue, then <code>[ Dismiss ]</code>.
+                </td>
+              </tr>
+              <tr>
+                <td>Note card</td>
+                <td>
+                  The filled Box with
+                  <code>flexDirection="column" marginTop={1}</code>:
+                  <code>&lt;Markdown text={note.text}&gt;</code>,
+                  <code
+                    >&lt;Text size="footnote" dimColor&gt;Claude ·
+                    09:12&lt;/Text&gt;</code
+                  >, then
+                  <code>&lt;Box flexDirection="row" columnGap={1}&gt;</code>
+                  with
+                  <code>&lt;Button label="Make headline" dimColor&gt;</code>,
+                  <code>&lt;Button label="Edit" dimColor&gt;</code>,
+                  <code>&lt;Button label="Delete" dimColor&gt;</code>.
+                </td>
+                <td>
+                  No <code>backgroundColor</code>: a grey frame. Buttons draw
+                  <code>[ Make headline ] [ Edit ] [ Delete ]</code> in grey;
+                  inline code takes the accent color.
+                </td>
+              </tr>
+              <tr>
+                <td>Note being edited</td>
+                <td>
+                  <code
+                    >&lt;Box borderStyle="round" borderDimColor
+                    flexDirection="column" marginTop={1}&gt;</code
+                  >
+                  with
+                  <code
+                    >&lt;Input rows={3} value={note.text}
+                    submitLabel="Save"&gt;</code
+                  >, whose own submit button Desktop draws as a grey pill beside
+                  the field's top, then
+                  <code
+                    >&lt;Box flexDirection="row" columnGap={1}
+                    marginTop={1}&gt;</code
+                  >
+                  with <code>&lt;Button label="Cancel"&gt;</code>. A primary
+                  Save Button can't stand in: the Input would still draw its own
+                  pill. In a terminal the submit label shows beside the focused
+                  field, drawn here as <code>[ Save ]</code>; not yet seen
+                  there.
+                </td>
+                <td>
+                  <code>borderColor={accent}</code> in place of
+                  <code>borderDimColor</code>; the Input is three lines;
+                  <code>marginTop={isTerminal ? 0 : 1}</code> on the button row,
+                  since the Input's two empty lines already give room.
+                </td>
+              </tr>
+              <tr>
+                <td>Timeline header</td>
+                <td>
+                  <code
+                    >&lt;Box flexDirection="row" columnGap={1}
+                    marginTop={1}&gt;</code
+                  >:
+                  <code
+                    >&lt;Box flexGrow={1}&gt;&lt;Text dimColor&gt;7 turns,
+                    newest first&lt;/Text&gt;&lt;/Box&gt;</code
+                  >
+                  and <code>&lt;Button label="Export"&gt;</code>.
+                </td>
+                <td>Same; <code>[ Export ]</code>.</td>
+              </tr>
+              <tr>
+                <td>Day card</td>
+                <td>
+                  The filled Box,
+                  <code>flexDirection="column" marginTop={1}</code>, opening
+                  with
+                  <code
+                    >&lt;Text size="footnote" weight="semibold"
+                    dimColor&gt;2026-10-28&lt;/Text&gt;</code
+                  >.
+                </td>
+                <td>A grey frame; the date is dim.</td>
+              </tr>
+              <tr>
+                <td>Turn</td>
+                <td>
+                  <code
+                    >&lt;Box flexDirection="row" columnGap={1}
+                    marginTop={1}&gt;</code
+                  >:
+                  <code
+                    >&lt;Box width={10} flexShrink={0}
+                    flexDirection="column"&gt;</code
+                  >
+                  with
+                  <code
+                    >&lt;Text mono weight="semibold"&gt;12:31&lt;/Text&gt;</code
+                  >
+                  and
+                  <code
+                    >&lt;Text size="footnote" mono
+                    dimColor&gt;4m10s&lt;/Text&gt;</code
+                  >; then
+                  <code
+                    >&lt;Box flexGrow={1} flexShrink={1}
+                    flexDirection="column"&gt;</code
+                  >
+                  with <code>&lt;Text wrap="wrap"&gt;</code> summary and
+                  <code>&lt;Text size="footnote" dimColor wrap="wrap"&gt;</code>
+                  marks, where
+                  <code>&lt;Text color="warning"&gt;stopped&lt;/Text&gt;</code>
+                  and
+                  <code
+                    >&lt;Text color={accent}&gt;→
+                    feat/pane-look&lt;/Text&gt;</code
+                  >
+                  nest.
+                </td>
+                <td>
+                  <code>width={isTerminal ? 6 : 10}</code>; mono, size and
+                  weight draw nothing, so the time is plain and the duration
+                  dim.
+                </td>
+              </tr>
+              <tr>
+                <td>Aside</td>
+                <td>
+                  The same row shape with only the time,
+                  <code
+                    >&lt;Text size="footnote" mono
+                    dimColor&gt;15:40&lt;/Text&gt;</code
+                  >, and
+                  <code
+                    >&lt;Text size="footnote" dimColor italic&gt;The
+                    conversation was cleared.&lt;/Text&gt;</code
+                  >.
+                </td>
+                <td>Italic doesn't draw: dim only.</td>
+              </tr>
+              <tr>
+                <td>Workspace card</td>
+                <td>
+                  The filled Box, <code>flexDirection="column"</code>:
+                  <code
+                    >&lt;Text size="footnote"
+                    dimColor&gt;Branch&lt;/Text&gt;</code
+                  >
+                  over
+                  <code>&lt;Text weight="semibold" wrap="truncate-end"&gt;</code
+                  >; <code>Worktree</code> over
+                  <code>&lt;Text wrap="truncate-start"&gt;</code>, each group
+                  <code>marginTop={1}</code>; then a row of a growing column
+                  (<code>Size</code>,
+                  <code
+                    >&lt;Text size="title" weight="semibold"&gt;412
+                    MB&lt;/Text&gt;</code
+                  >,
+                  <code
+                    >&lt;Text size="footnote" dimColor&gt;measured
+                    12:30&lt;/Text&gt;</code
+                  >) and
+                  <code
+                    >&lt;Button label="Refresh sizes"
+                    variant="primary"&gt;</code
+                  >.
+                </td>
+                <td>
+                  A grey frame; one size, so 412 MB is ordinary text;
+                  <code>[ Refresh sizes ]</code> in light blue.
+                </td>
+              </tr>
+              <tr>
+                <td>Other worktrees</td>
+                <td>
+                  <code
+                    >&lt;Text weight="semibold"&gt;Other worktrees
+                    (3)&lt;/Text&gt;</code
+                  >
+                  with <code>marginTop={2}</code>, then per tree
+                  <code
+                    >&lt;Box borderStyle="round" borderDimColor
+                    marginTop={1}&gt;</code
+                  >: a row of
+                  <code
+                    >&lt;Box flexGrow={1} flexShrink={1}
+                    flexDirection="column"&gt;</code
+                  >
+                  (<code>&lt;Text weight="medium"&gt;</code> branch,
+                  <code
+                    >&lt;Text size="footnote" dimColor
+                    wrap="truncate-start"&gt;</code
+                  >
+                  path) and
+                  <code
+                    >&lt;Box flexShrink={0}&gt;&lt;Text&gt;2.3
+                    GB&lt;/Text&gt;&lt;/Box&gt;</code
+                  >, dim when measuring or unavailable.
+                </td>
+                <td>
+                  A grey frame each;
+                  <code>marginTop={isTerminal ? 1 : 2}</code> on the heading,
+                  since a terminal row is a full line.
+                </td>
+              </tr>
+              <tr>
+                <td>Band</td>
+                <td>
+                  In the <code>AbovePrompt</code> slot,
+                  <code
+                    >&lt;Box width="100%"&gt;&lt;Text dimColor
+                    wrap="truncate-end"&gt;pad: …&lt;/Text&gt;&lt;/Box&gt;</code
+                  >, as the band draws now.
+                </td>
+                <td>Same line.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>What differs between the surfaces</h3>
+        <ul>
+          <li>
+            <strong>Cards.</strong> Desktop fills the card with the
+            see-through grey, softly in both modes. A terminal has no
+            see-through color and fills with whole cells, so the mod
+            drops <code>backgroundColor</code> there and the card is a grey
+            frame drawn with the round box characters.
+          </li>
+          <li>
+            <strong>Emphasis.</strong> On Desktop the headline stands out by
+            size (title) and the edited note by losing its fill. A terminal has
+            one size and no soft fill, so both take the accent frame instead.
+          </li>
+          <li>
+            <strong>Tabs.</strong> Desktop: a black (dark mode: white) primary
+            pill beside bare text. Terminal: bold accent text beside dim text,
+            with the hotkey digits, because a colored Text inside a Button only
+            draws there.
+          </li>
+          <li>
+            <strong>Buttons.</strong> Desktop pills; the per-note buttons are
+            the faint <code>dimColor</code> pills so three per card don't shout.
+            Terminal: <code>[ label ]</code>, primary light blue, dim grey.
+          </li>
+          <li>
+            <strong>Type.</strong> Desktop uses the five sizes, medium and
+            semibold, mono for times and italic for the aside. A terminal
+            flattens all of that; only dim, bold and color remain.
+          </li>
+          <li>
+            <strong>Columns.</strong> The time column is a fixed-width Box, 10
+            cells on Desktop and 6 in a terminal; spaces collapse on both
+            surfaces, so they never line anything up.
+          </li>
+        </ul>
+
+        <h3>Honest costs of this direction</h3>
+        <ul>
+          <li>
+            Dim text (<code>#8c8c8c</code>) and the faint buttons are fainter
+            on a card than on the bare pane. The first build's
+            <code>promptBorder</code> cards (<code>#cecece</code>) made them
+            hard to read; the see-through grey (<code>#f0f0f0</code>) keeps
+            them readable, at the cost of cards that stand out less, above all
+            in dark mode (<code>#262626</code> on <code>#181818</code>).
+          </li>
+          <li>
+            Markdown draws inline code on its own grey chip, which the mod
+            doesn't choose. On the first build's <code>promptBorder</code>
+            cards the chip was lost in the card; on the lighter cards it should
+            stand out again, not yet seen in the app.
+          </li>
+          <li>
+            Rows in the kit center their children, so the time column sits a
+            little lower than the summary when the summary wraps to two lines.
+          </li>
+          <li>
+            Cards cost height: each border adds about 17px above and below, so
+            the Notes tab scrolls sooner than a flat list would.
+          </li>
+        </ul>
+
+        <h3>Typography and palette</h3>
+        <p>
+          The pane's own type is fixed by the app: the system face at about 15px
+          on Desktop and the terminal's one monospace font. The panel's font,
+          radius and density controls change only this page's chrome (header,
+          captions and these notes), where <em>System</em> keeps the chrome
+          close to the app and <em>Serif</em> (Georgia) sets it apart as
+          commentary. The three palettes are the accent theme key the pane would
+          use, <code>claude</code> (orange), <code>merged</code> (purple) and
+          <code>success</code> (green); they change the HEADLINE caption, the
+          accent frames, the open terminal tab and the branch mark, while the
+          primary buttons stay black or white because the app draws them. Light
+          and dark are the Desktop app's two modes; the terminal frames are
+          always the dark terminal.
+        </p>
+      </details>
+    </main>
+
+    <!-- DP:STYLE -->
+<style id="dp-style">
+  #design-panel {
+    all: initial;
+    --dp-bg: rgba(28, 30, 34, 0.92);
+    --dp-text: #e7e9ee;
+    --dp-muted: #9aa1ad;
+    --dp-line: rgba(255, 255, 255, 0.14);
+    --dp-active: #6ea8fe;
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 99999;
+    width: 240px;
+    max-height: min(70vh, 560px);
+    overflow: auto;
+    background: var(--dp-bg);
+    color: var(--dp-text);
+    font:
+      12px/1.45 system-ui,
+      -apple-system,
+      "Segoe UI",
+      sans-serif;
+    border: 1px solid var(--dp-line);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(6px);
+  }
+  #design-panel * {
+    all: revert;
+    box-sizing: border-box;
+    font: inherit;
+    color: inherit;
+  }
+  #design-panel header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--dp-line);
+  }
+  #design-panel header strong {
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  #dp-toggle {
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 6px;
+    line-height: 1;
+  }
+  #dp-toggle:hover {
+    background: var(--dp-line);
+  }
+  #design-panel[data-collapsed="true"] {
+    width: auto;
+    max-height: none;
+    overflow: hidden;
+  }
+  #design-panel[data-collapsed="true"] #dp-body {
+    display: none;
+  }
+  #design-panel[data-collapsed="true"] header {
+    border-bottom: 0;
+  }
+  #dp-body {
+    padding: 10px 12px 12px;
+    display: grid;
+    gap: 12px;
+  }
+  #design-panel fieldset {
+    border: 0;
+    margin: 0;
+    padding: 0;
+  }
+  #design-panel legend {
+    padding: 0 0 6px;
+    color: var(--dp-muted);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+  }
+  #design-panel .dp-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  #design-panel .dp-options label {
+    border: 1px solid var(--dp-line);
+    border-radius: 999px;
+    padding: 3px 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+  #design-panel .dp-options input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  #design-panel .dp-options input:checked + span {
+    color: var(--dp-active);
+  }
+  #design-panel .dp-options label:has(input:checked) {
+    border-color: var(--dp-active);
+  }
+  #design-panel .dp-options label:has(input:focus-visible) {
+    outline: 2px solid var(--dp-active);
+    outline-offset: 2px;
+  }
+  #design-panel .dp-slider {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 8px;
+  }
+  #design-panel .dp-slider input[type="range"] {
+    width: 100%;
+    accent-color: var(--dp-active);
+  }
+  #design-panel .dp-slider output {
+    min-width: 42px;
+    text-align: right;
+    color: var(--dp-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  #dp-reset,
+  #dp-copy {
+    width: 100%;
+    border: 1px solid var(--dp-line);
+    background: transparent;
+    border-radius: 8px;
+    padding: 6px 0;
+    cursor: pointer;
+  }
+  #dp-reset:hover,
+  #dp-copy:hover {
+    border-color: var(--dp-active);
+    color: var(--dp-active);
+  }
+  #design-panel [hidden] {
+    display: none;
+  }
+  #dp-copy-status {
+    margin: 0;
+    color: var(--dp-muted);
+  }
+  #dp-settings {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 6px 8px;
+    resize: vertical;
+    border: 1px solid var(--dp-line);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.25);
+    font:
+      11px/1.4 ui-monospace,
+      SFMono-Regular,
+      Menlo,
+      Consolas,
+      monospace;
+  }
+</style>
+<!-- /DP:STYLE -->
+    <!-- DP:MARKUP -->
+<aside
+  id="design-panel"
+  data-collapsed="false"
+  aria-label="Design control panel"
+>
+  <header>
+    <strong>Design panel</strong>
+    <button
+      id="dp-toggle"
+      type="button"
+      aria-expanded="true"
+      title="Collapse panel"
+    >
+      −
+    </button>
+  </header>
+  <div id="dp-body">
+    <fieldset data-dp-group="mode">
+      <legend>Mode</legend>
+      <div class="dp-options"></div>
+    </fieldset>
+    <fieldset data-dp-group="palette">
+      <legend>Palette</legend>
+      <div class="dp-options"></div>
+    </fieldset>
+    <fieldset data-dp-group="font">
+      <legend>Font</legend>
+      <div class="dp-options"></div>
+    </fieldset>
+    <fieldset>
+      <legend>Radius</legend>
+      <div class="dp-slider">
+        <input
+          type="range"
+          data-dp-range="radius"
+          min="0"
+          max="24"
+          step="1"
+          aria-label="Radius"
+        />
+        <output data-dp-out="radius"></output>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Density</legend>
+      <div class="dp-slider">
+        <input
+          type="range"
+          data-dp-range="density"
+          min="0.8"
+          max="1.3"
+          step="0.05"
+          aria-label="Density"
+        />
+        <output data-dp-out="density"></output>
+      </div>
+    </fieldset>
+    <button id="dp-reset" type="button">Reset to defaults</button>
+    <button id="dp-copy" type="button">Copy settings</button>
+    <p id="dp-copy-status" role="status" hidden></p>
+    <textarea
+      id="dp-settings"
+      rows="6"
+      readonly
+      hidden
+      aria-label="Design settings as JSON"
+    ></textarea>
+  </div>
+</aside>
+<!-- /DP:MARKUP -->
+    <script type="application/json" id="dp-config">
+      {
+        "slug": "02-cards",
+        "palettes": [
+          { "id": "claude", "label": "claude" },
+          { "id": "merged", "label": "merged" },
+          { "id": "success", "label": "success" }
+        ],
+        "fonts": [
+          {
+            "id": "system",
+            "label": "System",
+            "body": "system-ui, -apple-system, 'Segoe UI', sans-serif",
+            "heading": "system-ui, -apple-system, 'Segoe UI', sans-serif"
+          },
+          {
+            "id": "serif",
+            "label": "Serif",
+            "body": "Georgia, 'Times New Roman', serif",
+            "heading": "Georgia, 'Times New Roman', serif"
+          }
+        ],
+        "defaults": {
+          "mode": "light",
+          "palette": "claude",
+          "font": "system",
+          "radius": 8,
+          "density": 1
+        }
+      }
+    </script>
+    <!-- DP:SCRIPT -->
+<script id="dp-script">
+  (function () {
+    function readConfig() {
+      var node = document.getElementById("dp-config");
+      if (!node) return null;
+      try {
+        return JSON.parse(node.textContent);
+      } catch (error) {
+        return null;
+      }
+    }
+    var config = window.DP_CONFIG || readConfig();
+    if (
+      !config ||
+      !config.slug ||
+      !Array.isArray(config.palettes) ||
+      !Array.isArray(config.fonts) ||
+      !config.defaults
+    ) {
+      console.error(
+        "design-panel: the dp-config JSON block (or window.DP_CONFIG) is missing or malformed"
+      );
+      return;
+    }
+    // The set folder is the last directory segment of the page's own path,
+    // so 01-editorial in two sets keeps two states. A page with no directory
+    // segment keeps the plain slug key.
+    var folder = window.location.pathname.split("/").slice(0, -1).pop();
+    var KEY = "design-panel:" + (folder ? folder + "/" : "") + config.slug;
+    var root = document.documentElement;
+    var panel = document.getElementById("design-panel");
+    var defaults = {
+      mode: config.defaults.mode === "dark" ? "dark" : "light",
+      palette: idOrFirst(config.palettes, config.defaults.palette),
+      font: idOrFirst(config.fonts, config.defaults.font),
+      radius: clamp(num(config.defaults.radius, 8), 0, 24),
+      density: clamp(num(config.defaults.density, 1), 0.8, 1.3),
+      collapsed: false,
+    };
+
+    function idOrFirst(list, id) {
+      for (var i = 0; i < list.length; i += 1) {
+        if (list[i].id === id) return id;
+      }
+      return list.length > 0 ? list[0].id : "";
+    }
+    function hasId(list, id) {
+      for (var i = 0; i < list.length; i += 1) {
+        if (list[i].id === id) return true;
+      }
+      return false;
+    }
+    function num(value, fallback) {
+      return typeof value === "number" && isFinite(value) ? value : fallback;
+    }
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+    function findFont(id) {
+      for (var i = 0; i < config.fonts.length; i += 1) {
+        if (config.fonts[i].id === id) return config.fonts[i];
+      }
+      return config.fonts[0];
+    }
+
+    function load() {
+      var state = {};
+      try {
+        state = JSON.parse(localStorage.getItem(KEY) || "{}") || {};
+      } catch (error) {
+        state = {};
+      }
+      return {
+        mode:
+          state.mode === "dark" || state.mode === "light"
+            ? state.mode
+            : defaults.mode,
+        palette: hasId(config.palettes, state.palette)
+          ? state.palette
+          : defaults.palette,
+        font: hasId(config.fonts, state.font) ? state.font : defaults.font,
+        radius: clamp(num(state.radius, defaults.radius), 0, 24),
+        density: clamp(num(state.density, defaults.density), 0.8, 1.3),
+        collapsed: state.collapsed === true,
+      };
+    }
+    function save() {
+      try {
+        localStorage.setItem(
+          KEY,
+          JSON.stringify(Object.assign({ v: 1 }, current))
+        );
+      } catch (error) {
+        /* storage unavailable (e.g. some file:// modes): live state still works */
+      }
+    }
+
+    var current = load();
+
+    function apply() {
+      root.setAttribute("data-theme", current.mode);
+      root.setAttribute("data-palette", current.palette);
+      root.setAttribute("data-font", current.font);
+      root.style.setProperty("--radius", current.radius + "px");
+      root.style.setProperty("--density", String(current.density));
+      var font = findFont(current.font);
+      root.style.setProperty("--font-body", font.body);
+      root.style.setProperty("--font-heading", font.heading || font.body);
+      panel.setAttribute("data-collapsed", String(current.collapsed));
+      var toggle = document.getElementById("dp-toggle");
+      toggle.textContent = current.collapsed ? "✦" : "−";
+      toggle.setAttribute("aria-expanded", String(!current.collapsed));
+      toggle.setAttribute(
+        "title",
+        current.collapsed ? "Expand panel" : "Collapse panel"
+      );
+      document.getElementById("dp-settings").hidden = true;
+      document.getElementById("dp-copy-status").hidden = true;
+      syncControls();
+    }
+
+    function radioGroup(group, options) {
+      var container = panel.querySelector(
+        '[data-dp-group="' + group + '"] .dp-options'
+      );
+      options.forEach(function (option) {
+        var label = document.createElement("label");
+        var input = document.createElement("input");
+        input.type = "radio";
+        input.name = "dp-" + group + "-" + config.slug;
+        input.setAttribute("value", option.id);
+        input.addEventListener("change", function () {
+          current[group] = option.id;
+          save();
+          apply();
+        });
+        var text = document.createElement("span");
+        text.textContent = option.label;
+        label.appendChild(input);
+        label.appendChild(text);
+        container.appendChild(label);
+      });
+    }
+
+    function syncControls() {
+      ["mode", "palette", "font"].forEach(function (group) {
+        var inputs = panel.querySelectorAll(
+          '[data-dp-group="' + group + '"] input'
+        );
+        inputs.forEach(function (input) {
+          input.checked = input.value === current[group];
+        });
+      });
+      var radius = panel.querySelector('[data-dp-range="radius"]');
+      var density = panel.querySelector('[data-dp-range="density"]');
+      radius.value = String(current.radius);
+      density.value = String(current.density);
+      var radiusText = current.radius + "px";
+      var densityText = "×" + current.density.toFixed(2);
+      panel.querySelector('[data-dp-out="radius"]').textContent = radiusText;
+      panel.querySelector('[data-dp-out="density"]').textContent = densityText;
+      radius.setAttribute("aria-valuetext", radiusText);
+      density.setAttribute("aria-valuetext", densityText);
+    }
+
+    radioGroup("mode", [
+      { id: "light", label: "Light" },
+      { id: "dark", label: "Dark" },
+    ]);
+    radioGroup("palette", config.palettes);
+    radioGroup("font", config.fonts);
+
+    panel
+      .querySelector('[data-dp-range="radius"]')
+      .addEventListener("input", function (event) {
+        current.radius = clamp(
+          num(Number(event.target.value), defaults.radius),
+          0,
+          24
+        );
+        save();
+        apply();
+      });
+    panel
+      .querySelector('[data-dp-range="density"]')
+      .addEventListener("input", function (event) {
+        current.density = clamp(
+          num(Number(event.target.value), defaults.density),
+          0.8,
+          1.3
+        );
+        save();
+        apply();
+      });
+    document.getElementById("dp-toggle").addEventListener("click", function () {
+      current.collapsed = !current.collapsed;
+      save();
+      apply();
+    });
+    document.getElementById("dp-reset").addEventListener("click", function () {
+      try {
+        localStorage.removeItem(KEY);
+      } catch (error) {
+        /* ignore */
+      }
+      current = load();
+      apply();
+    });
+
+    var TOKENS = [
+      "--c-bg",
+      "--c-surface",
+      "--c-text",
+      "--c-muted",
+      "--c-accent",
+      "--c-on-accent",
+      "--c-border",
+    ];
+    function tokensFor(mode) {
+      var tokens = {};
+      root.setAttribute("data-theme", mode);
+      var computed = window.getComputedStyle(root);
+      TOKENS.forEach(function (name) {
+        tokens[name] = computed.getPropertyValue(name).trim();
+      });
+      root.setAttribute("data-theme", current.mode);
+      return tokens;
+    }
+    function settings() {
+      var font = findFont(current.font);
+      return {
+        v: 1,
+        slug: config.slug,
+        mode: current.mode,
+        palette: current.palette,
+        font: current.font,
+        radius: current.radius,
+        density: current.density,
+        fontStacks: { body: font.body, heading: font.heading || font.body },
+        tokens: { light: tokensFor("light"), dark: tokensFor("dark") },
+      };
+    }
+    document.getElementById("dp-copy").addEventListener("click", function () {
+      var json = JSON.stringify(settings(), null, 2);
+      var field = document.getElementById("dp-settings");
+      var status = document.getElementById("dp-copy-status");
+      function manual() {
+        status.textContent = "Select the text below and copy it.";
+        field.focus();
+        field.select();
+      }
+      field.value = json;
+      field.hidden = false;
+      status.textContent = "Copying…";
+      status.hidden = false;
+      var clipboard = window.navigator && window.navigator.clipboard;
+      if (!clipboard || typeof clipboard.writeText !== "function") {
+        manual();
+        return;
+      }
+      try {
+        clipboard.writeText(json).then(function () {
+          status.textContent = "Copied to clipboard.";
+        }, manual);
+      } catch (error) {
+        manual();
+      }
+    });
+
+    apply();
+  })();
+</script>
+<!-- /DP:SCRIPT -->
+  </body>
+</html>
