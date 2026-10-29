@@ -37,6 +37,7 @@ import type {
 import {
   editDraftText,
   forgetEditDraft,
+  forgetEditDrafts,
   keepEditDraft,
   keepNoteDraft,
   noteDraftText,
@@ -152,7 +153,9 @@ async function submitNote($: EngineInterface, value: string): Promise<void> {
     const added = await addThisNote($, value, "user");
     if (added.status === "added" || added.status === "blank") {
       keepNoteDraft("");
-      // Drawn again to empty the field; an added note would redraw anyway.
+      // Drawn again to empty the field: a field holds the value it is drawn
+      // with "until the hook draws another", any draw, so "" empties it even
+      // though typing drew nothing since. An added note would redraw anyway.
       $.ui.invalidate("ui.render");
     }
     const isQuiet =
@@ -418,9 +421,12 @@ async function renderNotesTab(
             label="Edit"
             dimColor
             onPress={() =>
-              guarded($, "opening the note", () =>
-                showEditing($, { id: note.id, text: note.text })
-              )
+              guarded($, "opening the note", () => {
+                // A note open before, and deleted elsewhere, may have left
+                // its typing behind; this one starts from its own text.
+                forgetEditDrafts();
+                return showEditing($, { id: note.id, text: note.text });
+              })
             }
           />
         )}
@@ -481,6 +487,9 @@ async function renderNotesTab(
             key="add-note"
             label="Note"
             placeholder="Add a note…"
+            // Three rows, so a long note wraps where it can be read rather
+            // than scrolling out of a one-line field; Enter still adds it.
+            rows={3}
             value={draft}
             submitLabel="add"
             onInput={(value) => keepNoteDraft(value)}
@@ -837,7 +846,6 @@ function turnBefore(
   return undefined;
 }
 
-/** One dim line, `pad: <headline>`, above whatever else draws in the band. */
 /** Opens the pad beside the transcript, or brings it forward. */
 export async function openPane($: EngineInterface): Promise<{ text?: string }> {
   const opened = await $.ui.open({
@@ -858,6 +866,8 @@ export async function openPane($: EngineInterface): Promise<{ text?: string }> {
 export const isBandAlways = (e: BandInput): boolean => e.surface !== "terminal";
 
 /**
+ * One dim line, `pad: <headline>`, above whatever else draws in the band.
+ *
  * The band above the prompt: `pad: <headline>` when there is one, and,
  * where the band can be clicked (not a terminal), an Open pad button at its
  * right, since the app has no place a mod can put one in its own toolbar.

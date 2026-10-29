@@ -473,6 +473,10 @@ export const register: Register = (on, options) => {
     "classic.SessionStart",
     { source: ["clear", "resume", "fork"] },
     async ($, e, next) => {
+      // First, so no redraw the move makes draws the old session's typing;
+      // the writes below (the pad, the open note, the Undo card) draw a Notes
+      // tab left open again, empty.
+      forgetDrafts();
       try {
         const id = e.session_id || (await $.session.id());
         const previous = loadedId ?? endedId;
@@ -518,7 +522,6 @@ export const register: Register = (on, options) => {
       // The Undo card and an open note belonged to the pad left behind, so
       // they go too, should a host keep $.state.
       await forgetPaneEdits($).catch(() => undefined);
-      forgetDrafts();
       await refreshOffer($);
       await showWorkspace($);
       return next(e);

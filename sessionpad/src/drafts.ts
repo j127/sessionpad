@@ -4,7 +4,10 @@
 // every redraw, so a write per keystroke made the field's border flash.
 // The pane reads these while drawing, so a redraw for any other reason (a
 // note added from another window, say) puts back what was typed. A reload
-// of the mod starts them over, losing only an unsent draft.
+// of the mod starts them over: it comes with an update of the mod, and with
+// a change to its settings (Turn on summaries is one). The note field then
+// empties, and a note open for editing stays open but shows its own text
+// again, losing what was typed in it and not saved.
 
 let noteDraft = "";
 let editDraft: { id: string; text: string } | null = null;
@@ -28,6 +31,11 @@ export function keepEditDraft(id: string, text: string): void {
 /** Drops the open note's typed text, if it is still this note's. */
 export function forgetEditDraft(id: string): void {
   if (editDraft?.id === id) editDraft = null;
+}
+
+/** Drops any note's typed text, for a note opened afresh. */
+export function forgetEditDrafts(): void {
+  editDraft = null;
 }
 
 /** Drops both, for a session that starts afresh (/clear, /resume, /branch). */
