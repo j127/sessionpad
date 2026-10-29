@@ -49,7 +49,17 @@ claude plugin install sessionpad@sessionpad
 
 In the Desktop app, where `/plugin` doesn't run: click **+** next to the prompt box, then **Plugins**, **Add marketplace** with `j127/sessionpad`, then **Add plugin**.
 
-Then run `/pad`. `claude plugin update sessionpad@sessionpad` fetches a newer version, and `/plugin configure sessionpad@sessionpad` changes the settings.
+Then run `/pad`. `/plugin configure sessionpad@sessionpad` changes the settings.
+
+## Update
+
+A new version comes as a release, listed in the [CHANGELOG](CHANGELOG.md). To get it, from a shell (this updates the Desktop app's copy too, since both use the same installed plugins):
+
+```bash
+claude plugin update sessionpad@sessionpad
+```
+
+Sessions already open keep the version they started with: start a new session to use the new one, or, in a terminal session, run `/reload-plugins`. Your settings, notes and timelines stay as they were. Read the CHANGELOG before updating past a version that changed a default: 0.2.0 turned summary lines off, so an install that never set `summaryModel` stops making summary calls when it updates past it.
 
 ## Try it from this folder
 
