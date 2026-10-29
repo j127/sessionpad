@@ -219,9 +219,9 @@ async function isStillUnseen(
   const row = parseIndex(await $.store.get(INDEX_KEY))[id];
   if (row !== undefined && row.lastSeen >= before) return false;
   if (timelineDir === null) return true;
-  const file = await $.fs
-    .stat(`${timelineDir}/${fileName(id)}.json`)
-    .catch(() => undefined);
+  // Kept on one line: the directory's check reads $.noun.method(...) whole.
+  const path = `${timelineDir}/${fileName(id)}.json`;
+  const file = await $.fs.stat(path).catch(() => undefined);
   return file === undefined || file.mtimeMs < before;
 }
 

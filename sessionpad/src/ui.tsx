@@ -74,8 +74,7 @@ import {
   showOffer,
   showTab,
 } from "./state";
-import { OFFER_KEY, SUMMARY_CONFIG_KEY, useSummaryModel } from "./settings";
-import { summaryModel } from "./summary";
+import { OFFER_KEY } from "./settings";
 import { RECENT_COUNT } from "./timeline";
 import { formatSize, isMeasureDisk, scheduleRefresh } from "./workspace";
 
@@ -576,36 +575,8 @@ export function turnMarks(
     .join(" · ");
 }
 
-/**
- * Turns summary lines on from the Timeline tab's offer, as the person would
- * in /config, and records the answer so the offer isn't made again.
- */
-async function pressSummariesOn($: EngineInterface): Promise<void> {
-  await guarded($, "turning summary lines on", async () => {
-    const result = await $.config.set({
-      key: SUMMARY_CONFIG_KEY,
-      value: "haiku",
-    });
-    if (result.deny !== undefined) {
-      $.ui.toast(`sessionpad: summary lines stay off: ${result.deny}`);
-      return;
-    }
-    // This module's own change: its config.set hook doesn't see it. What
-    // was written counts, since another plugin's hook may have changed it.
-    const model = summaryModel(result.value);
-    useSummaryModel(model);
-    await showOffer($, false);
-    await rememberAnswer($);
-    $.ui.toast(
-      model === null
-        ? "sessionpad: summary lines stay off: the setting was written as off."
-        : `Summary lines are on: ${model} writes one after each turn. Set summaryModel to off in /config to stop.`
-    );
-  });
-}
-
 /** Hides the offer, here and in every other session. */
-async function pressNotNow($: EngineInterface): Promise<void> {
+async function pressGotIt($: EngineInterface): Promise<void> {
   await guarded($, "hiding the offer", async () => {
     await showOffer($, false);
     await rememberAnswer($);
@@ -662,7 +633,9 @@ async function renderTimelineTab(
       </Text>
       <Text size="footnote" dimColor wrap="wrap">
         Turned on, Haiku writes one line after each turn: about 500 tokens in
-        and 20 out, from your plan's usage or your API key.
+        and 20 out, from your plan's usage or your API key. To turn them on, set
+        summaryModel to haiku: with /config in a terminal session, or from a
+        shell as the README shows.
       </Text>
       <Box
         flexDirection="row"
@@ -671,15 +644,9 @@ async function renderTimelineTab(
         marginTop={isTerminal ? 0 : 1}
       >
         <Button
-          key="summaries-on"
-          label="Turn on summaries"
-          variant="primary"
-          onPress={() => pressSummariesOn($)}
-        />
-        <Button
-          key="summaries-not-now"
-          label="Not now"
-          onPress={() => pressNotNow($)}
+          key="summaries-got-it"
+          label="Got it"
+          onPress={() => pressGotIt($)}
         />
       </Box>
     </Box>

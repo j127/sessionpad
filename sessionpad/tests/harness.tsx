@@ -102,12 +102,6 @@ export type World = {
   statFails: Set<string>;
   /** The key of each `$.state` write, in order. */
   stateWrites: string[];
-  /** Each setting changed through `$.config.set`, in order. */
-  configSets: { key: string; value: unknown }[];
-  /** Why a `$.config.set` is refused, or undefined to write it. */
-  configDeny: string | undefined;
-  /** What another plugin's hook writes instead, or undefined to keep it. */
-  configRewrite: string | undefined;
   /** Paths deleted by the next read of them, which then fails. */
   vanishing: Set<string>;
   /** A write to a path this answers true for is refused. */
@@ -215,9 +209,6 @@ export function world(on: On, options: WorldOptions = {}): World {
     unreadable: new Set(),
     statFails: new Set(),
     stateWrites: [],
-    configSets: [],
-    configDeny: undefined,
-    configRewrite: undefined,
     vanishing: new Set(),
     writeFails: () => false,
     dirs: new Set([HOME, "/"]),
@@ -305,12 +296,6 @@ export function world(on: On, options: WorldOptions = {}): World {
   on("state.set", (_, e, next) => {
     state.stateWrites.push(String(e.key));
     return next(e);
-  });
-  on("config.set", (_, e) => {
-    if (state.configDeny !== undefined) return { deny: state.configDeny };
-    const value = state.configRewrite ?? e.value;
-    state.configSets.push({ key: e.key, value });
-    return { value };
   });
   on("fs.exists", (_, e) => ({
     value:
