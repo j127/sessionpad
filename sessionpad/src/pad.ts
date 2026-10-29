@@ -39,22 +39,35 @@ export type HeadlineResult = { headline: string; isShortened: boolean };
 /**
  * Loads the session's pad and timeline into $.state, with what the summary
  * lines have cost, and marks the session as seen. A timeline or a total that
- * can't be read shows as empty.
+ * can't be read shows as empty. A pad that can't be read doesn't keep the
+ * rest from loading; the first such failure rejects once all were tried.
  */
 export async function loadSession(
   $: EngineInterface,
   sessionId: string,
   cwd: string
 ): Promise<void> {
-  await showPad($, await readPad($, sessionId));
+  const failures: unknown[] = [];
+  // Seen first: another session's prune looks again right before it deletes,
+  // and must find this one seen before its pad is read.
+  try {
+    const repo = await $.session.repo().catch(() => null);
+    await touchIndex($, sessionId, {
+      cwd,
+      repo: repo?.root ?? null,
+      lastSeen: await $.clock.now(),
+    });
+  } catch (error) {
+    failures.push(error);
+  }
+  try {
+    await showPad($, await readPad($, sessionId));
+  } catch (error) {
+    failures.push(error);
+  }
   await showTimeline($, await readTimeline($, sessionId).catch(() => []));
   await showUsage($, await readSummaryUsage($).catch(() => EMPTY_USAGE));
-  const repo = await $.session.repo().catch(() => null);
-  await touchIndex($, sessionId, {
-    cwd,
-    repo: repo?.root ?? null,
-    lastSeen: await $.clock.now(),
-  });
+  if (failures.length > 0) throw failures[0];
 }
 
 /**
@@ -211,16 +224,31 @@ export function describeRestore(result: RestoreResult): string {
   return result === "present" ? "That note is already back." : "Note restored.";
 }
 
+/**
+ * Makes a note this session's headline, unless the headline it replaces
+ * would need a place the full pad doesn't have; resolves false then.
+ */
 export async function promoteThisNote(
   $: EngineInterface,
   id: string
-): Promise<void> {
+): Promise<boolean> {
   const at = await $.clock.now();
-  const pad = await changePad($, await $.session.id(), (pad) =>
-    promoteNote(pad, id, at)
-  );
+  // Set by the change, which runs once; `as` keeps TypeScript from reading
+  // it as always false.
+  let isFull = false as boolean;
+  const pad = await changePad($, await $.session.id(), (pad) => {
+    const promoted = promoteNote(pad, id, at);
+    isFull =
+      promoted.notes.length > pad.notes.length &&
+      promoted.notes.length > MAX_NOTES;
+    return isFull ? pad : promoted;
+  });
   await showPad($, pad);
+  return !isFull;
 }
+
+/** What a refused promote says. */
+export const PROMOTE_FULL = `The pad already holds ${MAX_NOTES} notes, so the headline this would replace has no place to go. Delete a note first, then press Make headline again.`;
 
 /** Sets this session's headline, or clears it for blank text. */
 export async function setThisHeadline(

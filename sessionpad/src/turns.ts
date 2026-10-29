@@ -78,6 +78,10 @@ export function followersOf(
   return followers;
 }
 
+function debug($: EngineInterface, text: string): void {
+  $.ui.log(`sessionpad: ${text}`, { to: "debug" });
+}
+
 /** Shows the entries, if the session they belong to is still the one open. */
 async function showIfOpen(
   $: EngineInterface,
@@ -93,15 +97,19 @@ async function showIfOpen(
  * Writes a finished turn's entry, with a line made from its prompt, then asks
  * the model for a better line and puts that on the entry when it answers.
  * The entry is in the file before the model is asked, so a slow or failed
- * call, or a reload, never loses the turn. What the call cost is added to the
- * total every session shares.
+ * call, or a reload while it runs, never loses the turn; only a reload during
+ * the few git calls before the first write can. What the call cost is added
+ * to the total every session shares.
  *
  * A /clear can come between the turn's end and this work, carrying the
  * timeline to a new id before the entry is in it, so each write goes to the
  * turn's own session and every id it was carried on to (`followers`, asked
  * again before the summary's writes). Adding a turn twice keeps one copy.
  * Each id is tried on its own: one file that can't be written doesn't keep
- * the others from the entry. The first failure rejects once all were tried.
+ * the others from the entry. The first failure to write a file rejects once
+ * all were tried; showing the entries and counting the call's cost are
+ * conveniences whose failures go to the debug log, so a full store never
+ * reads as a timeline that isn't being kept.
  */
 export async function finishTurn(
   $: EngineInterface,
@@ -116,11 +124,16 @@ export async function finishTurn(
     change: (entries: TimelineEntry[]) => TimelineEntry[]
   ): Promise<void> => {
     for (const id of [turn.sessionId, ...followers(turn.sessionId)]) {
+      let entries: TimelineEntry[] | null;
       try {
-        await showIfOpen($, id, await changeTimeline($, id, change));
+        entries = await changeTimeline($, id, change);
       } catch (error) {
         failures.push(error);
+        continue;
       }
+      await showIfOpen($, id, entries).catch((error: unknown) =>
+        debug($, `the timeline was written but not shown: ${String(error)}`)
+      );
     }
   };
 
@@ -139,7 +152,7 @@ export async function finishTurn(
       try {
         await showUsage($, await recordUsage($, usage, await $.clock.now()));
       } catch (error) {
-        failures.push(error);
+        debug($, `the summary's cost was not counted: ${String(error)}`);
       }
     }
   }

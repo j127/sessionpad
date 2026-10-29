@@ -2,6 +2,7 @@ import { describe, expect, test } from "claude-code/testing";
 
 import {
   EXPORT_MARK,
+  closeOpen,
   codeSpan,
   isInside,
   escapeMarkdown,
@@ -135,6 +136,29 @@ describe("/pad-export", () => {
     expect(w.files.get(`${REPO}/README.md`)).toBe("# My project\n");
   });
 
+  test("a path in quotes is read without them", async ($, on) => {
+    const w = world(on);
+    await start($);
+    await runCommand($, "pad-export", '"~/My Notes/pad.md"');
+    expect(w.files.has(`${HOME}/My Notes/pad.md`)).toBe(true);
+    await runCommand($, "pad-export", "'notes.md'");
+    expect(w.files.has(`${REPO}/notes.md`)).toBe(true);
+  });
+
+  test("a file that can't be checked is left alone", async ($, on) => {
+    const w = world(on, { files: { [`${REPO}/locked.md`]: "# Mine\n" } });
+    w.statFails.add(`${REPO}/locked.md`);
+    w.statFails.add(`${REPO}/new.md`);
+    await start($);
+    const ran = await runCommand($, "pad-export", "locked.md");
+    expect(ran.text).toContain("couldn't be checked");
+    expect(w.files.get(`${REPO}/locked.md`)).toBe("# Mine\n");
+    // A refused stat on a path with nothing there is a new file.
+    expect((await runCommand($, "pad-export", "new.md")).text).toBe(
+      `Exported to ${REPO}/new.md`
+    );
+  });
+
   test("an earlier export is replaced", async ($, on) => {
     const w = world(on, {
       files: { [`${REPO}/pad.md`]: `${EXPORT_MARK}\n\n# sessionpad: old\n` },
@@ -183,6 +207,43 @@ describe("the Markdown", () => {
     expect(markdown).toContain("# sessionpad\n");
     expect(markdown).toContain("No notes.");
     expect(markdown).toContain("No turns recorded.");
+  });
+
+  test("a note can't leave a code block or comment open over what follows", () => {
+    const fenced = "Plan:\n```ts\nconst x = 1;";
+    expect(closeOpen(fenced)).toBe(`${fenced}\n\`\`\``);
+    // A shorter run doesn't close a longer fence.
+    expect(closeOpen("~~~~\nb\n~~~")).toBe("~~~~\nb\n~~~\n~~~~");
+    expect(closeOpen("<!-- hidden\nmore")).toBe("<!-- hidden\nmore\n-->");
+    for (const whole of [
+      "```\ncode\n```",
+      "use ```x``` inline",
+      "```js`x",
+      "<!-- a -->",
+      "text <!-- not a block",
+      "```\n<!-- in code\n```",
+    ]) {
+      expect(closeOpen(whole)).toBe(whole);
+    }
+    const pad = addNote(
+      addNote(emptyPad(), makeNote(fenced, NOW, "user")),
+      makeNote("second", NOW, "user")
+    );
+    const markdown = exportMarkdown(SESSION, pad, [], NOW);
+    const before = markdown.slice(0, markdown.indexOf("## Timeline"));
+    const fences = before.split("\n").filter((line) => line.startsWith("```"));
+    expect(fences).toHaveLength(2);
+  });
+
+  test("a line break can't break out of a code span or an aside", () => {
+    expect(codeSpan("a\n\n# x")).toBe("`a # x`");
+    const markdown = exportMarkdown(
+      SESSION,
+      emptyPad(),
+      [markEntry(NOW, "one\n\n# two")],
+      NOW
+    );
+    expect(markdown).toContain("_one # two_");
   });
 
   test("notes keep their Markdown, and marks read as asides", () => {

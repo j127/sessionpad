@@ -121,10 +121,24 @@ export function cleanSummary(text: string): string {
       .split(/\r?\n/)
       .map((one) => one.trim())
       .find((one) => one !== "") ?? "";
-  const unquote = (text: string): string =>
-    text.replace(/^["'`]+|["'`]+$/g, "").trim();
-  const bare = unquote(
-    unquote(line.replace(/^(?:[-*>#]+\s*)+/, "")).replace(/^summary:\s*/i, "")
+  // One pair of quotes, backticks or emphasis around the whole line, and
+  // only when the mark isn't inside too: `a` and `b` keeps its code spans.
+  const unwrap = (text: string): string => {
+    for (const mark of ['"', "'", "`", "**", "__", "*", "_"]) {
+      if (text.length <= 2 * mark.length) continue;
+      if (!text.startsWith(mark) || !text.endsWith(mark)) continue;
+      const inner = text.slice(mark.length, -mark.length);
+      if (!inner.includes(mark)) return inner.trim();
+    }
+    return text;
+  };
+  // A list, quote or heading marker is one only with a space after it, so
+  // `#123` and `*.ts` keep their first character.
+  const bare = unwrap(
+    unwrap(line.replace(/^(?:(?:[-*+>]|#{1,6})\s+)+/, "")).replace(
+      /^summary:\s*/i,
+      ""
+    )
   ).replace(/\s+/g, " ");
   return bare.slice(0, SUMMARY_LENGTH);
 }

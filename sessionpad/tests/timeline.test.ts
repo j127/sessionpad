@@ -432,6 +432,21 @@ describe("the summary line", () => {
       "Fixed the build"
     );
     expect(cleanSummary("# Heading")).toBe("Heading");
+    expect(cleanSummary("**Fixed it**")).toBe("Fixed it");
+    expect(cleanSummary("`npm test` passes")).toBe("`npm test` passes");
+  });
+
+  test("a line's own marks are kept", () => {
+    for (const line of [
+      "Renamed the helper to `fitEntries`",
+      "#123 is broken again",
+      "*.ts files are formatted now",
+      "`a` and `b` were swapped",
+      "`npm test` and `bun test`",
+      "Fixed the user's bug",
+    ]) {
+      expect(cleanSummary(line)).toBe(line);
+    }
     expect(cleanSummary("w".repeat(500))).toHaveLength(SUMMARY_LENGTH);
   });
 });

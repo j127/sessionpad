@@ -104,6 +104,25 @@ describe("the Timeline tab", () => {
     }
   });
 
+  test("a store that can't be read doesn't keep the timeline from loading", async ($, on) => {
+    const w = world(on, {
+      files: {
+        [timelineFile()]: timelineText([
+          turn({ turnId: "old", summary: "Set up the repo" }),
+        ]),
+      },
+    });
+    w.storeBroken = true;
+    await start($);
+    const ui = await $.ui.mount(paneTarget("desktop"));
+    await ui.press({ key: "tab-timeline" });
+    expect(
+      await ui.find({ type: "Text", text: /^Set up the repo$/ })
+    ).toBeDefined();
+    expect(w.logs.join("\n")).toContain("could not load the pad");
+    await ui.unmount();
+  });
+
   test("a saved timeline shows when the session starts", async ($, on) => {
     world(on, {
       files: {

@@ -190,5 +190,8 @@ describe("counting the summary calls", () => {
       summaryBy: "model",
     });
     expect(w.store.has(USAGE_KEY)).toBe(false);
+    // The timeline is kept, so nothing says it isn't.
+    expect(w.toasts.join("\n")).not.toContain("aren't being added");
+    expect(w.logs.join("\n")).toContain("the summary's cost was not counted");
   });
 });

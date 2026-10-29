@@ -2,7 +2,7 @@
 // pieces live in ../src (data in store.ts, $.state in state.ts, actions in
 // pad.ts, drawing in ui.tsx).
 
-import type { EngineInterface, Register } from "claude-code";
+import type { EngineInterface, Register, Timer } from "claude-code";
 
 import type { Pad } from "../types";
 import { describeExport, exportThisSession } from "../src/export";
@@ -146,6 +146,10 @@ async function registerCommands($: EngineInterface): Promise<Set<string>> {
   ) {
     served.add("sessionpad");
     fellBack.push("/pad is taken, so the pane opens with /sessionpad");
+  } else {
+    fellBack.push(
+      "/pad and /sessionpad are both taken, so no command opens the pane"
+    );
   }
 
   if (
@@ -171,6 +175,10 @@ async function registerCommands($: EngineInterface): Promise<Set<string>> {
   ) {
     served.add("pad-note");
     fellBack.push("/note is taken, so notes are added with /pad-note");
+  } else {
+    fellBack.push(
+      "/note and /pad-note are both taken, so add notes in the pane or ask Claude"
+    );
   }
 
   if (
@@ -196,6 +204,10 @@ async function registerCommands($: EngineInterface): Promise<Set<string>> {
   ) {
     served.add("pad-headline");
     fellBack.push("/headline is taken, so use /pad-headline");
+  } else {
+    fellBack.push(
+      "/headline and /pad-headline are both taken, so set it in the pane or ask Claude"
+    );
   }
 
   if (
@@ -351,6 +363,36 @@ function schedulePrune($: EngineInterface, days: number, keepId: string): void {
   });
 }
 
+/** How often an open session renews its last-seen time, at most. */
+const SEEN_TIMER_MS = 12 * 60 * 60 * 1000;
+
+// The timer that keeps this session seen; one per module.
+let seenTimer: Timer | undefined;
+
+/**
+ * Renews this session's last-seen time while it stays open, however long it
+ * sits idle, so another session's prune never takes the pad it shows: often
+ * enough that its row is never older than half of `days`. A later
+ * session.start in this module replaces the timer.
+ */
+function keepSeen($: EngineInterface, days: number): void {
+  seenTimer?.cancel();
+  seenTimer = undefined;
+  if (days === 0) return;
+  const every = Math.min(SEEN_TIMER_MS, (days * 24 * 60 * 60 * 1000) / 4);
+  seenTimer = $.clock.every(every, () => {
+    (async () => {
+      // The session it is now: a /clear or /resume may have moved it.
+      const id = await $.session.id();
+      await touchSeen($, id, await $.clock.now(), every);
+    })().catch((error: unknown) => {
+      $.ui.log(`sessionpad: could not renew the session: ${String(error)}`, {
+        to: "debug",
+      });
+    });
+  });
+}
+
 /** Sets the Workspace tab up and reads git into it, never failing the caller. */
 async function showWorkspace($: EngineInterface): Promise<void> {
   try {
@@ -411,6 +453,7 @@ export const register: Register = (on, options) => {
     // Commands go last: a name clash there must not stop the rest.
     served = await registerCommands($);
     if (loadedId !== undefined) schedulePrune($, retention, loadedId);
+    keepSeen($, retention);
     return next(e);
   });
 

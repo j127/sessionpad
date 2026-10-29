@@ -150,6 +150,23 @@ describe("persistence", () => {
 });
 
 describe("limits and edge cases", () => {
+  test("promote of the note that is already the headline changes nothing", async () => {
+    const pad = {
+      headline: "line a line b",
+      notes: [makeNote("line a\nline b", NOW, "user")],
+    };
+    expect(promoteNote(pad, pad.notes[0]!.id, NOW)).toBe(pad);
+  });
+
+  test("a headline a note in the list still holds isn't added again", async () => {
+    const a = makeNote("line a\nline b", NOW, "user");
+    const b = makeNote("line c\nline d", NOW, "user");
+    let pad = { headline: "", notes: [a, b] };
+    for (const note of [a, b, a, b]) pad = promoteNote(pad, note.id, NOW);
+    expect(pad.headline).toBe("line c line d");
+    expect(pad.notes).toEqual([a, b]);
+  });
+
   test("promote of an unknown id changes nothing", async () => {
     const pad = padWith("one");
     expect(promoteNote(pad, "no-such-id", NOW)).toBe(pad);

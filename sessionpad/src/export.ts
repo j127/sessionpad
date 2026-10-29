@@ -35,8 +35,10 @@ const oneLine = (text: string): string => text.replace(/\s+/g, " ").trim();
 export const escapeMarkdown = (text: string): string =>
   text.replace(/[\\`*_[\]<>~|#]/g, "\\$&");
 
-/** Text as inline code, whatever backticks it holds. */
-export function codeSpan(text: string): string {
+/** Text as inline code, whatever backticks or line breaks it holds. */
+export function codeSpan(raw: string): string {
+  // A line break would end the list item the span sits in.
+  const text = raw.replace(/\s*[\r\n]+\s*/g, " ");
   const longest = Math.max(
     0,
     ...(text.match(/`+/g) ?? []).map((run) => run.length)
@@ -46,8 +48,50 @@ export function codeSpan(text: string): string {
   return `${fence}${pad}${text}${pad}${fence}`;
 }
 
+/**
+ * A note's Markdown with any code fence or HTML comment it leaves open closed
+ * at its end, so it can't swallow the notes and the timeline after it. A note
+ * is cut at 4,000 characters, which can cut a code block in two.
+ */
+export function closeOpen(text: string): string {
+  // The open fence's run of backticks or tildes, or null outside one.
+  let fence: string | null = null;
+  let isInComment = false;
+  for (const line of text.split(/\r?\n/)) {
+    if (fence !== null) {
+      const close = /^ {0,3}(`{3,}|~{3,})\s*$/.exec(line)?.[1];
+      if (
+        close !== undefined &&
+        close[0] === fence[0] &&
+        close.length >= fence.length
+      ) {
+        fence = null;
+      }
+      continue;
+    }
+    if (isInComment) {
+      if (line.includes("-->")) isInComment = false;
+      continue;
+    }
+    const open = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+    // A backtick fence's info string holds no backtick; one that does is code.
+    if (open !== null && !(open[1]![0] === "`" && open[2]!.includes("`"))) {
+      fence = open[1]!;
+      continue;
+    }
+    // An HTML comment block starts a line and runs until `-->`.
+    const comment = /^ {0,3}<!--/.exec(line);
+    if (comment !== null && !line.slice(comment[0].length).includes("-->")) {
+      isInComment = true;
+    }
+  }
+  if (fence !== null) return `${text}\n${fence}`;
+  if (isInComment) return `${text}\n-->`;
+  return text;
+}
+
 function noteSection(note: Note): string {
-  return `### ${formatTime(note.at)} · ${AUTHOR[note.by]}\n\n${note.text.trim()}\n`;
+  return `### ${formatTime(note.at)} · ${AUTHOR[note.by]}\n\n${closeOpen(note.text.trim())}\n`;
 }
 
 function turnItem(entry: TurnEntry): string {
@@ -105,7 +149,7 @@ function timelineSection(entries: readonly TimelineEntry[]): string {
     parts.push(
       entry.kind === "turn"
         ? turnItem(entry)
-        : `- **${formatClock(entry.at)}** · _${entry.text}_`
+        : `- **${formatClock(entry.at)}** · _${oneLine(entry.text)}_`
     );
   }
   return parts.join("\n");
@@ -181,10 +225,28 @@ async function exportPath(
   return `${dir}/exports/${fileName(sessionId)}.md`;
 }
 
-/** The path's stat, or undefined when there is nothing there. */
+/**
+ * The path's stat, or undefined when there is nothing there. A path that is
+ * there but can't be checked (a refused stat) is refused, never written over
+ * unchecked.
+ */
 async function statOf($: EngineInterface, path: string) {
-  return $.fs.stat(path).catch(() => undefined);
+  try {
+    return await $.fs.stat(path);
+  } catch (error) {
+    const isMissing =
+      /ENOENT/.test(String(error)) ||
+      !(await $.fs.exists(path).catch(() => true));
+    if (isMissing) return undefined;
+    throw new Error(
+      `${path} couldn't be checked, so nothing was written: ${String(error)}`
+    );
+  }
 }
+
+/** A path typed inside one pair of quotes, as a shell would read it. */
+const unquote = (text: string): string =>
+  /^(["'])(.+)\1$/.exec(text)?.[2]?.trim() ?? text;
 
 /**
  * Where a named export may go: into a folder as `<id>.md`, over an earlier
@@ -218,7 +280,7 @@ export async function exportThisSession(
   asked = ""
 ): Promise<string> {
   const sessionId = await $.session.id();
-  const named = asked.trim();
+  const named = unquote(asked.trim());
   const path = await exportPath($, sessionId, named);
   // The default path is sessionpad's own; a named one is checked first.
   const target = named === "" ? path : await safeTarget($, sessionId, path);

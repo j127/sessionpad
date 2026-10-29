@@ -253,6 +253,32 @@ describe("the Workspace tab", () => {
     expect(duCwds.every((cwd) => cwd === HOME)).toBe(true);
   });
 
+  test("du is told where its options end, and only absolute paths are measured", async ($, on) => {
+    const w = world(on);
+    w.git = {
+      top: REPO,
+      branch: "main",
+      sha: "abc1234",
+      others: [
+        { path: "-x", branch: "odd" },
+        { path: FEATURE, branch: "feat/x" },
+      ],
+    };
+    await start($);
+    const ui = await $.ui.mount(paneTarget("desktop"));
+    await ui.press({ key: "tab-workspace" });
+    await w.clock.settle();
+    expect(new Set(w.duRuns.map((run) => run.path))).toEqual(
+      new Set([REPO, FEATURE])
+    );
+    const runs = w.processes.filter((argv) => argv[0] === "du");
+    expect(runs.every((argv) => argv[1] === "-sk" && argv[2] === "--")).toBe(
+      true
+    );
+    await ui.press({ key: "tab-notes" });
+    await ui.unmount();
+  });
+
   test("a size from the last 10 minutes is used as it is", async ($, on) => {
     const w = world(on, {
       store: { [sizeKey(REPO)]: { kb: 4 * MB, at: NOW - 5 * MINUTE } },

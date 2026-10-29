@@ -9,6 +9,7 @@ import {
   timelineFileId,
 } from "../src/prune";
 import { INDEX_KEY, notesKey, parseIndex } from "../src/store";
+import { USAGE_KEY } from "../src/usage";
 import { sizeKey } from "../src/workspace";
 import {
   HOME,
@@ -249,6 +250,36 @@ describe("pruning when a session starts", () => {
     expect(w.files.has(timelineFile(OLD))).toBe(true);
   });
 
+  test("what belongs to no session is left alone", async ($, on) => {
+    const total = { calls: 3, input: 1500, output: 60, since: NOW - 200 * DAY };
+    const w = seeded(on);
+    w.store.set(USAGE_KEY, total);
+    await start($);
+    await w.clock.advance(PRUNE_DELAY_MS);
+    // The prune ran: the old session is gone.
+    expect(w.store.has(notesKey(OLD))).toBe(false);
+    expect(w.store.get(USAGE_KEY)).toEqual(total);
+    expect(w.store.has(PRUNE_AT_KEY)).toBe(true);
+    expect(parseIndex(w.store.get(INDEX_KEY))[RECENT]).toBeDefined();
+  });
+
+  test("a file with no owner whose session is seen meanwhile is kept", async ($, on) => {
+    const w = seeded(on);
+    const orphan = `${TIMELINE_DIR}/dddddddd-orphan.json`;
+    w.onList = () => {
+      const index = w.store.get(INDEX_KEY) as Record<string, unknown>;
+      w.store.set(INDEX_KEY, {
+        ...index,
+        "dddddddd-orphan": row(NOW + PRUNE_DELAY_MS),
+      });
+    };
+    await start($);
+    await w.clock.advance(PRUNE_DELAY_MS);
+    expect(w.files.has(orphan)).toBe(true);
+    // The old session still goes.
+    expect(w.files.has(timelineFile(OLD))).toBe(false);
+  });
+
   test("a session opened after the listing loses nothing", async ($, on) => {
     const w = seeded(on);
     // Restored at the same moment: it marks itself seen mid-prune.
@@ -467,21 +498,53 @@ describe("staying seen", () => {
     });
   });
 
-  test("the index is read at most once a day as turns end", async ($, on) => {
+  test(
+    "the index is read at most once a day as turns end",
+    // No prune and no renewal timer, which read it too: the turns' reads alone.
+    { options: { retentionDays: 0 } },
+    async ($, on) => {
+      const w = world(on);
+      await start($);
+      await w.clock.advance(PRUNE_DELAY_MS);
+      const reads = () =>
+        w.storeReads.filter((key) => key === INDEX_KEY).length;
+      await runTurn($, w);
+      const once = reads();
+      await runTurn($, w);
+      await runTurn($, w);
+      expect(reads()).toBe(once);
+      await w.clock.advance(DAY);
+      await runTurn($, w);
+      expect(reads()).toBe(once + 1);
+    }
+  );
+
+  test("an open session stays seen while it sits idle", async ($, on) => {
     const w = world(on);
     await start($);
-    // The start's prune reads it too; let that go by first.
-    await w.clock.advance(PRUNE_DELAY_MS);
-    const reads = () => w.storeReads.filter((key) => key === INDEX_KEY).length;
-    await runTurn($, w);
-    const once = reads();
-    await runTurn($, w);
-    await runTurn($, w);
-    expect(reads()).toBe(once);
-    await w.clock.advance(DAY);
-    await runTurn($, w);
-    expect(reads()).toBe(once + 1);
+    const seen = () => parseIndex(w.store.get(INDEX_KEY))[SESSION]!.lastSeen;
+    // A long holiday with the window left open: no turn, no pane, no note.
+    await w.clock.advance(100 * DAY);
+    expect(NOW + 100 * DAY - seen()).toBeLessThanOrEqual(DAY);
   });
+
+  test(
+    "with a short retention it is renewed more often",
+    { options: { retentionDays: 1 } },
+    async ($, on) => {
+      const w = world(on);
+      await start($);
+      const seen = () => parseIndex(w.store.get(INDEX_KEY))[SESSION]!.lastSeen;
+      // Looked at every 5 hours for three days: never older than half the
+      // retention, so never pruned while open.
+      for (let hours = 5; hours <= 72; hours += 5) {
+        await w.clock.advance(5 * 60 * 60 * 1000);
+        expect(NOW + hours * 60 * 60 * 1000 - seen()).toBeLessThanOrEqual(
+          DAY / 2
+        );
+      }
+    }
+  );
 
   test("a turn renews this session's last-seen time, at most daily", async ($, on) => {
     const w = world(on);

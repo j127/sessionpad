@@ -43,6 +43,7 @@ import {
   describeEdit,
   describeRestore,
   editThisNote,
+  PROMOTE_FULL,
   promoteThisNote,
   restoreDeletedNote,
 } from "./pad";
@@ -394,9 +395,10 @@ async function renderNotesTab(
           label="Make headline"
           dimColor
           onPress={() =>
-            guarded($, "making it the headline", () =>
-              promoteThisNote($, note.id)
-            )
+            guarded($, "making it the headline", async () => {
+              const isDone = await promoteThisNote($, note.id);
+              if (!isDone) $.ui.toast(PROMOTE_FULL);
+            })
           }
         />
         {Input === undefined || isOneOpen ? null : (

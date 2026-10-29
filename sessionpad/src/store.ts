@@ -106,16 +106,23 @@ export const setHeadline = (pad: Pad, text: string): Pad => ({
  * Makes a note the headline. Nothing is lost: a headline already there takes
  * the note's place in the list, and a note that does not fit on one line (it
  * holds line breaks or runs past the headline's length) stays in the list too,
- * since the headline holds only its first part.
+ * since the headline holds only its first part. A headline some note in the
+ * list already holds whole (it came from that note) isn't added again, and a
+ * note that is already the headline changes nothing.
  */
 export function promoteNote(pad: Pad, id: string, at: number): Pad {
   const index = pad.notes.findIndex((note) => note.id === id);
   const note = pad.notes[index];
   if (note === undefined) return pad;
   const headline = cleanHeadline(note.text);
-  if (headline === "") return pad;
+  if (headline === "" || headline === pad.headline) return pad;
+  const isHeld = pad.notes.some(
+    (one) => cleanHeadline(one.text) === pad.headline
+  );
   const kept: Note[] = [];
-  if (pad.headline !== "") kept.push(makeNote(pad.headline, at, "sessionpad"));
+  if (pad.headline !== "" && !isHeld) {
+    kept.push(makeNote(pad.headline, at, "sessionpad"));
+  }
   const isOneLine = !/[\r\n]/.test(note.text.trim());
   const fitsWhole = headline === note.text.replace(/\s+/g, " ").trim();
   if (!isOneLine || !fitsWhole) kept.push(note);
@@ -233,22 +240,20 @@ export function forgetRenewals(): void {
 }
 
 /**
- * Renews the session's last-seen time when a day old, so a session left
- * open for months is never taken for one nobody has opened since. A row
- * that went missing (two sessions writing the index at once) is put back.
- * Reads the index at most once a day per session.
+ * Renews the session's last-seen time when a day old (or `refreshMs`, for a
+ * short retention), so a session left open for months is never taken for one
+ * nobody has opened since. A row that went missing (two sessions writing the
+ * index at once) is put back. Reads the index at most once a day (or
+ * `refreshMs`) per session.
  */
 export async function touchSeen(
   $: EngineInterface,
   sessionId: string,
-  now: number
+  now: number,
+  refreshMs = SEEN_REFRESH_MS
 ): Promise<void> {
   const renewed = renewedAt.get(sessionId);
-  if (
-    renewed !== undefined &&
-    renewed <= now &&
-    now - renewed < SEEN_REFRESH_MS
-  ) {
+  if (renewed !== undefined && renewed <= now && now - renewed < refreshMs) {
     return;
   }
   const cwd = await $.session.cwd().catch(() => "");
@@ -259,7 +264,7 @@ export async function touchSeen(
     const index = stored ?? {};
     const row = index[sessionId];
     if (isRecord(row) && typeof row.lastSeen === "number") {
-      if (now - row.lastSeen < SEEN_REFRESH_MS) {
+      if (now - row.lastSeen < refreshMs) {
         renewedAt.set(sessionId, row.lastSeen);
         return;
       }

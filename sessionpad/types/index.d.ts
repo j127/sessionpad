@@ -39,7 +39,7 @@ export type DeletedNote = {
   index: number;
   /**
    * Undo was refused because the pad was full: the next delete makes room for
-   * this note instead of taking its place.
+   * this note instead of taking its place, and ends the wait.
    */
   isWaiting?: boolean;
 };

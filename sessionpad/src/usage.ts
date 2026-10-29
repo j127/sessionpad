@@ -61,7 +61,10 @@ export async function readSummaryUsage(
 
 /**
  * Adds one call to the shared total, re-reading it first so another
- * session's calls are kept, and hands back the new total.
+ * session's calls are kept, and hands back the new total. Within a process
+ * the writes take turns; two processes whose calls end in the same moment
+ * can both read the old total, and one count is lost. The store has no
+ * compare-and-set, so the total is a close count, not an exact one.
  */
 export async function recordUsage(
   $: EngineInterface,

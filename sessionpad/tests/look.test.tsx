@@ -596,18 +596,93 @@ describe("undoing a delete", () => {
       await runCommand($, "note", text);
     }
     const [one, two] = w.pad(SESSION).notes;
-    const before = await $.ui.mount(paneTarget("desktop"));
-    await before.press({ key: `delete-${one!.id}` });
-    await before.press({ key: `edit-${two!.id}` });
-    await before.unmount();
-    w.sessionId = "22222222-aaaa-bbbb-cccc-000000000002";
-    await $.classic.SessionStart({ source: "clear", session_id: w.sessionId });
-    await w.clock.settle();
-    const after = await $.ui.mount(paneTarget("desktop"));
-    expect(await after.find({ key: "undo-delete" })).toBeUndefined();
-    expect(await after.find({ key: "edit-note" })).toBeUndefined();
-    expect(await after.find({ key: `edit-${two!.id}` })).toBeDefined();
-    await after.unmount();
+    const sources = ["clear", "resume", "fork"] as const;
+    for (const [n, source] of sources.entries()) {
+      // Back on the first session, with a note deleted and another open.
+      w.sessionId = SESSION;
+      await $.classic.SessionStart({ source: "resume", session_id: SESSION });
+      await w.clock.settle();
+      const before = await $.ui.mount(paneTarget("desktop"));
+      await before.press({ key: `delete-${one!.id}` });
+      await before.press({ key: `edit-${two!.id}` });
+      expect(await before.find({ key: "edit-note" })).toBeDefined();
+      await before.press({ key: "undo-delete" });
+      await before.press({ key: `delete-${one!.id}` });
+      await before.unmount();
+      w.sessionId = `22222222-aaaa-bbbb-cccc-00000000000${n + 2}`;
+      await $.classic.SessionStart({ source, session_id: w.sessionId });
+      await w.clock.settle();
+      const after = await $.ui.mount(paneTarget("desktop"));
+      expect(await after.find({ key: "undo-delete" })).toBeUndefined();
+      expect(await after.find({ key: "edit-note" })).toBeUndefined();
+      // /clear and /branch carry the notes on; a resumed session has its own.
+      const isCarried = source !== "resume";
+      expect((await after.find({ key: `edit-${two!.id}` })) !== undefined).toBe(
+        isCarried
+      );
+      await after.unmount();
+      // Put the deleted note back for the next round.
+      w.store.set(notesKey(SESSION), {
+        headline: "",
+        notes: [one, ...w.pad(SESSION).notes],
+      });
+    }
+  });
+
+  test("Make headline on a full pad, where the old headline would need a place, says so", async ($, on) => {
+    const notes = Array.from({ length: MAX_NOTES }, (_, n) => ({
+      id: `n${n}`,
+      text: n === 0 ? "line a\nline b" : `note ${n}`,
+      at: n,
+      by: "user",
+    }));
+    const w = world(on, {
+      store: { [notesKey(SESSION)]: { headline: "Old", notes } },
+    });
+    await start($);
+    const ui = await $.ui.mount(paneTarget("desktop"));
+    await ui.press({ key: "promote-n0" });
+    expect(w.pad(SESSION).headline).toBe("Old");
+    expect(w.pad(SESSION).notes).toHaveLength(MAX_NOTES);
+    expect(w.toasts.join("\n")).toContain("has no place to go");
+    // A one-line note takes the old headline's place, so it fits.
+    await ui.press({ key: "promote-n1" });
+    expect(w.pad(SESSION).headline).toBe("note 1");
+    expect(w.pad(SESSION).notes).toHaveLength(MAX_NOTES);
+    expect(w.pad(SESSION).notes[1]?.text).toBe("Old");
+    await ui.unmount();
+  });
+
+  test("the delete that makes room ends the wait", async ($, on) => {
+    const notes = Array.from({ length: MAX_NOTES }, (_, n) => ({
+      id: `n${n}`,
+      text: `note ${n}`,
+      at: n,
+      by: "user",
+    }));
+    const w = world(on, {
+      store: { [notesKey(SESSION)]: { headline: "", notes } },
+    });
+    await start($);
+    const ui = await $.ui.mount(paneTarget("desktop"));
+    await ui.press({ key: "delete-n5" });
+    await runCommand($, "note", "fills the gap");
+    await ui.press({ key: "undo-delete" });
+    const waiting = /^The pad is full: delete another/;
+    expect(await ui.find({ type: "Text", text: waiting })).toBeDefined();
+    await ui.press({ key: "delete-n0" });
+    expect(await ui.find({ type: "Text", text: waiting })).toBeUndefined();
+    expect(
+      (await ui.find({ type: "Text", text: /^Note deleted:/ }))?.text
+    ).toBe("Note deleted: note 5");
+    // The next delete takes the card, as any other does.
+    await ui.press({ key: "delete-n1" });
+    expect(
+      (await ui.find({ type: "Text", text: /^Note deleted:/ }))?.text
+    ).toBe("Note deleted: note 1");
+    await ui.press({ key: "undo-delete" });
+    expect(w.pad(SESSION).notes.map((one) => one.id)).toContain("n1");
+    await ui.unmount();
   });
 
   test("what each outcome says", () => {

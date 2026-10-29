@@ -92,6 +92,8 @@ export type World = {
   readFails: boolean;
   /** Paths whose reads are refused, the rest read as usual. */
   unreadable: Set<string>;
+  /** Paths whose `$.fs.stat` is refused as a permission error. */
+  statFails: Set<string>;
   /** Paths deleted by the next read of them, which then fails. */
   vanishing: Set<string>;
   /** A write to a path this answers true for is refused. */
@@ -197,6 +199,7 @@ export function world(on: On, options: WorldOptions = {}): World {
     files,
     readFails: false,
     unreadable: new Set(),
+    statFails: new Set(),
     vanishing: new Set(),
     writeFails: () => false,
     dirs: new Set([HOME, "/"]),
@@ -330,6 +333,9 @@ export function world(on: On, options: WorldOptions = {}): World {
     return { value: entries };
   });
   on("fs.stat", (_, e) => {
+    if (state.statFails.has(e.path)) {
+      return { deny: `EACCES: permission denied, ${e.path}` };
+    }
     const path = e.path.replace(/\/+$/, "");
     const kind = state.dirs.has(path)
       ? ("dir" as const)

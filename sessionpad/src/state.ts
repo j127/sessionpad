@@ -184,14 +184,15 @@ export async function closeEditing(
 
 /**
  * Keeps a deleted note for Undo, in place of the one kept before; a note
- * whose Undo the full pad refused stays, since this delete made its room.
+ * whose Undo the full pad refused stays, since this delete made its room,
+ * and waits no more: the delete after it takes the card as any other does.
  */
 export async function keepDeleted(
   $: EngineInterface,
   deleted: DeletedNote
 ): Promise<void> {
   await update($, deletedAtom, (kept) =>
-    kept?.isWaiting === true ? kept : deleted
+    kept?.isWaiting === true ? { ...kept, isWaiting: false } : deleted
   );
 }
 

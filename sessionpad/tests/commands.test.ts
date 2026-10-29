@@ -118,6 +118,25 @@ describe("commands someone else owns", () => {
     );
   });
 
+  test("a command whose fallback is taken too says so", async ($, on) => {
+    const w = world(on, {
+      refused: [
+        "pad",
+        "sessionpad",
+        "note",
+        "pad-note",
+        "headline",
+        "pad-headline",
+      ],
+    });
+    await start($);
+    expect(w.commands).toEqual(["pad-export"]);
+    const said = w.logs.join("\n");
+    expect(said).toContain("/pad and /sessionpad are both taken");
+    expect(said).toContain("/note and /pad-note are both taken");
+    expect(said).toContain("/headline and /pad-headline are both taken");
+  });
+
   test("a name neither registered is passed on", async ($, on) => {
     world(on, { refused: ["headline", "pad-headline"] });
     await start($);

@@ -154,6 +154,7 @@ export async function pruneOld(
       path: `${timelineDir}/${entry.name}`,
       size: entry.size,
       owner,
+      fileId: id,
     });
   }
   if (timelineDir !== null) {
@@ -178,8 +179,31 @@ export async function pruneOld(
   return pruned;
 }
 
-/** A file the prune means to remove, and the session that owns it, if any. */
-type Doomed = { path: string; size: number; owner: string | undefined };
+/**
+ * A file the prune means to remove, the session that owns it, if any, and
+ * the id its name spells.
+ */
+type Doomed = {
+  path: string;
+  size: number;
+  owner: string | undefined;
+  fileId: string;
+};
+
+/**
+ * Whether a session the index has seen since `before` now owns the file
+ * whose name spells `fileId`: one that gained its row during the prune.
+ */
+async function isOwnedNow(
+  $: EngineInterface,
+  fileId: string,
+  before: number
+): Promise<boolean> {
+  const index = parseIndex(await $.store.get(INDEX_KEY));
+  return Object.entries(index).some(
+    ([id, row]) => fileName(id) === fileId && row.lastSeen >= before
+  );
+}
 
 /**
  * Whether a session is still unseen, read afresh: its index row and its
@@ -222,8 +246,9 @@ async function removeFiles(
       try {
         // Looked at again: written, or its session seen, since the listing.
         const isOwned =
-          file.owner !== undefined &&
-          !(await isStillUnseen($, file.owner, before, timelineDir));
+          file.owner === undefined
+            ? await isOwnedNow($, file.fileId, before)
+            : !(await isStillUnseen($, file.owner, before, timelineDir));
         if (isOwned) continue;
         const stat = await $.fs.stat(file.path).catch(() => undefined);
         if (stat === undefined || !(stat.mtimeMs < before)) continue;

@@ -364,11 +364,19 @@ async function safeFolder($: EngineInterface): Promise<string | undefined> {
   return undefined;
 }
 
+/** A path that names a place on its own: `/x`, `C:\\x`, `\\\\server\\x`. */
+const isAbsolute = (path: string): boolean =>
+  /^(?:\/|[A-Za-z]:[\\/]|\\\\)/.test(path);
+
 async function runDu(
   $: EngineInterface,
   path: string
 ): Promise<{ record: SizeRecord; isKept: boolean }> {
   const started = await $.clock.now();
+  // git names worktrees by absolute path; anything else (a hand-edited or
+  // shipped .git, say) is no tree to measure, nor an option for du.
+  if (!isAbsolute(path))
+    return { record: { kb: null, at: started }, isKept: false };
   try {
     // Run from the home folder, not the session's: a project could ship a
     // program named du, which some systems find there before the PATH.
@@ -378,7 +386,7 @@ async function runDu(
     if (cwd === undefined) {
       return { record: { kb: null, at: await $.clock.now() }, isKept: false };
     }
-    const ran = await $.process.run(["du", "-sk", path], {
+    const ran = await $.process.run(["du", "-sk", "--", path], {
       timeoutMs: DU_TIMEOUT_MS,
       cwd,
     });
