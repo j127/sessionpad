@@ -9,7 +9,7 @@
 // empties, and a note open for editing stays open but shows its own text
 // again, losing what was typed in it and not saved.
 
-import type { EngineInterface } from "claude-code";
+import type { Io } from "./io";
 
 /**
  * The wait between the two draws that empty the note field: longer than the
@@ -54,12 +54,12 @@ export function forgetEditDrafts(): void {
  * once with what it holds, then, once that draw is out, empty. If more is
  * typed meanwhile, the field keeps it.
  */
-export function emptyNoteField($: EngineInterface): void {
+export function emptyNoteField(io: Io): void {
   const held = noteDraft;
-  $.ui.invalidate("ui.render");
-  $.clock.after(EMPTY_GAP_MS, () => {
+  io.ui.invalidate("ui.render");
+  io.clock.after(EMPTY_GAP_MS, () => {
     if (noteDraft !== held) return;
     noteDraft = "";
-    $.ui.invalidate("ui.render");
+    io.ui.invalidate("ui.render");
   });
 }

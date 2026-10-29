@@ -15,12 +15,7 @@
 // does in its own label. A hover group's name was also held to 64 characters,
 // which a stored note id may run past.
 
-import type {
-  EngineInterface,
-  RenderElement,
-  RenderInputOf,
-  RenderSurface,
-} from "claude-code";
+import type { RenderElement, RenderInputOf, RenderSurface } from "claude-code";
 
 import type {
   DeletedNote,
@@ -43,6 +38,7 @@ import {
   keepNoteDraft,
   noteDraftText,
 } from "./drafts";
+import type { Io } from "./io";
 import { describeExport, exportThisSession, formatTokens } from "./export";
 import { formatClock, formatDay, formatDuration, formatTime } from "./format";
 import {
@@ -133,14 +129,14 @@ function cardLook(isTerminal: boolean, fill: keyof typeof FILL = "neutral") {
  * store rejects every write) instead of losing it without a word.
  */
 async function guarded(
-  $: EngineInterface,
+  io: Io,
   what: string,
   work: () => Promise<unknown>
 ): Promise<void> {
   try {
     await work();
   } catch (error) {
-    $.ui.toast(`sessionpad: ${what} failed: ${String(error)}`);
+    io.ui.toast(`sessionpad: ${what} failed: ${String(error)}`);
   }
 }
 
@@ -148,18 +144,18 @@ async function guarded(
  * Adds the field's note and empties the field; says so only when it was cut
  * short or refused. A refused note stays in the field, to try again.
  */
-async function submitNote($: EngineInterface, value: string): Promise<void> {
-  await guarded($, "adding the note", async () => {
-    const added = await addThisNote($, value, "user");
+async function submitNote(io: Io, value: string): Promise<void> {
+  await guarded(io, "adding the note", async () => {
+    const added = await addThisNote(io, value, "user");
     if (added.status === "added" || added.status === "blank") {
       // What was submitted is what the field holds, whatever onInput saw.
       keepNoteDraft(value);
-      emptyNoteField($);
+      emptyNoteField(io);
     }
     const isQuiet =
       added.status === "blank" ||
       (added.status === "added" && !added.isShortened);
-    if (!isQuiet) $.ui.toast(describeAdd(added));
+    if (!isQuiet) io.ui.toast(describeAdd(added));
   });
 }
 
@@ -167,10 +163,10 @@ async function submitNote($: EngineInterface, value: string): Promise<void> {
  * Deletes a note and keeps it for Undo. An open note has no Delete: its card
  * holds only the field, Save and Cancel.
  */
-async function pressDelete($: EngineInterface, note: Note): Promise<void> {
-  await guarded($, "deleting the note", async () => {
-    const removed = await deleteThisNote($, note.id);
-    if (removed !== null) await keepDeleted($, removed);
+async function pressDelete(io: Io, note: Note): Promise<void> {
+  await guarded(io, "deleting the note", async () => {
+    const removed = await deleteThisNote(io, note.id);
+    if (removed !== null) await keepDeleted(io, removed);
   });
 }
 
@@ -178,28 +174,22 @@ async function pressDelete($: EngineInterface, note: Note): Promise<void> {
  * Puts the deleted note back. A full pad keeps the Undo card up, waiting:
  * the next delete makes its room rather than taking the card over.
  */
-async function pressUndo(
-  $: EngineInterface,
-  deleted: DeletedNote
-): Promise<void> {
-  await guarded($, "restoring the note", async () => {
-    const result = await restoreDeletedNote($, deleted);
+async function pressUndo(io: Io, deleted: DeletedNote): Promise<void> {
+  await guarded(io, "restoring the note", async () => {
+    const result = await restoreDeletedNote(io, deleted);
     if (result === "full") {
-      await holdDeleted($, deleted.note.id);
-      $.ui.toast(describeRestore(result));
+      await holdDeleted(io, deleted.note.id);
+      io.ui.toast(describeRestore(result));
       return;
     }
-    await forgetDeleted($, deleted.note.id);
+    await forgetDeleted(io, deleted.note.id);
   });
 }
 
 /** Takes the Undo card away; the deleted note is gone for good. */
-async function pressDismiss(
-  $: EngineInterface,
-  deleted: DeletedNote
-): Promise<void> {
-  await guarded($, "dismissing the deleted note", () =>
-    forgetDeleted($, deleted.note.id)
+async function pressDismiss(io: Io, deleted: DeletedNote): Promise<void> {
+  await guarded(io, "dismissing the deleted note", () =>
+    forgetDeleted(io, deleted.note.id)
   );
 }
 
@@ -207,21 +197,17 @@ async function pressDismiss(
  * Saves the open note's text and closes it; a blank save keeps it open, so
  * nothing typed is lost.
  */
-async function submitEdit(
-  $: EngineInterface,
-  id: string,
-  value: string
-): Promise<void> {
-  await guarded($, "saving the note", async () => {
-    const result = await editThisNote($, id, value);
+async function submitEdit(io: Io, id: string, value: string): Promise<void> {
+  await guarded(io, "saving the note", async () => {
+    const result = await editThisNote(io, id, value);
     if (result.status === "blank") {
-      $.ui.toast(describeEdit(result));
+      io.ui.toast(describeEdit(result));
       return;
     }
-    await closeEditing($, id);
+    await closeEditing(io, id);
     forgetEditDraft(id);
     if (result.status === "missing" || result.isShortened) {
-      $.ui.toast(describeEdit(result));
+      io.ui.toast(describeEdit(result));
     }
   });
 }
@@ -239,21 +225,18 @@ function whenText(at: number, now: number): string {
   return formatDay(at) === formatDay(now) ? formatClock(at) : formatTime(at);
 }
 
-export async function renderPane(
-  $: EngineInterface,
-  e: PaneInput
-): Promise<RenderElement> {
-  const { Box, Text, Button } = $.ui.resolve(e);
-  const tab = await readTab($);
+export async function renderPane(io: Io, e: PaneInput): Promise<RenderElement> {
+  const { Box, Text, Button } = io.ui.resolve(e);
+  const tab = await readTab(io);
   // A digit presses a tab only while the pane holds the keyboard, which a
   // terminal gives it (ctrl+x tab); elsewhere the digits would only puzzle.
   const isTerminal = e.surface === "terminal";
 
   const open = (id: Tab) => () =>
-    guarded($, "switching tabs", async () => {
-      await showTab($, id);
+    guarded(io, "switching tabs", async () => {
+      await showTab(io, id);
       // Opening the tab measures what is more than 10 minutes old.
-      if (id === "workspace") scheduleRefresh($, "stale");
+      if (id === "workspace") scheduleRefresh(io, "stale");
     });
 
   // On Desktop the open tab is the app's primary pill, black in light mode
@@ -294,11 +277,11 @@ export async function renderPane(
 
   let body: RenderElement;
   if (tab === "notes") {
-    body = await renderNotesTab($, e);
+    body = await renderNotesTab(io, e);
   } else if (tab === "timeline") {
-    body = await renderTimelineTab($, e);
+    body = await renderTimelineTab(io, e);
   } else {
-    body = await renderWorkspaceTab($, e);
+    body = await renderWorkspaceTab(io, e);
   }
 
   return (
@@ -311,20 +294,17 @@ export async function renderPane(
   );
 }
 
-async function renderNotesTab(
-  $: EngineInterface,
-  e: PaneInput
-): Promise<RenderElement> {
-  const elements = $.ui.resolve(e);
+async function renderNotesTab(io: Io, e: PaneInput): Promise<RenderElement> {
+  const elements = io.ui.resolve(e);
   const { Box, Text, Button, Markdown } = elements;
   const Input = "Input" in elements ? elements.Input : undefined;
   const isTerminal = e.surface === "terminal";
-  const headline = await readHeadline($);
-  const notes = await readNotes($);
+  const headline = await readHeadline(io);
+  const notes = await readNotes(io);
   const draft = noteDraftText();
-  const editing = await readEditing($);
-  const deleted = await readDeleted($);
-  const now = await $.clock.now();
+  const editing = await readEditing(io);
+  const deleted = await readDeleted(io);
+  const now = await io.clock.now();
   // One note opens at a time: while one is, the others offer no Edit, so its
   // typed text can't be dropped by opening another. An open id whose note is
   // gone (deleted by another process) holds nothing open.
@@ -378,12 +358,12 @@ async function renderNotesTab(
         key="undo-delete"
         label="Undo"
         variant="primary"
-        onPress={() => pressUndo($, gone)}
+        onPress={() => pressUndo(io, gone)}
       />
       <Button
         key="dismiss-undo"
         label="Dismiss"
-        onPress={() => pressDismiss($, gone)}
+        onPress={() => pressDismiss(io, gone)}
       />
     </Box>
   );
@@ -407,9 +387,9 @@ async function renderNotesTab(
           label="Make headline"
           dimColor
           onPress={() =>
-            guarded($, "making it the headline", async () => {
-              const isDone = await promoteThisNote($, note.id);
-              if (!isDone) $.ui.toast(PROMOTE_FULL);
+            guarded(io, "making it the headline", async () => {
+              const isDone = await promoteThisNote(io, note.id);
+              if (!isDone) io.ui.toast(PROMOTE_FULL);
             })
           }
         />
@@ -419,11 +399,11 @@ async function renderNotesTab(
             label="Edit"
             dimColor
             onPress={() =>
-              guarded($, "opening the note", () => {
+              guarded(io, "opening the note", () => {
                 // A note open before, and deleted elsewhere, may have left
                 // its typing behind; this one starts from its own text.
                 forgetEditDrafts();
-                return showEditing($, { id: note.id, text: note.text });
+                return showEditing(io, { id: note.id, text: note.text });
               })
             }
           />
@@ -432,7 +412,7 @@ async function renderNotesTab(
           key={`delete-${note.id}`}
           label="Delete"
           dimColor
-          onPress={() => pressDelete($, note)}
+          onPress={() => pressDelete(io, note)}
         />
       </Box>
     </Box>
@@ -459,15 +439,15 @@ async function renderNotesTab(
           submitLabel="Save"
           autoFocus
           onInput={(value) => keepEditDraft(note.id, value)}
-          onSubmit={(value) => submitEdit($, note.id, value)}
+          onSubmit={(value) => submitEdit(io, note.id, value)}
         />
         <Box flexDirection="row" columnGap={1} marginTop={isTerminal ? 0 : 1}>
           <Button
             key="cancel-edit"
             label="Cancel"
             onPress={() =>
-              guarded($, "closing the note", async () => {
-                await closeEditing($, note.id);
+              guarded(io, "closing the note", async () => {
+                await closeEditing(io, note.id);
                 forgetEditDraft(note.id);
               })
             }
@@ -491,7 +471,7 @@ async function renderNotesTab(
             value={draft}
             submitLabel="add"
             onInput={(value) => keepNoteDraft(value)}
-            onSubmit={(value) => submitNote($, value)}
+            onSubmit={(value) => submitNote(io, value)}
           />
         </Box>
       )}
@@ -516,9 +496,9 @@ async function renderNotesTab(
 }
 
 /** Writes the export and says where it went. */
-async function pressExport($: EngineInterface): Promise<void> {
-  await guarded($, "the export", async () => {
-    $.ui.toast(await describeExport($, await exportThisSession($)));
+async function pressExport(io: Io): Promise<void> {
+  await guarded(io, "the export", async () => {
+    io.ui.toast(await describeExport(io, await exportThisSession(io)));
   });
 }
 
@@ -576,10 +556,10 @@ export function turnMarks(
 }
 
 /** Hides the offer, here and in every other session. */
-async function pressGotIt($: EngineInterface): Promise<void> {
-  await guarded($, "hiding the offer", async () => {
-    await showOffer($, false);
-    await rememberAnswer($);
+async function pressGotIt(io: Io): Promise<void> {
+  await guarded(io, "hiding the offer", async () => {
+    await showOffer(io, false);
+    await rememberAnswer(io);
   });
 }
 
@@ -587,11 +567,11 @@ async function pressGotIt($: EngineInterface): Promise<void> {
  * Records that the offer was answered, so other sessions don't make it. A
  * store that refuses (a full one) only means another session may ask again.
  */
-async function rememberAnswer($: EngineInterface): Promise<void> {
+async function rememberAnswer(io: Io): Promise<void> {
   try {
-    await $.store.set(OFFER_KEY, { at: await $.clock.now() });
+    await io.store.set(OFFER_KEY, { at: await io.clock.now() });
   } catch (error) {
-    $.ui.log(`sessionpad: the answer was not kept: ${String(error)}`, {
+    io.ui.log(`sessionpad: the answer was not kept: ${String(error)}`, {
       to: "debug",
     });
   }
@@ -611,16 +591,13 @@ export function usageText(usage: SummaryUsage): string | null {
   );
 }
 
-async function renderTimelineTab(
-  $: EngineInterface,
-  e: PaneInput
-): Promise<RenderElement> {
-  const { Box, Text, Button } = $.ui.resolve(e);
+async function renderTimelineTab(io: Io, e: PaneInput): Promise<RenderElement> {
+  const { Box, Text, Button } = io.ui.resolve(e);
   const isTerminal = e.surface === "terminal";
-  const recent = await readRecent($);
-  const spent = usageText(await readUsage($));
+  const recent = await readRecent(io);
+  const spent = usageText(await readUsage(io));
   // Summary lines spend the person's usage, so they are off until asked for.
-  const offer = (await readOffer($)) ? (
+  const offer = (await readOffer(io)) ? (
     <Box
       key="summary-offer"
       flexDirection="column"
@@ -646,7 +623,7 @@ async function renderTimelineTab(
         <Button
           key="summaries-got-it"
           label="Got it"
-          onPress={() => pressGotIt($)}
+          onPress={() => pressGotIt(io)}
         />
       </Box>
     </Box>
@@ -676,7 +653,7 @@ async function renderTimelineTab(
               : `${plural(turns, "turn", "turns")}, newest first`}
         </Text>
       </Box>
-      <Button key="export" label="Export" onPress={() => pressExport($)} />
+      <Button key="export" label="Export" onPress={() => pressExport(io)} />
     </Box>
   );
 
@@ -813,15 +790,15 @@ function turnBefore(
 }
 
 /** Opens the pad beside the transcript, or brings it forward. */
-export async function openPane($: EngineInterface): Promise<{ text?: string }> {
-  const opened = await $.ui.open({
+export async function openPane(io: Io): Promise<{ text?: string }> {
+  const opened = await io.ui.open({
     id: PANE_ID,
     title: PANE_TITLE,
     focus: true,
   });
   // Opening on the Workspace tab is opening the tab.
-  if ((await readTab($).catch(() => "notes")) === "workspace") {
-    scheduleRefresh($, "stale");
+  if ((await readTab(io).catch(() => "notes")) === "workspace") {
+    scheduleRefresh(io, "stale");
   }
   return opened.isPlaced
     ? {}
@@ -839,12 +816,12 @@ export const isBandAlways = (e: BandInput): boolean => e.surface !== "terminal";
  * every terminal session for what `/pad` does is more than it is worth.
  */
 export function renderBand(
-  $: EngineInterface,
+  io: Io,
   e: BandInput,
   headline: string,
   beneath: RenderElement
 ): RenderElement {
-  const { Box, Text, Button } = $.ui.resolve(e);
+  const { Box, Text, Button } = io.ui.resolve(e);
   const line =
     headline === "" ? null : (
       <Text dimColor wrap="truncate-end">
@@ -866,9 +843,9 @@ export function renderBand(
               key="open-pad"
               label="Open pad"
               onPress={() =>
-                guarded($, "opening the pad", async () => {
-                  const opened = await openPane($);
-                  if (opened.text !== undefined) $.ui.toast(opened.text);
+                guarded(io, "opening the pad", async () => {
+                  const opened = await openPane(io);
+                  if (opened.text !== undefined) io.ui.toast(opened.text);
                 })
               }
             />
@@ -940,12 +917,12 @@ function otherSize(view: WorkspaceView, tree: Worktree): string {
 }
 
 async function renderWorkspaceTab(
-  $: EngineInterface,
+  io: Io,
   e: PaneInput
 ): Promise<RenderElement> {
-  const { Box, Text, Button } = $.ui.resolve(e);
+  const { Box, Text, Button } = io.ui.resolve(e);
   const isTerminal = e.surface === "terminal";
-  const view = await readWorkspace($);
+  const view = await readWorkspace(io);
   if (view.status === "unread") {
     return <Text dimColor>Reading the workspace…</Text>;
   }
@@ -960,7 +937,7 @@ async function renderWorkspaceTab(
     );
   }
   const path = view.worktree ?? "";
-  const measured = measuredText(view, path, await $.clock.now());
+  const measured = measuredText(view, path, await io.clock.now());
   const size = sizeText(view, path);
 
   const here = (
@@ -1007,7 +984,7 @@ async function renderWorkspaceTab(
             key="refresh-sizes"
             label="Refresh sizes"
             variant="primary"
-            onPress={() => scheduleRefresh($, "all")}
+            onPress={() => scheduleRefresh(io, "all")}
           />
         ) : null}
       </Box>

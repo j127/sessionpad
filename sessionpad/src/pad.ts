@@ -1,8 +1,7 @@
 // What the commands, the tools and the pane's buttons do to this session's
 // pad: change the stored pad, then show it through $.state.
 
-import type { EngineInterface } from "claude-code";
-
+import type { Io } from "./io";
 import type { DeletedNote, Note, NoteAuthor, Pad } from "../types";
 import { showPad, showTimeline, showUsage } from "./state";
 import {
@@ -43,7 +42,7 @@ export type HeadlineResult = { headline: string; isShortened: boolean };
  * rest from loading; the first such failure rejects once all were tried.
  */
 export async function loadSession(
-  $: EngineInterface,
+  io: Io,
   sessionId: string,
   cwd: string
 ): Promise<void> {
@@ -51,22 +50,22 @@ export async function loadSession(
   // Seen first: another session's prune looks again right before it deletes,
   // and must find this one seen before its pad is read.
   try {
-    const repo = await $.session.repo().catch(() => null);
-    await touchIndex($, sessionId, {
+    const repo = await io.session.repo().catch(() => null);
+    await touchIndex(io, sessionId, {
       cwd,
       repo: repo?.root ?? null,
-      lastSeen: await $.clock.now(),
+      lastSeen: await io.clock.now(),
     });
   } catch (error) {
     failures.push(error);
   }
   try {
-    await showPad($, await readPad($, sessionId));
+    await showPad(io, await readPad(io, sessionId));
   } catch (error) {
     failures.push(error);
   }
-  await showTimeline($, await readTimeline($, sessionId).catch(() => []));
-  await showUsage($, await readSummaryUsage($).catch(() => EMPTY_USAGE));
+  await showTimeline(io, await readTimeline(io, sessionId).catch(() => []));
+  await showUsage(io, await readSummaryUsage(io).catch(() => EMPTY_USAGE));
   if (failures.length > 0) throw failures[0];
 }
 
@@ -76,44 +75,44 @@ export async function loadSession(
  * notes plus a note pointing back. A pad the new id already has is kept.
  */
 export async function carryPad(
-  $: EngineInterface,
+  io: Io,
   fromId: string,
   toId: string,
   how: "clear" | "branch"
 ): Promise<void> {
-  const at = await $.clock.now();
-  await changePad($, toId, async (target) => {
+  const at = await io.clock.now();
+  await changePad(io, toId, async (target) => {
     if (!isEmptyPad(target)) return target;
-    const source = await readPad($, fromId);
+    const source = await readPad(io, fromId);
     return how === "clear" ? source : branchedPad(source, fromId, at);
   });
 }
 
-export async function readThisPad($: EngineInterface): Promise<Pad> {
-  return readPad($, await $.session.id());
+export async function readThisPad(io: Io): Promise<Pad> {
+  return readPad(io, await io.session.id());
 }
 
 /** Adds a note to this session's pad, unless it is blank or the pad is full. */
 export async function addThisNote(
-  $: EngineInterface,
+  io: Io,
   text: string,
   by: NoteAuthor,
   signal?: AbortSignal
 ): Promise<AddResult> {
   const clean = cleanNote(text);
   if (clean === "") return { status: "blank" };
-  const note = makeNote(clean, await $.clock.now(), by);
+  const note = makeNote(clean, await io.clock.now(), by);
   let isFull = false;
   const pad = await changePad(
-    $,
-    await $.session.id(),
+    io,
+    await io.session.id(),
     (pad) => {
       isFull = pad.notes.length >= MAX_NOTES;
       return isFull ? pad : addNote(pad, note);
     },
     signal
   );
-  await showPad($, pad);
+  await showPad(io, pad);
   if (isFull) return { status: "full" };
   return { status: "added", note, isShortened: clean !== text.trim() };
 }
@@ -140,7 +139,7 @@ export type EditResult =
  * is deleted instead) or the note is gone.
  */
 export async function editThisNote(
-  $: EngineInterface,
+  io: Io,
   id: string,
   text: string
 ): Promise<EditResult> {
@@ -149,11 +148,11 @@ export async function editThisNote(
   // Set by the change, which runs once; `as` keeps TypeScript from reading
   // it as always false.
   let isFound = false as boolean;
-  const pad = await changePad($, await $.session.id(), (pad) => {
+  const pad = await changePad(io, await io.session.id(), (pad) => {
     isFound = pad.notes.some((note) => note.id === id);
     return isFound ? editNote(pad, id, clean) : pad;
   });
-  await showPad($, pad);
+  await showPad(io, pad);
   if (!isFound) return { status: "missing" };
   return { status: "saved", isShortened: clean !== text.trim() };
 }
@@ -173,18 +172,18 @@ export function describeEdit(result: EditResult): string {
 
 /** Deletes a note, handing back what Undo needs to put it back. */
 export async function deleteThisNote(
-  $: EngineInterface,
+  io: Io,
   id: string
 ): Promise<DeletedNote | null> {
-  const sessionId = await $.session.id();
+  const sessionId = await io.session.id();
   let removed = null as DeletedNote | null;
-  const pad = await changePad($, sessionId, (pad) => {
+  const pad = await changePad(io, sessionId, (pad) => {
     const index = pad.notes.findIndex((note) => note.id === id);
     const note = pad.notes[index];
     removed = note === undefined ? null : { sessionId, note, index };
     return deleteNote(pad, id);
   });
-  await showPad($, pad);
+  await showPad(io, pad);
   return removed;
 }
 
@@ -196,11 +195,11 @@ export type RestoreResult = "restored" | "present" | "full";
  * that has filled up since keeps its notes, and the note waits for room.
  */
 export async function restoreDeletedNote(
-  $: EngineInterface,
+  io: Io,
   deleted: DeletedNote
 ): Promise<RestoreResult> {
   let result: RestoreResult = "restored";
-  const pad = await changePad($, deleted.sessionId, (pad) => {
+  const pad = await changePad(io, deleted.sessionId, (pad) => {
     if (pad.notes.some((note) => note.id === deleted.note.id)) {
       result = "present";
       return pad;
@@ -212,7 +211,7 @@ export async function restoreDeletedNote(
     result = "restored";
     return restoreNote(pad, deleted.note, deleted.index);
   });
-  if (deleted.sessionId === (await $.session.id())) await showPad($, pad);
+  if (deleted.sessionId === (await io.session.id())) await showPad(io, pad);
   return result;
 }
 
@@ -228,22 +227,19 @@ export function describeRestore(result: RestoreResult): string {
  * Makes a note this session's headline, unless the headline it replaces
  * would need a place the full pad doesn't have; resolves false then.
  */
-export async function promoteThisNote(
-  $: EngineInterface,
-  id: string
-): Promise<boolean> {
-  const at = await $.clock.now();
+export async function promoteThisNote(io: Io, id: string): Promise<boolean> {
+  const at = await io.clock.now();
   // Set by the change, which runs once; `as` keeps TypeScript from reading
   // it as always false.
   let isFull = false as boolean;
-  const pad = await changePad($, await $.session.id(), (pad) => {
+  const pad = await changePad(io, await io.session.id(), (pad) => {
     const promoted = promoteNote(pad, id, at);
     isFull =
       promoted.notes.length > pad.notes.length &&
       promoted.notes.length > MAX_NOTES;
     return isFull ? pad : promoted;
   });
-  await showPad($, pad);
+  await showPad(io, pad);
   return !isFull;
 }
 
@@ -252,18 +248,18 @@ export const PROMOTE_FULL = `The pad already holds ${MAX_NOTES} notes, so the he
 
 /** Sets this session's headline, or clears it for blank text. */
 export async function setThisHeadline(
-  $: EngineInterface,
+  io: Io,
   text: string,
   signal?: AbortSignal
 ): Promise<HeadlineResult> {
   const headline = cleanHeadline(text);
   const pad = await changePad(
-    $,
-    await $.session.id(),
+    io,
+    await io.session.id(),
     (pad) => setHeadline(pad, headline),
     signal
   );
-  await showPad($, pad);
+  await showPad(io, pad);
   const whole = text.replace(/\s+/g, " ").trim();
   return {
     headline: pad.headline,

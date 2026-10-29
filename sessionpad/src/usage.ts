@@ -3,8 +3,9 @@
 // what sessionpad has spent on the model. Only the summary calls count; the
 // main conversation's tokens are each turn's own, kept on its timeline entry.
 
-import type { EngineInterface, ModelUsage } from "claude-code";
+import type { ModelUsage } from "claude-code";
 
+import type { Io } from "./io";
 import type { SummaryUsage } from "../types";
 import { oneAtATime } from "./store";
 
@@ -53,10 +54,8 @@ export const addUsage = (
   since: total.since ?? at,
 });
 
-export async function readSummaryUsage(
-  $: EngineInterface
-): Promise<SummaryUsage> {
-  return parseUsage(await $.store.get(USAGE_KEY));
+export async function readSummaryUsage(io: Io): Promise<SummaryUsage> {
+  return parseUsage(await io.store.get(USAGE_KEY));
 }
 
 /**
@@ -67,13 +66,13 @@ export async function readSummaryUsage(
  * compare-and-set, so the total is a close count, not an exact one.
  */
 export async function recordUsage(
-  $: EngineInterface,
+  io: Io,
   usage: ModelUsage,
   at: number
 ): Promise<SummaryUsage> {
   return oneAtATime(async () => {
-    const total = addUsage(await readSummaryUsage($), usage, at);
-    await $.store.set(USAGE_KEY, total);
+    const total = addUsage(await readSummaryUsage(io), usage, at);
+    await io.store.set(USAGE_KEY, total);
     return total;
   });
 }

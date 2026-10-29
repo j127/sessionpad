@@ -3,8 +3,7 @@
 // drawing. Sizes are kept in the shared store, so sessions working in the
 // same repository use each other's measurements.
 
-import type { EngineInterface } from "claude-code";
-
+import type { Io } from "./io";
 import type { SizeRecord, WorkspaceView } from "../types";
 import { gitPlace, listWorktrees } from "./git";
 import { changeWorkspace, readWorkspace } from "./state";
@@ -93,12 +92,9 @@ export function parseSize(value: unknown): SizeRecord | undefined {
   return isPartial === true && kb !== null ? { kb, at, isPartial } : { kb, at };
 }
 
-async function readSize(
-  $: EngineInterface,
-  path: string
-): Promise<SizeRecord | undefined> {
+async function readSize(io: Io, path: string): Promise<SizeRecord | undefined> {
   try {
-    return parseSize(await $.store.get(sizeKey(path)));
+    return parseSize(await io.store.get(sizeKey(path)));
   } catch {
     return undefined;
   }
@@ -149,9 +145,9 @@ export function forgetMeasuring(): void {
  * Sets the Workspace tab up after its state was reset (a new session, a
  * reload, /clear): what is still queued shows as measuring.
  */
-export async function startWorkspace($: EngineInterface): Promise<void> {
+export async function startWorkspace(io: Io): Promise<void> {
   const still = [...queued];
-  await changeWorkspace($, (view) => ({ ...view, measuring: still }));
+  await changeWorkspace(io, (view) => ({ ...view, measuring: still }));
 }
 
 /**
@@ -159,14 +155,14 @@ export async function startWorkspace($: EngineInterface): Promise<void> {
  * the trees `measure` asks for. Resolves once queued, not measured.
  */
 export async function refreshWorkspace(
-  $: EngineInterface,
+  io: Io,
   measure: Measure
 ): Promise<void> {
-  const place = await gitPlace($);
-  const cwd = await $.session.cwd().catch(() => "");
-  const now = await $.clock.now();
+  const place = await gitPlace(io);
+  const cwd = await io.session.cwd().catch(() => "");
+  const now = await io.clock.now();
   if (place.worktree === null) {
-    await changeWorkspace($, (view) => ({
+    await changeWorkspace(io, (view) => ({
       ...view,
       status: "none",
       cwd,
@@ -178,14 +174,14 @@ export async function refreshWorkspace(
     }));
     return;
   }
-  const worktrees = await listWorktrees($, {
+  const worktrees = await listWorktrees(io, {
     ...place,
     worktree: place.worktree,
   });
   const stored = await Promise.all(
-    worktrees.map((tree) => readSize($, tree.path))
+    worktrees.map((tree) => readSize(io, tree.path))
   );
-  await changeWorkspace($, (view) => {
+  await changeWorkspace(io, (view) => {
     // The trees listed now, each with the newest size known for it.
     const sizes: Record<string, SizeRecord> = {};
     worktrees.forEach((tree, at) => {
@@ -204,7 +200,7 @@ export async function refreshWorkspace(
     };
   });
   if (!measureDisk || measure === "none") return;
-  const view = await readWorkspace($);
+  const view = await readWorkspace(io);
   const force = measure === "all";
   const isCurrentOnly = measure === "changed" || measure === "current";
   if (measure === "changed") changedAt = now;
@@ -216,12 +212,12 @@ export async function refreshWorkspace(
     if (!force && known !== undefined && !isStale(known, now)) {
       // Measured before the last change: measured again once it is old.
       const isBehind = changedAt !== undefined && known.at < changedAt;
-      if (isCurrentOnly && isBehind) follow($, known.at + maxAge(known), now);
+      if (isCurrentOnly && isBehind) follow(io, known.at + maxAge(known), now);
       continue;
     }
     targets.push(tree.path);
   }
-  await queueMeasures($, targets, force);
+  await queueMeasures(io, targets, force);
 }
 
 /**
@@ -230,16 +226,16 @@ export async function refreshWorkspace(
  * but from before the last change (measured early, by Refresh sizes or
  * another session), sets the next timer.
  */
-function follow($: EngineInterface, due: number, now: number): void {
+function follow(io: Io, due: number, now: number): void {
   if (followDue !== undefined && followDue > now && followDue <= due) return;
   followDue = due;
   const mine = generation;
   try {
-    $.clock.after(Math.max(0, due - now), async () => {
+    io.clock.after(Math.max(0, due - now), async () => {
       if (mine !== generation) return;
       if (followDue === due) followDue = undefined;
-      await refreshWorkspace($, "current").catch((error: unknown) => {
-        $.ui.log(`sessionpad: the workspace was not read: ${String(error)}`, {
+      await refreshWorkspace(io, "current").catch((error: unknown) => {
+        io.ui.log(`sessionpad: the workspace was not read: ${String(error)}`, {
           to: "debug",
         });
       });
@@ -250,7 +246,7 @@ function follow($: EngineInterface, due: number, now: number): void {
 }
 
 async function queueMeasures(
-  $: EngineInterface,
+  io: Io,
   paths: readonly string[],
   force: boolean
 ): Promise<void> {
@@ -267,7 +263,7 @@ async function queueMeasures(
     added.push(path);
   }
   if (added.length === 0) return;
-  await changeWorkspace($, (view) => ({
+  await changeWorkspace(io, (view) => ({
     ...view,
     measuring: [
       ...view.measuring,
@@ -278,7 +274,7 @@ async function queueMeasures(
   if (mine !== generation) return;
   for (const path of added) {
     measuring = measuring
-      .then(() => measureOne($, path, mine))
+      .then(() => measureOne(io, path, mine))
       .catch(() => undefined);
   }
 }
@@ -289,23 +285,23 @@ async function queueMeasures(
  * was dropped doesn't start, and one already running stores its size but
  * leaves the new queue and the tab alone. Never rejects.
  */
-async function measureOne(
-  $: EngineInterface,
-  path: string,
-  mine: number
-): Promise<void> {
+async function measureOne(io: Io, path: string, mine: number): Promise<void> {
   if (mine !== generation) return;
   running = path;
   const force = forced.delete(path);
   const isMine = (): boolean => mine === generation;
   try {
-    let record = await readSize($, path);
-    if (force || record === undefined || isStale(record, await $.clock.now())) {
-      const measured = await runDu($, path);
+    let record = await readSize(io, path);
+    if (
+      force ||
+      record === undefined ||
+      isStale(record, await io.clock.now())
+    ) {
+      const measured = await runDu(io, path);
       record = measured.record;
       if (measured.isKept) {
         try {
-          await $.store.set(sizeKey(path), record);
+          await io.store.set(sizeKey(path), record);
         } catch {
           // A full store: the tab still shows the size, until the next one.
         }
@@ -313,19 +309,19 @@ async function measureOne(
     }
     const size = record;
     if (isMine())
-      await changeWorkspace($, (view) => withSize(view, path, size));
+      await changeWorkspace(io, (view) => withSize(view, path, size));
   } catch (error) {
     try {
-      $.ui.log(`sessionpad: measuring ${path} failed: ${String(error)}`, {
+      io.ui.log(`sessionpad: measuring ${path} failed: ${String(error)}`, {
         to: "debug",
       });
     } catch {
       // Nowhere to say it; the tab stops showing the tree as measuring.
     }
     if (isMine()) {
-      await changeWorkspace($, (view) => withSize(view, path, undefined)).catch(
-        () => undefined
-      );
+      await changeWorkspace(io, (view) =>
+        withSize(view, path, undefined)
+      ).catch(() => undefined);
     }
   } finally {
     if (isMine()) {
@@ -355,11 +351,11 @@ function withSize(
  * only: another may well manage.
  */
 /** A folder to run `du` in that no project chose: home, else the root. */
-async function safeFolder($: EngineInterface): Promise<string | undefined> {
-  const home = (await $.env.get("HOME")) || (await $.env.get("USERPROFILE"));
+async function safeFolder(io: Io): Promise<string | undefined> {
+  const home = (await io.env.home()) || (await io.env.userProfile());
   for (const folder of [home, "/"]) {
     if (folder === undefined || folder === "") continue;
-    if (await $.fs.exists(folder).catch(() => false)) return folder;
+    if (await io.fs.exists(folder).catch(() => false)) return folder;
   }
   return undefined;
 }
@@ -369,10 +365,10 @@ const isAbsolute = (path: string): boolean =>
   /^(?:\/|[A-Za-z]:[\\/]|\\\\)/.test(path);
 
 async function runDu(
-  $: EngineInterface,
+  io: Io,
   path: string
 ): Promise<{ record: SizeRecord; isKept: boolean }> {
-  const started = await $.clock.now();
+  const started = await io.clock.now();
   // git names worktrees by absolute path; anything else (a hand-edited or
   // shipped .git, say) is no tree to measure, nor an option for du.
   if (!isAbsolute(path))
@@ -382,22 +378,22 @@ async function runDu(
     // program named du, which some systems find there before the PATH.
     // A home folder that isn't there (in some containers) would stop the
     // run; then it runs from the root folder, and with neither, not at all.
-    const cwd = await safeFolder($);
+    const cwd = await safeFolder(io);
     if (cwd === undefined) {
-      return { record: { kb: null, at: await $.clock.now() }, isKept: false };
+      return { record: { kb: null, at: await io.clock.now() }, isKept: false };
     }
-    const ran = await $.process.run(["du", "-sk", "--", path], {
+    const ran = await io.run.du(path, {
       timeoutMs: DU_TIMEOUT_MS,
       cwd,
     });
     const kb = parseDu(ran.stdout);
-    const at = await $.clock.now();
+    const at = await io.clock.now();
     if (kb === null) return { record: { kb: null, at }, isKept: true };
     const record: SizeRecord =
       ran.exitCode === 0 ? { kb, at } : { kb, at, isPartial: true };
     return { record, isKept: true };
   } catch {
-    const at = await $.clock.now();
+    const at = await io.clock.now();
     if (at - started >= DU_TIMEOUT_MS - TIMEOUT_MARGIN_MS) {
       return { record: { kb: null, at, isTooLarge: true }, isKept: true };
     }
@@ -406,10 +402,10 @@ async function runDu(
 }
 
 /** Refreshes the Workspace tab on a timer, so the caller returns at once. */
-export function scheduleRefresh($: EngineInterface, measure: Measure): void {
-  $.clock.after(0, () =>
-    refreshWorkspace($, measure).catch((error: unknown) => {
-      $.ui.log(`sessionpad: the workspace was not read: ${String(error)}`, {
+export function scheduleRefresh(io: Io, measure: Measure): void {
+  io.clock.after(0, () =>
+    refreshWorkspace(io, measure).catch((error: unknown) => {
+      io.ui.log(`sessionpad: the workspace was not read: ${String(error)}`, {
         to: "debug",
       });
     })
@@ -417,12 +413,12 @@ export function scheduleRefresh($: EngineInterface, measure: Measure): void {
 }
 
 /** Sets the Workspace tab up and reads git into it, never failing the caller. */
-export async function showWorkspace($: EngineInterface): Promise<void> {
+export async function showWorkspace(io: Io): Promise<void> {
   try {
-    await startWorkspace($);
-    scheduleRefresh($, "none");
+    await startWorkspace(io);
+    scheduleRefresh(io, "none");
   } catch (error) {
-    $.ui.log(`sessionpad: could not read the workspace: ${String(error)}`, {
+    io.ui.log(`sessionpad: could not read the workspace: ${String(error)}`, {
       to: "debug",
     });
   }
