@@ -1,0 +1,1884 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-palette="claude" data-font="system">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- DP:CSP -->
+    <title>01 · Pills — mockup</title>
+    <meta
+      name="mockup-direction"
+      content="The open tab as a black pill among grey ones, a headline card in the accent, notes on grey shading with pill buttons, an inline undo, and the timeline as shaded day groups."
+    />
+    <style>
+      /* 1. Palette blocks, from the drawing kit. Each palette is the accent theme key the pane uses. */
+      [data-palette="claude"] {
+        --c-bg: #f4f2ef;
+        --c-surface: #ffffff;
+        --c-text: #1b1b1b;
+        --c-muted: #6b6b6b;
+        --c-accent: #c8643f;
+        --c-on-accent: #ffffff;
+        --c-border: #e2e0dc;
+        --d-accent: #c8643f;
+        --t-accent: #d78787;
+        --d-bg: #ffffff;
+        --d-text: #1b1b1b;
+        --d-dim: #8c8c8c;
+        --d-faint: #e6e6e6;
+        --d-shade: #cecece;
+        --d-green: #d7edda;
+        --d-pink: #f9d5dd;
+        --d-btn: rgba(0, 0, 0, 0.05);
+        --d-btn-text: #1b1b1b;
+        --d-btn-dim: rgba(0, 0, 0, 0.05);
+        --d-btn-dim-text: #9b9b9b;
+        --d-primary: #181818;
+        --d-primary-text: #ffffff;
+        --d-field-bg: #ffffff;
+        --d-field-border: #e2e2e2;
+        --d-placeholder: #9a9a9a;
+        --d-success: #2e9b45;
+        --d-error: #c62828;
+        --d-warning: #b7791f;
+        --d-frame: #e5e5e5;
+        --t-bg: #262626;
+        --t-text: #ffffff;
+        --t-dim: #949494;
+        --t-blue: #afd7ff;
+        --t-success: #87d787;
+        --t-error: #ff87af;
+        --t-warning: #ffd700;
+        --t-subtle: #4e4e4e;
+        --t-grey: #808080;
+        --t-line: #585858;
+      }
+      [data-palette="claude"][data-theme="dark"] {
+        --c-bg: #121212;
+        --c-surface: #1a1a1a;
+        --c-text: #e8e8e8;
+        --c-muted: #9a9a9a;
+        --c-accent: #d97757;
+        --c-on-accent: #111111;
+        --c-border: #2e2e2e;
+        --d-accent: #d97757;
+        --t-accent: #d78787;
+        --d-bg: #181818;
+        --d-text: #e8e8e8;
+        --d-dim: #9a9a9a;
+        --d-faint: #2e2e2e;
+        --d-shade: #474747;
+        --d-green: #223f23;
+        --d-pink: #472024;
+        --d-btn: rgba(255, 255, 255, 0.15);
+        --d-btn-text: #e8e8e8;
+        --d-btn-dim: rgba(255, 255, 255, 0.15);
+        --d-btn-dim-text: #8a8a8a;
+        --d-primary: #efefef;
+        --d-primary-text: #111111;
+        --d-field-bg: #252525;
+        --d-field-border: #3a3a3a;
+        --d-placeholder: #7a7a7a;
+        --d-success: #4ec36a;
+        --d-error: #ff6b5b;
+        --d-warning: #f5a623;
+        --d-frame: #2e2e2e;
+        --t-bg: #262626;
+        --t-text: #ffffff;
+        --t-dim: #949494;
+        --t-blue: #afd7ff;
+        --t-success: #87d787;
+        --t-error: #ff87af;
+        --t-warning: #ffd700;
+        --t-subtle: #4e4e4e;
+        --t-grey: #808080;
+        --t-line: #585858;
+      }
+      [data-palette="merged"] {
+        --c-bg: #f4f2ef;
+        --c-surface: #ffffff;
+        --c-text: #1b1b1b;
+        --c-muted: #6b6b6b;
+        --c-accent: #8e5cd9;
+        --c-on-accent: #ffffff;
+        --c-border: #e2e0dc;
+        --d-accent: #8e5cd9;
+        --t-accent: #afafff;
+        --d-bg: #ffffff;
+        --d-text: #1b1b1b;
+        --d-dim: #8c8c8c;
+        --d-faint: #e6e6e6;
+        --d-shade: #cecece;
+        --d-green: #d7edda;
+        --d-pink: #f9d5dd;
+        --d-btn: rgba(0, 0, 0, 0.05);
+        --d-btn-text: #1b1b1b;
+        --d-btn-dim: rgba(0, 0, 0, 0.05);
+        --d-btn-dim-text: #9b9b9b;
+        --d-primary: #181818;
+        --d-primary-text: #ffffff;
+        --d-field-bg: #ffffff;
+        --d-field-border: #e2e2e2;
+        --d-placeholder: #9a9a9a;
+        --d-success: #2e9b45;
+        --d-error: #c62828;
+        --d-warning: #b7791f;
+        --d-frame: #e5e5e5;
+        --t-bg: #262626;
+        --t-text: #ffffff;
+        --t-dim: #949494;
+        --t-blue: #afd7ff;
+        --t-success: #87d787;
+        --t-error: #ff87af;
+        --t-warning: #ffd700;
+        --t-subtle: #4e4e4e;
+        --t-grey: #808080;
+        --t-line: #585858;
+      }
+      [data-palette="merged"][data-theme="dark"] {
+        --c-bg: #121212;
+        --c-surface: #1a1a1a;
+        --c-text: #e8e8e8;
+        --c-muted: #9a9a9a;
+        --c-accent: #b39dfb;
+        --c-on-accent: #111111;
+        --c-border: #2e2e2e;
+        --d-accent: #b39dfb;
+        --t-accent: #afafff;
+        --d-bg: #181818;
+        --d-text: #e8e8e8;
+        --d-dim: #9a9a9a;
+        --d-faint: #2e2e2e;
+        --d-shade: #474747;
+        --d-green: #223f23;
+        --d-pink: #472024;
+        --d-btn: rgba(255, 255, 255, 0.15);
+        --d-btn-text: #e8e8e8;
+        --d-btn-dim: rgba(255, 255, 255, 0.15);
+        --d-btn-dim-text: #8a8a8a;
+        --d-primary: #efefef;
+        --d-primary-text: #111111;
+        --d-field-bg: #252525;
+        --d-field-border: #3a3a3a;
+        --d-placeholder: #7a7a7a;
+        --d-success: #4ec36a;
+        --d-error: #ff6b5b;
+        --d-warning: #f5a623;
+        --d-frame: #2e2e2e;
+        --t-bg: #262626;
+        --t-text: #ffffff;
+        --t-dim: #949494;
+        --t-blue: #afd7ff;
+        --t-success: #87d787;
+        --t-error: #ff87af;
+        --t-warning: #ffd700;
+        --t-subtle: #4e4e4e;
+        --t-grey: #808080;
+        --t-line: #585858;
+      }
+      [data-palette="success"] {
+        --c-bg: #f4f2ef;
+        --c-surface: #ffffff;
+        --c-text: #1b1b1b;
+        --c-muted: #6b6b6b;
+        --c-accent: #2e9b45;
+        --c-on-accent: #ffffff;
+        --c-border: #e2e0dc;
+        --d-accent: #2e9b45;
+        --t-accent: #87d787;
+        --d-bg: #ffffff;
+        --d-text: #1b1b1b;
+        --d-dim: #8c8c8c;
+        --d-faint: #e6e6e6;
+        --d-shade: #cecece;
+        --d-green: #d7edda;
+        --d-pink: #f9d5dd;
+        --d-btn: rgba(0, 0, 0, 0.05);
+        --d-btn-text: #1b1b1b;
+        --d-btn-dim: rgba(0, 0, 0, 0.05);
+        --d-btn-dim-text: #9b9b9b;
+        --d-primary: #181818;
+        --d-primary-text: #ffffff;
+        --d-field-bg: #ffffff;
+        --d-field-border: #e2e2e2;
+        --d-placeholder: #9a9a9a;
+        --d-success: #2e9b45;
+        --d-error: #c62828;
+        --d-warning: #b7791f;
+        --d-frame: #e5e5e5;
+        --t-bg: #262626;
+        --t-text: #ffffff;
+        --t-dim: #949494;
+        --t-blue: #afd7ff;
+        --t-success: #87d787;
+        --t-error: #ff87af;
+        --t-warning: #ffd700;
+        --t-subtle: #4e4e4e;
+        --t-grey: #808080;
+        --t-line: #585858;
+      }
+      [data-palette="success"][data-theme="dark"] {
+        --c-bg: #121212;
+        --c-surface: #1a1a1a;
+        --c-text: #e8e8e8;
+        --c-muted: #9a9a9a;
+        --c-accent: #4ec36a;
+        --c-on-accent: #111111;
+        --c-border: #2e2e2e;
+        --d-accent: #4ec36a;
+        --t-accent: #87d787;
+        --d-bg: #181818;
+        --d-text: #e8e8e8;
+        --d-dim: #9a9a9a;
+        --d-faint: #2e2e2e;
+        --d-shade: #474747;
+        --d-green: #223f23;
+        --d-pink: #472024;
+        --d-btn: rgba(255, 255, 255, 0.15);
+        --d-btn-text: #e8e8e8;
+        --d-btn-dim: rgba(255, 255, 255, 0.15);
+        --d-btn-dim-text: #8a8a8a;
+        --d-primary: #efefef;
+        --d-primary-text: #111111;
+        --d-field-bg: #252525;
+        --d-field-border: #3a3a3a;
+        --d-placeholder: #7a7a7a;
+        --d-success: #4ec36a;
+        --d-error: #ff6b5b;
+        --d-warning: #f5a623;
+        --d-frame: #2e2e2e;
+        --t-bg: #262626;
+        --t-text: #ffffff;
+        --t-dim: #949494;
+        --t-blue: #afd7ff;
+        --t-success: #87d787;
+        --t-error: #ff87af;
+        --t-warning: #ffd700;
+        --t-subtle: #4e4e4e;
+        --t-grey: #808080;
+        --t-line: #585858;
+      }
+
+      /* 2a. Kit CSS, verbatim from the drawing kit */
+      /* ---- Desktop pane ---- */
+      .desk {
+        width: 400px;
+        background: var(--d-bg);
+        color: var(--d-text);
+        border: 1px solid var(--d-frame);
+        border-radius: 12px;
+        overflow: hidden;
+        font:
+          15px/1.5 system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+      .desk .bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 14px;
+        border-bottom: 1px solid var(--d-faint);
+        color: var(--d-dim);
+        font-size: 14px;
+      }
+      .desk .body {
+        padding: 16px 20px 20px;
+        display: flex;
+        flex-direction: column;
+      }
+      /* spacing: one cell across is about 10px, one row about 12px */
+      .desk .row {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+      }
+      .desk .col {
+        display: flex;
+        flex-direction: column;
+      }
+      .desk .wrap {
+        flex-wrap: wrap;
+      }
+      .desk .gap1 {
+        gap: 10px;
+      }
+      .desk .gap2 {
+        gap: 20px;
+      }
+      .desk .rgap1 {
+        row-gap: 12px;
+      }
+      .desk .mt1 {
+        margin-top: 12px;
+      }
+      .desk .mt2 {
+        margin-top: 24px;
+      }
+      .desk .grow {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .desk .noshrink {
+        flex: 0 0 auto;
+      }
+      .desk .px1 {
+        padding-left: 11px;
+        padding-right: 11px;
+      }
+      /* text: size, weight, color, style */
+      .desk .caption {
+        font-size: 12px;
+      }
+      .desk .footnote {
+        font-size: 13px;
+      }
+      .desk .heading {
+        font-size: 17px;
+      }
+      .desk .title {
+        font-size: 22px;
+        line-height: 1.3;
+      }
+      .desk .medium {
+        font-weight: 500;
+      }
+      .desk .semibold {
+        font-weight: 600;
+      }
+      .desk .bold {
+        font-weight: 700;
+      }
+      .desk .italic {
+        font-style: italic;
+      }
+      .desk .underline {
+        text-decoration: underline;
+      }
+      .desk .dim {
+        color: var(--d-dim);
+      }
+      .desk .accent {
+        color: var(--d-accent);
+      }
+      .desk .ok {
+        color: var(--d-success);
+      }
+      .desk .bad {
+        color: var(--d-error);
+      }
+      .desk .warn {
+        color: var(--d-warning);
+      }
+      .desk .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 14px;
+      }
+      .desk .inverse {
+        background: var(--d-text);
+        color: var(--d-bg);
+      }
+      .desk code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 13.5px;
+        background: var(--d-shade);
+        padding: 1px 4px;
+        border-radius: 4px;
+      }
+      /* backgrounds: plain rectangles (no rounding), the three soft shades only */
+      .desk .shade {
+        background: var(--d-shade);
+      }
+      .desk .green {
+        background: var(--d-green);
+      }
+      .desk .pink {
+        background: var(--d-pink);
+      }
+      /* borders: rounded cards; a border adds about 17px above and below and 11px at the sides */
+      .desk .card {
+        border: 1px solid var(--d-accent);
+        border-radius: 10px;
+        padding: 17px 11px;
+      }
+      .desk .card.faint {
+        border-color: var(--d-faint);
+      }
+      .desk .card.filled {
+        border-color: var(--d-shade);
+        background: var(--d-shade);
+      }
+      .desk .card.filled-green {
+        border-color: var(--d-green);
+        background: var(--d-green);
+      }
+      .desk .card.filled-pink {
+        border-color: var(--d-pink);
+        background: var(--d-pink);
+      }
+      .desk .card.tight {
+        padding-left: 11px;
+        padding-right: 11px;
+      } /* paddingX 1 is already in */
+      /* buttons, drawn by the app: pills; labels are plain text */
+      .desk .btn {
+        display: inline-flex;
+        align-items: center;
+        height: 32px;
+        padding: 0 14px;
+        border-radius: 10px;
+        background: var(--d-btn);
+        color: var(--d-btn-text);
+        font-size: 15px;
+        white-space: nowrap;
+        flex: 0 0 auto;
+      }
+      .desk .btn.primary {
+        background: var(--d-primary);
+        color: var(--d-primary-text);
+      }
+      .desk .btn.dimbtn {
+        background: var(--d-btn-dim);
+        color: var(--d-btn-dim-text);
+      }
+      .desk .btn.plain {
+        background: none;
+        padding: 0 2px;
+      }
+      /* fields */
+      .desk .field {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      .desk .field .label {
+        line-height: 32px;
+      }
+      .desk .field .box {
+        flex: 1 1 auto;
+        height: 32px;
+        border: 1px solid var(--d-field-border);
+        border-radius: 8px;
+        background: var(--d-field-bg);
+        padding: 0 12px;
+        line-height: 30px;
+        color: var(--d-placeholder);
+        white-space: nowrap;
+        overflow: hidden;
+      }
+      .desk .field .box.filled {
+        color: var(--d-text);
+      }
+      .desk .field .box.rows3 {
+        height: 88px;
+        line-height: 1.45;
+        padding-top: 6px;
+        white-space: normal;
+      }
+      /* fixed widths for columns, in cells of about 8.5px */
+      .desk .w4 {
+        width: 34px;
+      }
+      .desk .w6 {
+        width: 51px;
+      }
+      .desk .w8 {
+        width: 68px;
+      }
+      .desk .w10 {
+        width: 85px;
+      }
+      .desk .w12 {
+        width: 102px;
+      }
+      .desk .w16 {
+        width: 136px;
+      }
+
+      /* ---- Terminal pane (always the dark terminal) ---- */
+      .term {
+        width: calc(56ch + 2px);
+        background: var(--t-bg);
+        color: var(--t-text);
+        font:
+          13px/18px ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        border-left: 1px solid var(--t-line);
+        white-space: pre-wrap;
+      }
+      .term .tbar {
+        display: flex;
+        justify-content: flex-end;
+        padding: 0 1ch;
+        color: var(--t-dim);
+      }
+      .term .tbody {
+        padding: 0 1ch 18px;
+        display: flex;
+        flex-direction: column;
+      }
+      .term .row {
+        display: flex;
+        flex-direction: row;
+      }
+      .term .col {
+        display: flex;
+        flex-direction: column;
+      }
+      .term .wrap {
+        flex-wrap: wrap;
+      }
+      .term .gap1 {
+        column-gap: 1ch;
+      }
+      .term .gap2 {
+        column-gap: 2ch;
+      }
+      .term .mt1 {
+        margin-top: 18px;
+      }
+      .term .grow {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .term .noshrink {
+        flex: 0 0 auto;
+      }
+      .term .px1 {
+        padding-left: 1ch;
+        padding-right: 1ch;
+      }
+      .term .bold {
+        font-weight: 700;
+      }
+      .term .underline {
+        text-decoration: underline;
+      }
+      .term .dim {
+        color: var(--t-dim);
+      }
+      .term .accent {
+        color: var(--t-accent);
+      }
+      .term .ok {
+        color: var(--t-success);
+      }
+      .term .bad {
+        color: var(--t-error);
+      }
+      .term .warn {
+        color: var(--t-warning);
+      }
+      .term .blue {
+        color: var(--t-blue);
+      }
+      .term .inverse {
+        background: var(--t-text);
+        color: var(--t-bg);
+      }
+      .term .fill-subtle {
+        background: var(--t-subtle);
+      }
+      .term .fill-grey {
+        background: var(--t-grey);
+      }
+      /* box-drawn frame: one cell of border around, drawn as lines in the cell's middle */
+      .term .frame {
+        border: 1px solid var(--t-accent);
+        border-radius: 7px;
+        margin: 9px 0.5ch;
+        padding: 8px 0.5ch;
+      }
+      .term .frame.faint {
+        border-color: var(--t-line);
+      }
+      .term .frame.square {
+        border-radius: 0;
+      }
+      /* buttons: [ label ] */
+      .term .btn::before {
+        content: "[ ";
+      }
+      .term .btn::after {
+        content: " ]";
+      }
+      .term .btn.primary {
+        color: var(--t-blue);
+      }
+      .term .btn.secondary {
+        font-weight: 700;
+      }
+      .term .btn.dimbtn {
+        color: var(--t-dim);
+      }
+      .term .field {
+        display: flex;
+      }
+      .term .field .ph {
+        color: var(--t-dim);
+      }
+      .term .w4 {
+        width: 4ch;
+      }
+      .term .w6 {
+        width: 6ch;
+      }
+      .term .w8 {
+        width: 8ch;
+      }
+      .term .w10 {
+        width: 10ch;
+      }
+      .term .w12 {
+        width: 12ch;
+      }
+      .term .w16 {
+        width: 16ch;
+      }
+      .term code {
+        color: var(--t-accent);
+      }
+
+      /* ---- the band above the prompt ---- */
+      .band-desk {
+        width: 640px;
+        background: var(--d-bg);
+        color: var(--d-dim);
+        font:
+          13px/1.5 system-ui,
+          sans-serif;
+        border: 1px solid var(--d-frame);
+        border-radius: 12px;
+        padding: 10px 14px;
+      }
+      .band-desk .prompt {
+        margin-top: 8px;
+        border: 1px solid var(--d-field-border);
+        border-radius: 10px;
+        padding: 10px 12px;
+        color: var(--d-placeholder);
+        font-size: 15px;
+      }
+      .band-term {
+        width: 80ch;
+        background: var(--t-bg);
+        color: var(--t-dim);
+        font:
+          13px/18px ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        padding: 0 1ch 4px;
+      }
+      .band-term .prompt {
+        border-top: 1px solid var(--t-line);
+        border-bottom: 1px solid var(--t-line);
+        color: var(--t-text);
+      }
+
+      /* 2b. Page chrome: everything outside the frames. Uses only the contract variables. */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+      html {
+        background: var(--c-bg);
+      }
+      body {
+        margin: 0;
+        background: var(--c-bg);
+        color: var(--c-text);
+        font-family: var(--font-body, system-ui, sans-serif);
+        line-height: 1.5;
+      }
+      .page {
+        max-width: 1480px;
+        margin: 0 auto;
+        padding: calc(var(--density, 1) * 40px) clamp(16px, 2.5vw, 40px)
+          calc(var(--density, 1) * 64px);
+      }
+      .page-head {
+        max-width: 74ch;
+        margin-bottom: calc(var(--density, 1) * 8px);
+      }
+      .eyebrow {
+        margin: 0 0 calc(var(--density, 1) * 6px);
+        color: var(--c-muted);
+        font-size: 13px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      h1 {
+        font-family: var(--font-heading, system-ui, sans-serif);
+        font-size: 34px;
+        line-height: 1.15;
+        font-weight: 650;
+        margin: 0 0 calc(var(--density, 1) * 10px);
+      }
+      h1 .num {
+        color: var(--c-accent);
+      }
+      .lede {
+        margin: 0;
+        color: var(--c-muted);
+        font-size: 16px;
+      }
+      .stage {
+        margin-top: calc(var(--density, 1) * 44px);
+      }
+      .stage-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        column-gap: 14px;
+        padding-bottom: calc(var(--density, 1) * 8px);
+        margin-bottom: calc(var(--density, 1) * 18px);
+        border-bottom: 1px solid var(--c-border);
+      }
+      .stage-head h2 {
+        font-family: var(--font-heading, system-ui, sans-serif);
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0;
+      }
+      .stage-head .hint {
+        color: var(--c-muted);
+        font-size: 14px;
+      }
+      .frames {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: calc(var(--density, 1) * 20px);
+      }
+      .frames figure {
+        margin: 0;
+        min-width: 0;
+        max-width: 100%;
+      }
+      .frames figcaption {
+        font-size: 13px;
+        color: var(--c-muted);
+        margin-bottom: calc(var(--density, 1) * 8px);
+      }
+      .frames figcaption b {
+        color: var(--c-text);
+        font-weight: 600;
+      }
+      .scroller {
+        max-width: 100%;
+        overflow-x: auto;
+      }
+      .chrome-card {
+        background: var(--c-surface);
+        border: 1px solid var(--c-border);
+        border-radius: var(--radius, 8px);
+        padding: calc(var(--density, 1) * 12px) calc(var(--density, 1) * 16px);
+      }
+      .caption {
+        margin: calc(var(--density, 1) * 20px) 0 0;
+        max-width: 96ch;
+        color: var(--c-muted);
+        font-size: 14px;
+      }
+      .caption b {
+        color: var(--c-text);
+        font-weight: 600;
+      }
+      /* Chrome only: the frames' code keeps the kit's own look. */
+      .caption code,
+      .design-notes code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.88em;
+        background: var(--c-bg);
+        border: 1px solid var(--c-border);
+        border-radius: calc(var(--radius, 8px) / 2);
+        padding: 0 0.3em;
+      }
+      .design-notes {
+        margin-top: calc(var(--density, 1) * 56px);
+        padding: calc(var(--density, 1) * 16px) calc(var(--density, 1) * 22px);
+      }
+      .design-notes summary {
+        cursor: pointer;
+        font-family: var(--font-heading, system-ui, sans-serif);
+        font-size: 18px;
+        font-weight: 600;
+      }
+      .design-notes h3 {
+        font-family: var(--font-heading, system-ui, sans-serif);
+        font-size: 15px;
+        font-weight: 600;
+        margin: calc(var(--density, 1) * 22px) 0 calc(var(--density, 1) * 6px);
+      }
+      .design-notes p,
+      .design-notes li {
+        max-width: 88ch;
+        font-size: 14.5px;
+      }
+      .design-notes ul {
+        padding-left: 1.2em;
+        margin: 0;
+      }
+      .design-notes li + li {
+        margin-top: calc(var(--density, 1) * 6px);
+      }
+      .design-notes .accent-word {
+        color: var(--c-accent);
+        font-weight: 600;
+      }
+      .map-wrap {
+        overflow-x: auto;
+      }
+      .map {
+        width: 100%;
+        min-width: 760px;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      .map th,
+      .map td {
+        text-align: left;
+        vertical-align: top;
+        padding: calc(var(--density, 1) * 7px) 12px
+          calc(var(--density, 1) * 7px) 0;
+        border-top: 1px solid var(--c-border);
+      }
+      .map th {
+        color: var(--c-muted);
+        font-weight: 600;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .map td:first-child {
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .map code {
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 3. The mockup content -->
+    <main class="page">
+      <header class="page-head">
+        <p class="eyebrow">sessionpad · the pane as the mod draws it</p>
+        <h1><span class="num">01</span> · Pills</h1>
+        <p class="lede">
+          The Desktop app draws every Button as a pill, so this direction leans
+          on them: the open tab is the one black pill, note actions and the undo
+          are grey ones. Grey shading groups the notes and stripes the timeline,
+          and the accent is spent on one thing, the headline card. Each piece is
+          drawn only with Box, Text, Button, Input and Markdown, the way each
+          surface draws them.
+        </p>
+      </header>
+
+      <!-- Desktop app -->
+      <section class="stage" aria-labelledby="desk-h">
+        <div class="stage-head">
+          <h2 id="desk-h">Desktop app</h2>
+          <span class="hint"
+            >the Code tab's side pane, 400px; follows light and dark</span
+          >
+        </div>
+        <div class="frames">
+          <!-- Desktop · Notes -->
+          <figure>
+            <figcaption>
+              <b>Notes</b> · note 2 open for editing, note 5 just deleted
+            </figcaption>
+            <div class="scroller">
+              <section class="desk" aria-label="Desktop pane, Notes tab">
+                <div class="bar"><span>sessionpad</span><span>⤢ ✕</span></div>
+                <div class="body">
+                  <div class="row wrap gap1">
+                    <span class="btn primary">Notes</span>
+                    <span class="btn">Timeline</span>
+                    <span class="btn">Workspace</span>
+                  </div>
+                  <div class="col mt1">
+                    <div class="card col">
+                      <div class="footnote dim">Headline</div>
+                      <div class="heading semibold">
+                        Ship sessionpad 0.1.0: pruning, release, and the pane's
+                        look
+                      </div>
+                    </div>
+                    <div class="field mt1">
+                      <span class="label">Note</span>
+                      <span class="box">Add a note…</span>
+                      <span class="btn">add</span>
+                    </div>
+                    <div class="col mt1">
+                      <!-- note 1 -->
+                      <div class="shade px1 col">
+                        <div class="col mt1">
+                          <div>
+                            Use <code>prune:at</code> so sessions prune about
+                            once a day.
+                          </div>
+                          <div class="footnote dim">09:12 · Claude</div>
+                          <div class="row gap1 mt1">
+                            <span class="btn">Headline</span>
+                            <span class="btn">Edit</span>
+                            <span class="btn">Delete</span>
+                          </div>
+                        </div>
+                        <div class="mt1"></div>
+                      </div>
+                      <!-- note 2, being edited -->
+                      <div class="shade px1 col mt1">
+                        <div class="col mt1">
+                          <div class="field gap1">
+                            <div class="box rows3 filled">
+                              Ask J for the two README screenshots.
+                            </div>
+                            <div class="col noshrink">
+                              <span class="btn primary">save</span>
+                              <span class="btn mt1">Cancel</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="mt1"></div>
+                      </div>
+                      <!-- note 3 -->
+                      <div class="shade px1 col mt1">
+                        <div class="col mt1">
+                          <div>
+                            Minimum version is <b>2.1.299</b>: earlier releases
+                            refuse the hooks module.
+                          </div>
+                          <div class="footnote dim">11:40 · Claude</div>
+                          <div class="row gap1 mt1">
+                            <span class="btn">Headline</span>
+                            <span class="btn">Edit</span>
+                            <span class="btn">Delete</span>
+                          </div>
+                        </div>
+                        <div class="mt1"></div>
+                      </div>
+                      <!-- note 4 -->
+                      <div class="shade px1 col mt1">
+                        <div class="col mt1">
+                          <div>
+                            Desktop's file pane can't open files outside the
+                            project;
+                            <code>/pad-export notes/pad.md</code> works.
+                          </div>
+                          <div class="footnote dim">12:15 · you</div>
+                          <div class="row gap1 mt1">
+                            <span class="btn">Headline</span>
+                            <span class="btn">Edit</span>
+                            <span class="btn">Delete</span>
+                          </div>
+                        </div>
+                        <div class="mt1"></div>
+                      </div>
+                      <!-- note 5, just deleted: the undo takes its place -->
+                      <div class="pink px1 col mt1">
+                        <div class="row gap1 mt1">
+                          <div class="grow">
+                            Note deleted: Check du from the home folder.
+                          </div>
+                          <span class="btn">Undo</span>
+                        </div>
+                        <div class="mt1"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </figure>
+
+          <!-- Desktop · Timeline -->
+          <figure>
+            <figcaption>
+              <b>Timeline</b> · newest first, every other turn on grey
+            </figcaption>
+            <div class="scroller">
+              <section class="desk" aria-label="Desktop pane, Timeline tab">
+                <div class="bar"><span>sessionpad</span><span>⤢ ✕</span></div>
+                <div class="body">
+                  <div class="row wrap gap1">
+                    <span class="btn">Notes</span>
+                    <span class="btn primary">Timeline</span>
+                    <span class="btn">Workspace</span>
+                  </div>
+                  <div class="col mt1">
+                    <div class="row gap1">
+                      <div class="grow dim">7 turns, newest first</div>
+                      <span class="btn">Export</span>
+                    </div>
+
+                    <div class="semibold mt1">2026-10-28</div>
+                    <div class="row px1 shade">
+                      <div class="col w10 noshrink">
+                        <span class="mono">12:31</span
+                        ><span class="footnote dim mono">4m10s</span>
+                      </div>
+                      <div class="col grow">
+                        <div>
+                          Restyled the pane: tabs, note cards and a wrapping
+                          timeline
+                        </div>
+                        <div class="footnote dim">3 files · 12 cmds</div>
+                      </div>
+                    </div>
+                    <div class="row px1">
+                      <div class="col w10 noshrink">
+                        <span class="mono">11:52</span
+                        ><span class="footnote dim mono">1m05s</span>
+                      </div>
+                      <div class="col grow">
+                        <div>
+                          Found that 2.1.299 is the first release that loads the
+                          mod
+                        </div>
+                        <div class="footnote dim">9 cmds</div>
+                      </div>
+                    </div>
+                    <div class="row px1 shade">
+                      <div class="col w10 noshrink">
+                        <span class="mono">11:20</span
+                        ><span class="footnote dim mono">38s</span>
+                      </div>
+                      <div class="col grow">
+                        <div>Answered how to do the manual pass</div>
+                        <div class="footnote warn">stopped</div>
+                      </div>
+                    </div>
+                    <div class="row px1">
+                      <div class="col w10 noshrink">
+                        <span class="mono">10:44</span
+                        ><span class="footnote dim mono">6m20s</span>
+                      </div>
+                      <div class="col grow">
+                        <div>Fixed the review findings for pruning</div>
+                        <div class="footnote">
+                          <span class="dim">4 files · 21 cmds · </span
+                          ><span class="accent">→ feat/pane-look</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="semibold mt1">2026-10-27</div>
+                    <div class="row px1 shade">
+                      <div class="col w10 noshrink">
+                        <span class="mono">16:03</span
+                        ><span class="footnote dim mono">10m41s</span>
+                      </div>
+                      <div class="col grow">
+                        <div>Followed up on a message from another session</div>
+                        <div class="footnote dim">1 file · 11 cmds</div>
+                      </div>
+                    </div>
+                    <div class="row px1">
+                      <div class="col w10 noshrink">
+                        <span class="mono">15:48</span
+                        ><span class="footnote dim mono">8m02s</span>
+                      </div>
+                      <div class="col grow">
+                        <div>
+                          Named the turns that Claude Code starts instead of
+                          showing markup
+                        </div>
+                        <div class="footnote dim">2 files · 25 cmds</div>
+                      </div>
+                    </div>
+                    <div class="row px1">
+                      <div class="w10 noshrink mono dim">15:40</div>
+                      <div class="grow dim italic">
+                        The conversation was cleared.
+                      </div>
+                    </div>
+                    <div class="row px1 shade">
+                      <div class="col w10 noshrink">
+                        <span class="mono">15:12</span
+                        ><span class="footnote dim mono">2m30s</span>
+                      </div>
+                      <div class="col grow">
+                        <div>Added the MIT license</div>
+                        <div class="footnote dim">2 files · 3 cmds</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </figure>
+
+          <!-- Desktop · Workspace -->
+          <figure>
+            <figcaption>
+              <b>Workspace</b> · one tree still measuring, one that can't be
+            </figcaption>
+            <div class="scroller">
+              <section class="desk" aria-label="Desktop pane, Workspace tab">
+                <div class="bar"><span>sessionpad</span><span>⤢ ✕</span></div>
+                <div class="body">
+                  <div class="row wrap gap1">
+                    <span class="btn">Notes</span>
+                    <span class="btn">Timeline</span>
+                    <span class="btn primary">Workspace</span>
+                  </div>
+                  <div class="col mt1">
+                    <div class="row">
+                      <div class="w10 noshrink dim">Branch</div>
+                      <div class="grow">claude/sessionpad-mod-865578</div>
+                    </div>
+                    <div class="row">
+                      <div class="w10 noshrink dim">Worktree</div>
+                      <div class="grow">…/worktrees/sessionpad-mod-865578</div>
+                    </div>
+                    <div class="row">
+                      <div class="w10 noshrink dim">Size</div>
+                      <div class="grow heading semibold">412 MB</div>
+                      <span class="btn">Refresh sizes</span>
+                    </div>
+                    <div class="row">
+                      <div class="w10 noshrink"></div>
+                      <div class="grow footnote dim">measured 12:30</div>
+                    </div>
+
+                    <div class="semibold mt1">Other worktrees (3)</div>
+                    <div class="row gap1">
+                      <div class="col grow">
+                        <span class="medium">main</span
+                        ><span class="footnote dim"
+                          >/Users/pv/code/sessionpad</span
+                        >
+                      </div>
+                      <span class="dim noshrink">2.3 GB</span>
+                    </div>
+                    <div class="row gap1 mt1">
+                      <div class="col grow">
+                        <span class="medium">feat/notes-ui</span
+                        ><span class="footnote dim">…/worktrees/notes-ui</span>
+                      </div>
+                      <span class="dim noshrink">measuring…</span>
+                    </div>
+                    <div class="row gap1 mt1">
+                      <div class="col grow">
+                        <span class="medium">detached at 9f8e7d6</span
+                        ><span class="footnote dim">…/worktrees/old-try</span>
+                      </div>
+                      <span class="dim noshrink">size unavailable</span>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </figure>
+        </div>
+        <p class="caption chrome-card">
+          <b>Desktop.</b> Pills are the app's own Buttons, so their labels stay
+          plain. The grey behind the notes and every other turn is
+          <code>promptBorder</code>, and the undo row's pink is
+          <code>diffRemovedDimmed</code>: the only fills that follow light and
+          dark, so both modes keep them. Switch the palette and only the accent
+          moves, the headline card's border and the branch mark; the open tab
+          stays black in light mode and white in dark, whatever the accent.
+        </p>
+      </section>
+
+      <!-- Terminal -->
+      <section class="stage" aria-labelledby="term-h">
+        <div class="stage-head">
+          <h2 id="term-h">Terminal</h2>
+          <span class="hint"
+            >the same tree, 56 columns, always the dark terminal</span
+          >
+        </div>
+        <div class="frames">
+          <!-- Terminal · Notes -->
+          <figure>
+            <figcaption>
+              <b>Notes</b> · note 2 open for editing, note 5 just deleted
+            </figcaption>
+            <div class="scroller">
+              <!-- prettier-ignore -->
+              <section class="term" aria-label="Terminal pane, Notes tab"><div class="tbar">✕</div><div class="tbody">
+                <div class="row wrap gap2"><span class="bold accent">1 Notes</span><span class="dim">2 Timeline</span><span class="dim">3 Workspace</span></div>
+                <div class="col mt1">
+                  <div class="frame col">
+                    <div class="col px1">
+                      <div class="dim">Headline</div>
+                      <div>Ship sessionpad 0.1.0: pruning, release, and the pane's look</div>
+                    </div>
+                  </div>
+                  <div class="field mt1">Note:&nbsp;<span class="ph">Add a note…</span></div>
+                  <div class="col mt1">
+                    <div class="fill-subtle px1 col">
+                      <div class="col mt1">
+                        <div>Use <span class="accent">prune:at</span> so sessions prune about once a day.</div>
+                        <div class="dim">09:12 · Claude</div>
+                        <div class="row wrap gap1 mt1"><span class="btn">Headline</span><span class="btn">Edit</span><span class="btn">Delete</span></div>
+                      </div>
+                      <div class="mt1"></div>
+                    </div>
+                    <div class="fill-subtle px1 col mt1">
+                      <div class="col mt1">
+                        <div class="field gap1">
+                          <div class="col grow"><div>Ask J for the two README screenshots.</div><div>&nbsp;</div><div>&nbsp;</div></div>
+                          <div class="col noshrink"><span class="btn primary">save</span><span class="btn mt1">Cancel</span></div>
+                        </div>
+                      </div>
+                      <div class="mt1"></div>
+                    </div>
+                    <div class="fill-subtle px1 col mt1">
+                      <div class="col mt1">
+                        <div>Minimum version is <b>2.1.299</b>: earlier releases refuse the hooks module.</div>
+                        <div class="dim">11:40 · Claude</div>
+                        <div class="row wrap gap1 mt1"><span class="btn">Headline</span><span class="btn">Edit</span><span class="btn">Delete</span></div>
+                      </div>
+                      <div class="mt1"></div>
+                    </div>
+                    <div class="fill-subtle px1 col mt1">
+                      <div class="col mt1">
+                        <div>Desktop's file pane can't open files outside the project; <span class="accent">/pad-export notes/pad.md</span> works.</div>
+                        <div class="dim">12:15 · you</div>
+                        <div class="row wrap gap1 mt1"><span class="btn">Headline</span><span class="btn">Edit</span><span class="btn">Delete</span></div>
+                      </div>
+                      <div class="mt1"></div>
+                    </div>
+                    <div class="fill-subtle px1 col mt1">
+                      <div class="row gap1 mt1">
+                        <div class="grow">Note deleted: Check du from the home folder.</div>
+                        <span class="btn noshrink">Undo</span>
+                      </div>
+                      <div class="mt1"></div>
+                    </div>
+                  </div>
+                </div>
+              </div></section>
+            </div>
+          </figure>
+
+          <!-- Terminal · Timeline -->
+          <figure>
+            <figcaption>
+              <b>Timeline</b> · time and duration in two 6-cell columns
+            </figcaption>
+            <div class="scroller">
+              <!-- prettier-ignore -->
+              <section class="term" aria-label="Terminal pane, Timeline tab"><div class="tbar">✕</div><div class="tbody">
+                <div class="row wrap gap2"><span class="dim">1 Notes</span><span class="bold accent">2 Timeline</span><span class="dim">3 Workspace</span></div>
+                <div class="col mt1">
+                  <div class="row gap1"><div class="grow dim">7 turns, newest first</div><span class="btn noshrink">Export</span></div>
+                  <div class="mt1">2026-10-28</div>
+                  <div class="row gap1 px1 fill-subtle"><div class="w6 noshrink">12:31</div><div class="w6 noshrink dim">4m10s</div><div class="col grow"><div>Restyled the pane: tabs, note cards and a wrapping timeline</div><div class="dim">3 files · 12 cmds</div></div></div>
+                  <div class="row gap1 px1"><div class="w6 noshrink">11:52</div><div class="w6 noshrink dim">1m05s</div><div class="col grow"><div>Found that 2.1.299 is the first release that loads the mod</div><div class="dim">9 cmds</div></div></div>
+                  <div class="row gap1 px1 fill-subtle"><div class="w6 noshrink">11:20</div><div class="w6 noshrink dim">38s</div><div class="col grow"><div>Answered how to do the manual pass</div><div class="warn">stopped</div></div></div>
+                  <div class="row gap1 px1"><div class="w6 noshrink">10:44</div><div class="w6 noshrink dim">6m20s</div><div class="col grow"><div>Fixed the review findings for pruning</div><div><span class="dim">4 files · 21 cmds · </span><span class="accent">→ feat/pane-look</span></div></div></div>
+                  <div class="mt1">2026-10-27</div>
+                  <div class="row gap1 px1 fill-subtle"><div class="w6 noshrink">16:03</div><div class="w6 noshrink dim">10m41s</div><div class="col grow"><div>Followed up on a message from another session</div><div class="dim">1 file · 11 cmds</div></div></div>
+                  <div class="row gap1 px1"><div class="w6 noshrink">15:48</div><div class="w6 noshrink dim">8m02s</div><div class="col grow"><div>Named the turns that Claude Code starts instead of showing markup</div><div class="dim">2 files · 25 cmds</div></div></div>
+                  <div class="row gap1 px1"><div class="w6 noshrink dim">15:40</div><div class="w6 noshrink"></div><div class="grow dim">The conversation was cleared.</div></div>
+                  <div class="row gap1 px1 fill-subtle"><div class="w6 noshrink">15:12</div><div class="w6 noshrink dim">2m30s</div><div class="col grow"><div>Added the MIT license</div><div class="dim">2 files · 3 cmds</div></div></div>
+                </div>
+              </div></section>
+            </div>
+          </figure>
+
+          <!-- Terminal · Workspace -->
+          <figure>
+            <figcaption>
+              <b>Workspace</b> · labels in a 10-cell column
+            </figcaption>
+            <div class="scroller">
+              <!-- prettier-ignore -->
+              <section class="term" aria-label="Terminal pane, Workspace tab"><div class="tbar">✕</div><div class="tbody">
+                <div class="row wrap gap2"><span class="dim">1 Notes</span><span class="dim">2 Timeline</span><span class="bold accent">3 Workspace</span></div>
+                <div class="col mt1">
+                  <div class="row"><div class="w10 noshrink dim">Branch</div><div class="grow">claude/sessionpad-mod-865578</div></div>
+                  <div class="row"><div class="w10 noshrink dim">Worktree</div><div class="grow">…/worktrees/sessionpad-mod-865578</div></div>
+                  <div class="row"><div class="w10 noshrink dim">Size</div><div class="grow">412 MB</div><span class="btn noshrink">Refresh sizes</span></div>
+                  <div class="row"><div class="w10 noshrink"></div><div class="grow dim">measured 12:30</div></div>
+                  <div class="mt1">Other worktrees (3)</div>
+                  <div class="row gap1"><div class="col grow"><div>main</div><div class="dim">/Users/pv/code/sessionpad</div></div><span class="dim noshrink">2.3 GB</span></div>
+                  <div class="row gap1 mt1"><div class="col grow"><div>feat/notes-ui</div><div class="dim">…/worktrees/notes-ui</div></div><span class="dim noshrink">measuring…</span></div>
+                  <div class="row gap1 mt1"><div class="col grow"><div>detached at 9f8e7d6</div><div class="dim">…/worktrees/old-try</div></div><span class="dim noshrink">size unavailable</span></div>
+                </div>
+              </div></section>
+            </div>
+          </figure>
+        </div>
+        <p class="caption chrome-card">
+          <b>Terminal.</b> The tabs are plain buttons whose label is bold accent
+          text, with the digit that presses them. The card is a round box-drawn
+          frame, both shades become <code>subtle</code> (there is no soft pink
+          in a terminal, so the words "Note deleted" carry the undo), and pills
+          become <code>[ label ]</code>. Size, weight, mono and italic don't
+          reach a terminal, and a margin is a whole line, so the pane runs
+          taller.
+        </p>
+      </section>
+
+      <!-- Band above the prompt -->
+      <section class="stage" aria-labelledby="band-h">
+        <div class="stage-head">
+          <h2 id="band-h">Band above the prompt</h2>
+          <span class="hint">the headline, one dim line</span>
+        </div>
+        <div class="frames">
+          <figure>
+            <figcaption><b>Desktop app</b></figcaption>
+            <div class="scroller">
+              <div class="band-desk">
+                <div>
+                  pad: Ship sessionpad 0.1.0: pruning, release, and the pane's
+                  look
+                </div>
+                <div class="prompt">Reply…</div>
+              </div>
+            </div>
+          </figure>
+          <figure>
+            <figcaption><b>Terminal</b></figcaption>
+            <div class="scroller">
+              <div class="band-term">
+                <div>
+                  pad: Ship sessionpad 0.1.0: pruning, release, and the pane's
+                  look
+                </div>
+                <div class="prompt">❯</div>
+              </div>
+            </div>
+          </figure>
+        </div>
+        <p class="caption chrome-card">
+          <b>Band.</b> The same line on both surfaces, dim, and cut at the end
+          when the headline runs long. It is the one place the headline shows
+          while the pane is shut.
+        </p>
+      </section>
+
+      <!-- 4. Design notes -->
+      <details class="design-notes chrome-card" open>
+        <summary>Design notes — 01 · Pills</summary>
+
+        <h3>Direction</h3>
+        <p>
+          Pills, because the Desktop app already draws every Button as one. The
+          open tab is the single <code>primary</code> pill, black in light mode
+          and white in dark; the other tabs, the note actions, save's partner
+          Cancel, Undo, Export and Refresh sizes are the default grey pill.
+          Grouping comes from shading rather than borders: each note is a
+          <code>promptBorder</code> rectangle, the deleted note leaves a
+          <code>diffRemovedDimmed</code> row in its place, and the timeline
+          stripes every other turn within each day. The accent is spent on the
+          headline card's border and the branch-change mark, nothing else, so
+          switching <span class="accent-word">claude</span>,
+          <span class="accent-word">merged</span> or
+          <span class="accent-word">success</span> changes only those.
+        </p>
+
+        <h3>Each element and the mod call that draws it</h3>
+        <p>
+          <code>{accent}</code> is the theme key the pane is set to
+          (<code>"claude"</code>, <code>"merged"</code> or
+          <code>"success"</code>); <code>isTerminal</code> is
+          <code>e.surface === "terminal"</code>.
+        </p>
+        <div class="map-wrap">
+          <table class="map">
+            <thead>
+              <tr>
+                <th>Element</th>
+                <th>Mod call</th>
+                <th>Desktop (kit)</th>
+                <th>Terminal (kit)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Tab row</td>
+                <td>
+                  <code
+                    >&lt;Box flexDirection="row" flexWrap="wrap"
+                    columnGap={isTerminal ? 2 : 1}&gt;</code
+                  >
+                </td>
+                <td><code>.row.wrap.gap1</code></td>
+                <td><code>.row.wrap.gap2</code></td>
+              </tr>
+              <tr>
+                <td>Open tab</td>
+                <td>
+                  Desktop
+                  <code>&lt;Button label="Notes" variant="primary"&gt;</code>;
+                  terminal
+                  <code
+                    >&lt;Button label="Notes" hotkey="1" plain&gt;&lt;Text bold
+                    color={accent}&gt;Notes&lt;/Text&gt;&lt;/Button&gt;</code
+                  >
+                </td>
+                <td><code>.btn.primary</code></td>
+                <td><code>.bold.accent</code> "1 Notes"</td>
+              </tr>
+              <tr>
+                <td>Other tabs</td>
+                <td>
+                  Desktop <code>&lt;Button label="Timeline"&gt;</code>; terminal
+                  <code
+                    >&lt;Button label="Timeline" hotkey="2" plain
+                    dimColor&gt;</code
+                  >
+                </td>
+                <td><code>.btn</code></td>
+                <td><code>.dim</code> "2 Timeline"</td>
+              </tr>
+              <tr>
+                <td>Headline card</td>
+                <td>
+                  <code
+                    >&lt;Box flexDirection="column" borderStyle="round"
+                    borderColor={accent} paddingX={1}&gt;</code
+                  >
+                </td>
+                <td><code>.card.col</code></td>
+                <td><code>.frame.col</code> holding <code>.px1</code></td>
+              </tr>
+              <tr>
+                <td>Its caption</td>
+                <td>
+                  <code
+                    >&lt;Text size="footnote"
+                    dimColor&gt;Headline&lt;/Text&gt;</code
+                  >
+                </td>
+                <td><code>.footnote.dim</code></td>
+                <td><code>.dim</code></td>
+              </tr>
+              <tr>
+                <td>Headline</td>
+                <td>
+                  <code
+                    >&lt;Text size="heading" weight="semibold"
+                    wrap="wrap"&gt;</code
+                  >
+                </td>
+                <td><code>.heading.semibold</code></td>
+                <td>plain</td>
+              </tr>
+              <tr>
+                <td>Note field</td>
+                <td>
+                  <code
+                    >&lt;Input label="Note" placeholder="Add a note…"
+                    submitLabel="add" onSubmit=…&gt;</code
+                  >
+                </td>
+                <td>
+                  <code>.field</code>: <code>.label</code>, <code>.box</code>,
+                  <code>.btn</code>
+                </td>
+                <td><code>.field</code>: "Note: " and <code>.ph</code></td>
+              </tr>
+              <tr>
+                <td>Note block</td>
+                <td>
+                  <code
+                    >&lt;Box flexDirection="column" paddingX={1}
+                    backgroundColor={isTerminal ? "subtle" :
+                    "promptBorder"}&gt;</code
+                  >
+                </td>
+                <td><code>.shade.px1.col</code></td>
+                <td><code>.fill-subtle.px1.col</code></td>
+              </tr>
+              <tr>
+                <td>Its breathing room</td>
+                <td>
+                  the content in
+                  <code>&lt;Box flexDirection="column" marginTop={1}&gt;</code>,
+                  then an empty <code>&lt;Box marginTop={1} /&gt;</code>
+                </td>
+                <td><code>.col.mt1</code>, <code>.mt1</code> (12px each)</td>
+                <td>one filled blank line above and below</td>
+              </tr>
+              <tr>
+                <td>Note text</td>
+                <td><code>&lt;Markdown text={note.text} /&gt;</code></td>
+                <td>text, <code>code</code>, <code>b</code></td>
+                <td>code in <code>.accent</code>, bold</td>
+              </tr>
+              <tr>
+                <td>Meta line</td>
+                <td>
+                  <code
+                    >&lt;Text size="footnote" dimColor&gt;09:12 ·
+                    Claude&lt;/Text&gt;</code
+                  >
+                </td>
+                <td><code>.footnote.dim</code></td>
+                <td><code>.dim</code></td>
+              </tr>
+              <tr>
+                <td>Note actions</td>
+                <td>
+                  <code
+                    >&lt;Box flexDirection="row" flexWrap="wrap" columnGap={1}
+                    marginTop={1}&gt;</code
+                  >
+                  with <code>&lt;Button label="Headline"&gt;</code>,
+                  <code>"Edit"</code>, <code>"Delete"</code>
+                </td>
+                <td><code>.row.gap1.mt1</code>, <code>.btn</code></td>
+                <td><code>[ Headline ] [ Edit ] [ Delete ]</code></td>
+              </tr>
+              <tr>
+                <td>Edit field</td>
+                <td>
+                  <code>&lt;Box flexDirection="row" columnGap={1}&gt;</code>
+                  with
+                  <code>&lt;Input rows={3} value={draft} onInput=…&gt;</code>
+                </td>
+                <td>
+                  <code>.field.gap1</code>, <code>.box.rows3.filled</code>
+                </td>
+                <td>three lines, the text on the first</td>
+              </tr>
+              <tr>
+                <td>save, Cancel</td>
+                <td>
+                  <code>&lt;Box flexDirection="column" flexShrink={0}&gt;</code>
+                  with
+                  <code>&lt;Button variant="primary" label="save"&gt;</code> and
+                  <code
+                    >&lt;Box marginTop={1}&gt;&lt;Button
+                    label="Cancel"&gt;&lt;/Box&gt;</code
+                  >; save reads the draft kept by <code>onInput</code>
+                </td>
+                <td>
+                  <code>.col</code>, <code>.btn.primary</code>,
+                  <code>.btn.mt1</code>
+                </td>
+                <td>
+                  <code>[ save ]</code> in blue, a blank line,
+                  <code>[ Cancel ]</code>
+                </td>
+              </tr>
+              <tr>
+                <td>Undo row</td>
+                <td>
+                  <code
+                    >&lt;Box flexDirection="column" paddingX={1}
+                    backgroundColor={isTerminal ? "subtle" :
+                    "diffRemovedDimmed"}&gt;</code
+                  >
+                  holding
+                  <code
+                    >&lt;Box flexDirection="row" columnGap={1}
+                    marginTop={1}&gt;</code
+                  >:
+                  <code>&lt;Box flexGrow={1}&gt;&lt;Text wrap="wrap"&gt;</code>
+                  and <code>&lt;Button label="Undo"&gt;</code>, then
+                  <code>&lt;Box marginTop={1} /&gt;</code>
+                </td>
+                <td><code>.pink.px1.col</code>, <code>.row.gap1.mt1</code></td>
+                <td><code>.fill-subtle.px1.col</code></td>
+              </tr>
+              <tr>
+                <td>Timeline header</td>
+                <td>
+                  <code>&lt;Box flexDirection="row" columnGap={1}&gt;</code>:
+                  <code
+                    >&lt;Box flexGrow={1}&gt;&lt;Text dimColor&gt;7 turns,
+                    newest first&lt;/Text&gt;&lt;/Box&gt;</code
+                  >
+                  and <code>&lt;Button label="Export"&gt;</code>
+                </td>
+                <td>
+                  <code>.row.gap1</code>, <code>.grow.dim</code>,
+                  <code>.btn</code>
+                </td>
+                <td>the same, <code>[ Export ]</code></td>
+              </tr>
+              <tr>
+                <td>Day line</td>
+                <td>
+                  <code
+                    >&lt;Box marginTop={1}&gt;&lt;Text
+                    weight="semibold"&gt;2026-10-28&lt;/Text&gt;&lt;/Box&gt;</code
+                  >
+                </td>
+                <td><code>.semibold.mt1</code></td>
+                <td>plain, <code>.mt1</code></td>
+              </tr>
+              <tr>
+                <td>Turn row</td>
+                <td>
+                  <code
+                    >&lt;Box flexDirection="row" columnGap={isTerminal ? 1 : 0}
+                    paddingX={1} backgroundColor={i % 2 === 0 ? shade :
+                    undefined}&gt;</code
+                  >, <code>i</code> counting turns from 0 within each day
+                </td>
+                <td><code>.row.px1</code> + <code>.shade</code></td>
+                <td><code>.row.gap1.px1</code> + <code>.fill-subtle</code></td>
+              </tr>
+              <tr>
+                <td>Time, duration</td>
+                <td>
+                  Desktop
+                  <code
+                    >&lt;Box width={10} flexShrink={0}
+                    flexDirection="column"&gt;&lt;Text
+                    mono&gt;12:31&lt;/Text&gt;&lt;Text mono size="footnote"
+                    dimColor&gt;4m10s&lt;/Text&gt;&lt;/Box&gt;</code
+                  >; terminal
+                  <code
+                    >&lt;Box
+                    width={6}&gt;&lt;Text&gt;12:31&lt;/Text&gt;&lt;/Box&gt;&lt;Box
+                    width={6}&gt;&lt;Text
+                    dimColor&gt;4m10s&lt;/Text&gt;&lt;/Box&gt;</code
+                  >
+                </td>
+                <td>
+                  <code>.col.w10</code>, <code>.mono</code>,
+                  <code>.footnote.dim.mono</code>
+                </td>
+                <td><code>.w6</code>, <code>.w6.dim</code></td>
+              </tr>
+              <tr>
+                <td>Summary, marks</td>
+                <td>
+                  <code
+                    >&lt;Box flexGrow={1} flexShrink={1}
+                    flexDirection="column"&gt;&lt;Text
+                    wrap="wrap"&gt;…&lt;/Text&gt;&lt;Text size="footnote"
+                    dimColor&gt;3 files · 12 cmds&lt;/Text&gt;&lt;/Box&gt;</code
+                  >; "stopped" is <code>&lt;Text color="warning"&gt;</code>, the
+                  branch change <code>&lt;Text color={accent}&gt;</code>
+                </td>
+                <td>
+                  <code>.col.grow</code>, <code>.footnote</code> +
+                  <code>.dim</code> / <code>.warn</code> / <code>.accent</code>
+                </td>
+                <td>the same colors at one size</td>
+              </tr>
+              <tr>
+                <td>Aside</td>
+                <td>
+                  <code
+                    >&lt;Text dimColor italic wrap="wrap"&gt;The conversation
+                    was cleared.&lt;/Text&gt;</code
+                  >
+                  after its time
+                </td>
+                <td><code>.dim.italic</code></td>
+                <td><code>.dim</code> (italic doesn't draw)</td>
+              </tr>
+              <tr>
+                <td>Label, value</td>
+                <td>
+                  <code
+                    >&lt;Box flexDirection="row"&gt;&lt;Box width={10}
+                    flexShrink={0}&gt;&lt;Text
+                    dimColor&gt;Branch&lt;/Text&gt;&lt;/Box&gt;&lt;Text
+                    wrap="truncate-start"&gt;…&lt;/Text&gt;&lt;/Box&gt;</code
+                  >
+                </td>
+                <td><code>.row</code>, <code>.w10.dim</code></td>
+                <td><code>.row</code>, <code>.w10.dim</code></td>
+              </tr>
+              <tr>
+                <td>Size</td>
+                <td>
+                  <code
+                    >&lt;Text size="heading" weight="semibold"&gt;412
+                    MB&lt;/Text&gt;</code
+                  >
+                  and <code>&lt;Button label="Refresh sizes"&gt;</code>; under
+                  it, past an empty <code>width={10}</code> Box,
+                  <code
+                    >&lt;Text size="footnote" dimColor&gt;measured
+                    12:30&lt;/Text&gt;</code
+                  >
+                </td>
+                <td>
+                  <code>.heading.semibold</code>, <code>.btn</code>,
+                  <code>.footnote.dim</code>
+                </td>
+                <td>
+                  plain, <code>[ Refresh sizes ]</code>, <code>.dim</code>
+                </td>
+              </tr>
+              <tr>
+                <td>Other worktrees</td>
+                <td>
+                  <code
+                    >&lt;Text weight="semibold"&gt;Other worktrees
+                    (3)&lt;/Text&gt;</code
+                  >, then rows
+                  <code>&lt;Box flexDirection="row" columnGap={1}&gt;</code>:
+                  <code
+                    >&lt;Box flexGrow={1} flexDirection="column"&gt;&lt;Text
+                    weight="medium" wrap="truncate-end"&gt;&lt;Text
+                    size="footnote" dimColor
+                    wrap="truncate-start"&gt;&lt;/Box&gt;</code
+                  >
+                  and <code>&lt;Text dimColor&gt;2.3 GB&lt;/Text&gt;</code>
+                </td>
+                <td>
+                  <code>.semibold</code>, <code>.medium</code>,
+                  <code>.footnote.dim</code>, <code>.dim</code>
+                </td>
+                <td>plain, plain, <code>.dim</code>, <code>.dim</code></td>
+              </tr>
+              <tr>
+                <td>Band</td>
+                <td>
+                  <code
+                    >&lt;Box width="100%"&gt;&lt;Text dimColor
+                    wrap="truncate-end"&gt;pad:
+                    {headline}&lt;/Text&gt;&lt;/Box&gt;</code
+                  >
+                </td>
+                <td><code>.band-desk</code></td>
+                <td><code>.band-term</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>What differs between the surfaces</h3>
+        <ul>
+          <li>
+            <b>Tabs.</b> The mod branches on <code>e.surface</code>. On Desktop
+            the open tab is a primary pill, because a styled Text inside a
+            Button is ignored there. In a terminal, a primary button only turns
+            its label blue, so the tabs are plain buttons whose label is bold
+            accent text, with the digit hotkeys that work only while a terminal
+            pane holds the keyboard.
+          </li>
+          <li>
+            <b>Shading.</b> <code>promptBorder</code> is a soft grey in both
+            Desktop modes but a mid grey in a terminal that swallows dim text,
+            so the note blocks and the turn stripes use
+            <code>subtle</code> there. <code>diffRemovedDimmed</code> has no
+            soft terminal form either, so the undo row is
+            <code>subtle</code> too and its words say what happened.
+          </li>
+          <li>
+            <b>Card and frame.</b> The headline card's rounded border becomes a
+            box-drawn <code>╭─╮</code> frame one cell wide, with the
+            <code>paddingX</code> cell inside it.
+          </li>
+          <li>
+            <b>Buttons and fields.</b> Pills become <code>[ label ]</code>, and
+            the primary save is a blue label rather than a black or white pill.
+            The note field shows <code>Note: Add a note…</code> with no add
+            button: Enter adds. The edit field is only its text, so
+            <code>[ save ]</code> beside it is what says the note is being
+            edited.
+          </li>
+          <li>
+            <b>Timeline columns.</b> Desktop stacks the time over the duration
+            in one 10-cell column so the proportional summary keeps the width.
+            The terminal puts them side by side in two 6-cell columns with one
+            cell between, since a cell is cheap there and 10m41s fills six.
+          </li>
+          <li>
+            <b>Type.</b> Size, weight, mono and italic are Desktop only. In a
+            terminal the headline, the day lines and "Other worktrees" read
+            plain, and the aside is just dim. Passing <code>bold</code> on the
+            terminal surface would get their emphasis back, if it's missed.
+          </li>
+          <li>
+            <b>Inline code.</b> Desktop's code chip is
+            <code>promptBorder</code> too, so on a note it shows only as the
+            mono face; in a terminal it's the accent color.
+          </li>
+          <li>
+            <b>Height.</b> <code>marginTop={1}</code> is 12px on Desktop and a
+            whole line in a terminal, so the terminal Notes tab is about four
+            lines taller per note.
+          </li>
+        </ul>
+
+        <h3>Pills on grey</h3>
+        <p>
+          The app's grey pill is see-through: black at about 5% in light mode
+          and white at about 15% in dark. On a note's
+          <code>promptBorder</code> shade it draws a step darker in light mode
+          and a step lighter in dark, so the Headline, Edit and Delete pills,
+          and Cancel beside save, keep their shape in both modes. Undo does the
+          same on the pink row.
+        </p>
+
+        <h3>Left out, because the pane can't draw it</h3>
+        <ul>
+          <li>
+            Hover hints on the note buttons (they didn't show on Desktop and a
+            terminal has no hover), icons, colored or bold pill labels, and raw
+            tints that don't follow the mode.
+          </li>
+          <li>
+            Rules, rails or frames made of line characters on Desktop; the
+            timeline's structure is Boxes and shading.
+          </li>
+          <li>
+            Right-aligned numbers: Text has no alignment, so durations and sizes
+            sit left in their columns or at the end of a row.
+          </li>
+        </ul>
+
+        <h3>Typography and palette of this page</h3>
+        <p>
+          The fonts, radius and density controls in the panel change only this
+          page's chrome: the header, the captions and these notes. The frames
+          keep their own fonts, because the Desktop app sets the pane in the
+          system face and a terminal in its one monospace face. The chrome
+          defaults to system-ui so it reads like the app around the pane;
+          Georgia is there to set the notes apart from the frames. The three
+          palettes are the theme keys the pane can take as its accent, and the
+          page's own accent follows them.
+        </p>
+      </details>
+    </main>
+
+    <!-- DP:STYLE -->
+    <!-- DP:MARKUP -->
+    <script type="application/json" id="dp-config">
+      {
+        "slug": "01-pills",
+        "palettes": [
+          { "id": "claude", "label": "claude · orange" },
+          { "id": "merged", "label": "merged · purple" },
+          { "id": "success", "label": "success · green" }
+        ],
+        "fonts": [
+          {
+            "id": "system",
+            "label": "System",
+            "body": "system-ui, -apple-system, 'Segoe UI', sans-serif",
+            "heading": "system-ui, -apple-system, 'Segoe UI', sans-serif"
+          },
+          {
+            "id": "serif",
+            "label": "Serif",
+            "body": "Georgia, 'Times New Roman', serif",
+            "heading": "Georgia, serif"
+          }
+        ],
+        "defaults": {
+          "mode": "light",
+          "palette": "claude",
+          "font": "system",
+          "radius": 8,
+          "density": 1
+        }
+      }
+    </script>
+    <!-- DP:SCRIPT -->
+  </body>
+</html>

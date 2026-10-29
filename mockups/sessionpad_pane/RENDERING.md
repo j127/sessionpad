@@ -19,7 +19,7 @@ The pane body is the app's own background (white in light mode, near-black `#181
   - `variant="primary"`: a solid black pill (`#181818`) with white text in light mode, a solid white pill (`#efefef`) with black text in dark mode;
   - `dimColor`: the same pill with grey text;
   - `plain`: bare text, no pill. A colored or bold `Text` inside a Button is ignored: the label draws plain.
-- **Fields.** An Input draws its label as text, then a rounded field (1px light border, radius about 8px, 32px tall, the placeholder grey), then its submit label as a grey pill button beside it. With `rows={3}` the field is about 88px tall, with the button beside its top.
+- **Fields.** An Input draws its label as text, then a rounded field (1px light border, radius about 8px, 32px tall, the placeholder grey), then its submit label as a grey pill button beside it, whether or not the field has focus (`submit` when no `submitLabel` is given). With `rows={3}` the field is about 88px tall, with the button beside its top. So a form's main action is the Input's own grey pill: a primary Button beside it would draw next to that pill, not instead of it.
 - **Line characters.** Box-drawing characters don't line up in the proportional font, nor fully in `mono`: no drawn frames or rails made of characters.
 - **Hover.** A Box's `hover` background change works (section 10), and keeps working while the pointer is on a Button inside the Box (section 12). Nothing can be shown by hover: a hidden Box given `display: "flex"` on hover through a shared `scope` never appeared, neither the hint under section 12 nor the H and X hints in the pane.
 
@@ -32,7 +32,7 @@ Everything is in the terminal's one monospace font and one size, on its own back
 - **Backgrounds.** Theme keys fill whole cells strongly: `text` white, `claude` salmon, `warning` yellow. On a dark theme, `subtle` is a usable dark grey and `promptBorder` a mid grey. Raw colors become their nearest terminal color: light tints turn almost white.
 - **Borders.** Drawn with box-drawing characters, one cell wide: `╭─╮` round, `┌─┐` single, `┏━┓` bold, `╔═╗` double, `+-+` classic, `╌` dashed; with a background, the inside fills.
 - **Buttons.** `[ label ]`; `primary` colors the label light blue, `secondary` makes it bold, `plain` is the label alone, `dimColor` grey.
-- **Fields.** `Label: placeholder` on one line; `rows={3}` is three lines.
+- **Fields.** `Label: placeholder` on one line; `rows={3}` is three lines. The submit label is drawn beside the field only while it has focus (from the types; not yet seen).
 - **Line characters.** `● ○ │ ├─ └─ ▌ ━ ▔` all draw and line up.
 - **Hover.** None.
 
