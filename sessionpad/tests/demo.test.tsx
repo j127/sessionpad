@@ -28,6 +28,8 @@ describe("the design test page", () => {
           /^5\. Borders/,
           /^6\. Buttons/,
           /^10\. Hover/,
+          /^11\. Filled cards/,
+          /^12\. Hover around a button/,
         ]) {
           expect(await ui.find({ type: "Text", text: title })).toBeDefined();
         }

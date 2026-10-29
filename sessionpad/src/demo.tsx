@@ -298,6 +298,54 @@ export function renderDemo($: EngineInterface, e: PaneInput): RenderElement {
       >
         <Text color="claude">Hover works: this line was hidden.</Text>
       </Box>
+
+      {heading(
+        "h-filled",
+        "11. Filled cards",
+        "borderStyle round with the border and the background the same soft theme color: does each draw as one rounded, filled card in both modes?"
+      )}
+      <Box flexDirection="column" rowGap={1}>
+        {(
+          ["promptBorder", "diffAddedDimmed", "diffRemovedDimmed"] as const
+        ).map((key) => (
+          <Box
+            key={`filled-${key}`}
+            borderStyle="round"
+            borderColor={key}
+            backgroundColor={key}
+            paddingX={1}
+            flexDirection="column"
+          >
+            <Text bold>A card filled with {key}</Text>
+            <Text dimColor>with a second, dim line under it</Text>
+          </Box>
+        ))}
+      </Box>
+
+      {heading(
+        "h-hover-button",
+        "12. Hover around a button",
+        "Point at the Edit button: its box should turn the accent color, and a hint line should appear below. Then point at the box's empty part."
+      )}
+      <Box
+        key="hover-button-box"
+        flexDirection="row"
+        columnGap={1}
+        paddingX={1}
+        hover={{ backgroundColor: "promptBorder", scope: "demo-hover-button" }}
+      >
+        <Button key="hover-button" label="Edit" onPress={ignore} />
+        <Text dimColor>the box's empty part</Text>
+      </Box>
+      <Box
+        key="hover-button-hint"
+        display="none"
+        hover={{ display: "flex", scope: "demo-hover-button" }}
+      >
+        <Text color="claude">
+          Hover reaches past the button: this hint was hidden.
+        </Text>
+      </Box>
     </Box>
   );
 }
