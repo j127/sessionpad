@@ -159,6 +159,8 @@ export type WorldOptions = {
   refused?: string[];
   /** Text the engine (or another mod) draws at every render site. */
   beneath?: string;
+  /** True: beneath draws Claude Code's own node, as the engine does. */
+  engineBeneath?: boolean;
   /** False: `$.ui.open` answers that the pane waits undrawn. */
   placed?: boolean;
   /** True: `$.ui.open` is refused outright. */
@@ -503,6 +505,7 @@ export function world(on: On, options: WorldOptions = {}): World {
   });
   on("ui.render", ($, e) => {
     const { Box, Text } = $.ui.resolve(e);
+    if (options.engineBeneath === true) return { type: "engine", ref: 0 };
     return options.beneath === undefined ? (
       <Box />
     ) : (

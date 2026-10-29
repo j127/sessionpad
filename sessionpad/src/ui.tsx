@@ -132,7 +132,7 @@ export async function renderPane(
 
   let body: RenderElement;
   if (tab === "notes") {
-    body = await renderNotesTab($, e, width);
+    body = await renderNotesTab($, e);
   } else if (tab === "timeline") {
     body = await renderTimelineTab($, e, width);
   } else {
@@ -142,9 +142,13 @@ export async function renderPane(
   return (
     <Box flexDirection="column" width="100%">
       {tabs}
-      <Text dimColor wrap="truncate-end">
-        {"─".repeat(width)}
-      </Text>
+      {isTerminal ? (
+        // A rule of cells, which a terminal keeps to; the Desktop app's
+        // proportional text doesn't, so it goes without.
+        <Text dimColor wrap="truncate-end">
+          {"─".repeat(width)}
+        </Text>
+      ) : null}
       <Box marginTop={1} flexDirection="column">
         {body}
       </Box>
@@ -154,8 +158,7 @@ export async function renderPane(
 
 async function renderNotesTab(
   $: EngineInterface,
-  e: PaneInput,
-  width: number
+  e: PaneInput
 ): Promise<RenderElement> {
   const elements = $.ui.resolve(e);
   const { Box, Text, Button, Markdown } = elements;
@@ -166,38 +169,42 @@ async function renderNotesTab(
 
   // A button with what it does shown under the note while the pointer is on
   // it: Buttons have no tooltip of their own.
+  // The hover group is named by the note's place, not its id: a group's
+  // name is held to 64 characters, and a stored id may be any length.
   const action = (
     id: string,
+    scope: string,
     label: string,
     hint: string,
     onPress: () => Promise<void>
   ) => ({
     button: (
-      <Box key={`${id}-box`} hover={{ scope: id }}>
+      <Box key={`${id}-box`} hover={{ scope }}>
         <Button key={id} label={label} onPress={() => void onPress()} />
       </Box>
     ),
     hint: (
-      <Box
-        key={`${id}-hint`}
-        display="none"
-        hover={{ display: "flex", scope: id }}
-      >
+      <Box key={`${id}-hint`} display="none" hover={{ display: "flex", scope }}>
         <Text color="claude">{hint}</Text>
       </Box>
     ),
   });
 
-  const noteRow = (note: Note): RenderElement => {
+  const noteRow = (note: Note, place: number): RenderElement => {
     const promote = action(
       `promote-${note.id}`,
+      `promote-${place}`,
       "H",
       "Make this note the headline",
       () =>
         guarded($, "making it the headline", () => promoteThisNote($, note.id))
     );
-    const remove = action(`delete-${note.id}`, "X", "Delete this note", () =>
-      guarded($, "deleting the note", () => deleteThisNote($, note.id))
+    const remove = action(
+      `delete-${note.id}`,
+      `delete-${place}`,
+      "X",
+      "Delete this note",
+      () => guarded($, "deleting the note", () => deleteThisNote($, note.id))
     );
     return (
       <Box
@@ -251,7 +258,11 @@ async function renderNotesTab(
             placeholder="type a note, Enter adds it"
             value={draft}
             submitLabel="add"
-            onInput={(value) => void showDraft($, value)}
+            onInput={(value) => {
+              // Keeping the draft is a convenience: a write that fails loses
+              // only the field's emptying after the next note.
+              showDraft($, value).catch(() => undefined);
+            }}
             onSubmit={(value) => submitNote($, value)}
           />
         </Box>
@@ -262,7 +273,7 @@ async function renderNotesTab(
             No notes yet. Type one above, or ask Claude to note something.
           </Text>
         ) : (
-          notes.map(noteRow)
+          notes.map((note, place) => noteRow(note, place))
         )}
       </Box>
     </Box>
@@ -447,7 +458,7 @@ export function renderBand(
   // `beneath`, under a Box with a width.
   return (
     <Box flexDirection="column">
-      <Box width={Math.max(10, e.props.bodyColumns)}>
+      <Box width="100%">
         <Text dimColor wrap="truncate-end">
           pad: {headline}
         </Text>
