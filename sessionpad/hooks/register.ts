@@ -19,12 +19,7 @@ import {
   readThisPad,
   setThisHeadline,
 } from "../src/pad";
-import {
-  OFFER_KEY,
-  SUMMARY_CONFIG_KEY,
-  summaryModelNow,
-  useSummaryModel,
-} from "../src/settings";
+import { OFFER_KEY, summaryModelNow, useSummaryModel } from "../src/settings";
 import { forgetPaneEdits, readHeadline, showOffer } from "../src/state";
 import { PRUNE_DELAY_MS, pruneOld, retentionDays } from "../src/prune";
 import { forgetRenewals, touchSeen } from "../src/store";
@@ -529,8 +524,9 @@ export const register: Register = (on, options) => {
   ).catch(($, e, next) => next(e));
 
   // The person set summaryModel in /config: the next turn follows it, and the
-  // Timeline tab stops offering, since they have chosen.
-  on("config.set", { key: SUMMARY_CONFIG_KEY }, async ($, e, next) => {
+  // Timeline tab stops offering, since they have chosen. The key is spelled
+  // out (SUMMARY_CONFIG_KEY's value) so validate can read the matcher.
+  on("config.set", { key: "sessionpad.summaryModel" }, async ($, e, next) => {
     const result = await next(e);
     if (result.deny === undefined) {
       useSummaryModel(summaryModel(result.value));

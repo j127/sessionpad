@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- An icon and a README of its own in the plugin folder, for a listing in Anthropic's plugin directory. The icon's source is `assets/icon.svg`.
+
 ## 0.3.0 (2026-10-29)
 
 ### Added
