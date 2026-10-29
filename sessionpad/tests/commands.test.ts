@@ -82,6 +82,38 @@ describe("commands", () => {
     await start($);
     expect(w.commands).toEqual(["pad", "note", "headline", "pad-export"]);
   });
+
+  test("its own registration counts as its own under any marketplace id", async ($, on) => {
+    const w = world(on, {
+      existing: [
+        "sessionpad@inline",
+        "sessionpad@sessionpad",
+        "sessionpad@synced",
+      ].map((plugin, n) => ({
+        name: ["pad", "note", "headline"][n]!,
+        description: "",
+        source: "plugin" as const,
+        plugin,
+      })),
+    });
+    await start($);
+    expect(w.commands).toEqual(["pad", "note", "headline", "pad-export"]);
+  });
+
+  test("another plugin whose name starts the same is someone else", async ($, on) => {
+    const w = world(on, {
+      existing: [
+        {
+          name: "pad",
+          description: "",
+          source: "plugin",
+          plugin: "sessionpad-extra@elsewhere",
+        },
+      ],
+    });
+    await start($);
+    expect(w.commands[0]).toBe("sessionpad");
+  });
 });
 
 describe("commands someone else owns", () => {

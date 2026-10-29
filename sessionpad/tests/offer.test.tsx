@@ -118,6 +118,39 @@ describe("summary lines are opt-in", () => {
     }
   });
 
+  test("after /clear, the offer still shows while summaries are off", async ($, on) => {
+    const w = world(on);
+    await start($);
+    w.sessionId = "44444444-aaaa-bbbb-cccc-000000000001";
+    await $.classic.SessionStart({ source: "clear", session_id: w.sessionId });
+    await w.clock.settle();
+    const ui = await $.ui.mount(paneTarget("desktop"));
+    await ui.press({ key: "tab-timeline" });
+    expect(await ui.find({ key: "summary-offer" })).toBeDefined();
+    await ui.press({ key: "tab-notes" });
+    await ui.unmount();
+  });
+
+  test(
+    "after /clear, nothing is offered with summaries on",
+    SUMMARIES,
+    async ($, on) => {
+      const w = world(on);
+      await start($);
+      w.sessionId = "44444444-aaaa-bbbb-cccc-000000000002";
+      await $.classic.SessionStart({
+        source: "clear",
+        session_id: w.sessionId,
+      });
+      await w.clock.settle();
+      const ui = await $.ui.mount(paneTarget("desktop"));
+      await ui.press({ key: "tab-timeline" });
+      expect(await ui.find({ key: "summary-offer" })).toBeUndefined();
+      await ui.press({ key: "tab-notes" });
+      await ui.unmount();
+    }
+  );
+
   test("with summaries on, nothing is offered", SUMMARIES, async ($, on) => {
     const w = world(on);
     await start($);

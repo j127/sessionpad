@@ -8,7 +8,15 @@ clean:
 
 # Run every check: formatting, types, tests. CI runs this recipe on pull
 # requests into main, and you run it before pushing.
-check: format_check validate type_check test
+check: format_check validate type_check dollar_check test
+
+# Fail when a call on $ is split across lines or a property of $ is read:
+# the plugin directory reads $ only as whole $.noun.method(...) calls
+dollar_check:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  found=$(grep -rnE '\$\.[a-z]+(\.[a-zA-Z]+)?\s*$|\$\.[a-z]+\.[a-zA-Z]+[^a-zA-Z(]' sessionpad/src sessionpad/hooks | grep -vE '^[^:]+:[0-9]+:\s*(//|\*|/\*)' || true)
+  if [ -n "$found" ]; then echo "$found"; echo "Write each call on \$ whole, on one line: \$.noun.method(...)"; exit 1; fi
 
 # Check formatting of the mod, the marketplace file and the docs
 format_check:

@@ -635,7 +635,7 @@ async function renderTimelineTab(
         Turned on, Haiku writes one line after each turn: about 500 tokens in
         and 20 out, from your plan's usage or your API key. To turn them on, set
         summaryModel to haiku: with /config in a terminal session, or from a
-        shell as the README shows.
+        shell with the command under Settings in Session Pad's README.
       </Text>
       <Box
         flexDirection="row"
