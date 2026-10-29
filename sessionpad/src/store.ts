@@ -6,7 +6,7 @@
 // land. Two processes writing the same key can still race; each session id
 // normally lives in one process.
 
-import type { EngineInterface } from "claude-code";
+import type { EngineInterface, Timer } from "claude-code";
 
 import type { Note, NoteAuthor, Pad } from "../types";
 
@@ -333,5 +333,35 @@ export async function dropFromIndex(
       }
     }
     await $.store.set(INDEX_KEY, kept);
+  });
+}
+
+/** How often an open session renews its last-seen time, at most. */
+const SEEN_TIMER_MS = 12 * 60 * 60 * 1000;
+
+// The timer that keeps this session seen; one per module.
+let seenTimer: Timer | undefined;
+
+/**
+ * Renews this session's last-seen time while it stays open, however long it
+ * sits idle, so another session's prune never takes the pad it shows: often
+ * enough that its row is never older than half of `days`. A later
+ * session.start in this module replaces the timer.
+ */
+export function keepSeen($: EngineInterface, days: number): void {
+  seenTimer?.cancel();
+  seenTimer = undefined;
+  if (days === 0) return;
+  const every = Math.min(SEEN_TIMER_MS, (days * 24 * 60 * 60 * 1000) / 4);
+  seenTimer = $.clock.every(every, () => {
+    (async () => {
+      // The session it is now: a /clear or /resume may have moved it.
+      const id = await $.session.id();
+      await touchSeen($, id, await $.clock.now(), every);
+    })().catch((error: unknown) => {
+      $.ui.log(`sessionpad: could not renew the session: ${String(error)}`, {
+        to: "debug",
+      });
+    });
   });
 }

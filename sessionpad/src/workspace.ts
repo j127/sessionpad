@@ -415,3 +415,15 @@ export function scheduleRefresh($: EngineInterface, measure: Measure): void {
     })
   );
 }
+
+/** Sets the Workspace tab up and reads git into it, never failing the caller. */
+export async function showWorkspace($: EngineInterface): Promise<void> {
+  try {
+    await startWorkspace($);
+    scheduleRefresh($, "none");
+  } catch (error) {
+    $.ui.log(`sessionpad: could not read the workspace: ${String(error)}`, {
+      to: "debug",
+    });
+  }
+}

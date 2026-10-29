@@ -2,7 +2,7 @@
 // pieces live in ../src (data in store.ts, $.state in state.ts, actions in
 // pad.ts, drawing in ui.tsx).
 
-import type { EngineInterface, Register, Timer } from "claude-code";
+import type { EngineInterface, Register } from "claude-code";
 
 import type { Pad } from "../types";
 import { emptyNoteField, forgetEditDrafts } from "../src/drafts";
@@ -19,10 +19,10 @@ import {
   readThisPad,
   setThisHeadline,
 } from "../src/pad";
-import { OFFER_KEY } from "../src/settings";
-import { forgetPaneEdits, readHeadline, showOffer } from "../src/state";
-import { PRUNE_DELAY_MS, pruneOld, retentionDays } from "../src/prune";
-import { forgetRenewals, touchSeen } from "../src/store";
+import { refreshOffer } from "../src/settings";
+import { forgetPaneEdits, readHeadline } from "../src/state";
+import { retentionDays, schedulePrune } from "../src/prune";
+import { forgetRenewals, keepSeen } from "../src/store";
 import { summaryModel } from "../src/summary";
 import {
   carryTimeline,
@@ -33,7 +33,7 @@ import {
 } from "../src/timeline";
 import type { TurnLog } from "../src/timeline";
 import {
-  finishTurn,
+  finishTurnLater,
   followersOf,
   isSucceeded,
   turnTokens,
@@ -43,9 +43,8 @@ import type { ClearMove, TimelineSettings } from "../src/turns";
 import { isBandAlways, openPane, renderBand, renderPane } from "../src/ui";
 import {
   forgetMeasuring,
-  scheduleRefresh,
   setMeasureDisk,
-  startWorkspace,
+  showWorkspace,
 } from "../src/workspace";
 
 const NOTE_TOOL_DESCRIPTION = [
@@ -288,91 +287,6 @@ async function registerTools($: EngineInterface): Promise<void> {
  */
 const MAX_WAITING = 8;
 
-/**
- * Prunes sessions not seen for `days` on a timer, a minute after the session
- * has loaded, so a start never waits on it and sessions starting alongside
- * have marked themselves seen first.
- */
-function schedulePrune($: EngineInterface, days: number, keepId: string): void {
-  $.clock.after(PRUNE_DELAY_MS, async () => {
-    try {
-      // The session it is now too: a /resume may have moved it.
-      const current = await $.session.id().catch(() => keepId);
-      const pruned = await pruneOld($, days, [keepId, current]);
-      if (pruned.sessions + pruned.files + pruned.sizes > 0) {
-        $.ui.log(
-          `sessionpad: pruned ${pruned.sessions} sessions, ${pruned.files} files and ${pruned.sizes} sizes not seen for ${days} days`,
-          { to: "debug" }
-        );
-      }
-    } catch (error) {
-      $.ui.log(`sessionpad: pruning failed: ${String(error)}`, {
-        to: "debug",
-      });
-    }
-  });
-}
-
-/** How often an open session renews its last-seen time, at most. */
-const SEEN_TIMER_MS = 12 * 60 * 60 * 1000;
-
-// The timer that keeps this session seen; one per module.
-let seenTimer: Timer | undefined;
-
-/**
- * Renews this session's last-seen time while it stays open, however long it
- * sits idle, so another session's prune never takes the pad it shows: often
- * enough that its row is never older than half of `days`. A later
- * session.start in this module replaces the timer.
- */
-function keepSeen($: EngineInterface, days: number): void {
-  seenTimer?.cancel();
-  seenTimer = undefined;
-  if (days === 0) return;
-  const every = Math.min(SEEN_TIMER_MS, (days * 24 * 60 * 60 * 1000) / 4);
-  seenTimer = $.clock.every(every, () => {
-    (async () => {
-      // The session it is now: a /clear or /resume may have moved it.
-      const id = await $.session.id();
-      await touchSeen($, id, await $.clock.now(), every);
-    })().catch((error: unknown) => {
-      $.ui.log(`sessionpad: could not renew the session: ${String(error)}`, {
-        to: "debug",
-      });
-    });
-  });
-}
-
-// Whether summary lines are off in this module's settings; register sets it.
-// Kept here so refreshOffer takes $ alone, the one shape the plugin directory
-// reads for a function in a hook's file that passes $ on.
-let isSummaryOff = true;
-
-/**
- * Shows the Timeline tab's offer to turn summary lines on while they are off
- * and nobody has dismissed it yet; never fails the caller.
- */
-async function refreshOffer($: EngineInterface): Promise<void> {
-  try {
-    const isAnswered = (await $.store.get(OFFER_KEY)) !== undefined;
-    await showOffer($, isSummaryOff && !isAnswered);
-  } catch {
-    // No offer this time: the store couldn't say whether it was answered.
-  }
-}
-
-/** Sets the Workspace tab up and reads git into it, never failing the caller. */
-async function showWorkspace($: EngineInterface): Promise<void> {
-  try {
-    await startWorkspace($);
-    scheduleRefresh($, "none");
-  } catch (error) {
-    $.ui.log(`sessionpad: could not read the workspace: ${String(error)}`, {
-      to: "debug",
-    });
-  }
-}
-
 export const register: Register = (on, options) => {
   const showBand = options.showBand !== false;
   setMeasureDisk(options.measureDisk !== false);
@@ -382,7 +296,7 @@ export const register: Register = (on, options) => {
     summaryModel: summaryModel(options.summaryModel),
     cap: timelineCap(options.timelineCap),
   };
-  isSummaryOff = timeline.summaryModel === null;
+  const isSummaryOff = timeline.summaryModel === null;
   // The session id whose pad is loaded, to carry the pad across /clear and
   // /branch, which give the conversation a new id without a session.start.
   let loadedId: string | undefined;
@@ -415,7 +329,7 @@ export const register: Register = (on, options) => {
         to: "debug",
       });
     }
-    await refreshOffer($);
+    await refreshOffer($, isSummaryOff);
     // A new session or a reload: no `du` from before is still this module's.
     forgetMeasuring();
     forgetRenewals();
@@ -439,7 +353,8 @@ export const register: Register = (on, options) => {
       forgetEditDrafts();
       emptyNoteField($);
       try {
-        const id = e.session_id || (await $.session.id());
+        let id = e.session_id;
+        if (!id) id = await $.session.id();
         const previous = loadedId ?? endedId;
         loadedId = id;
         if (previous !== undefined && previous !== id) {
@@ -461,10 +376,13 @@ export const register: Register = (on, options) => {
             // Set before the carry, so a turn's entry written meanwhile is
             // sent on too; dropped if the new id kept a timeline of its own.
             if (how === "clear") {
-              clearedTo.set(previous, { to: id, at: await $.clock.now() });
+              const at = await $.clock.now();
+              clearedTo.set(previous, { to: id, at });
             }
-            const isTaken =
-              how !== undefined && (await carryTimeline($, previous, id, how));
+            let isTaken = false;
+            if (how !== undefined) {
+              isTaken = await carryTimeline($, previous, id, how);
+            }
             if (how === "clear" && !isTaken) clearedTo.delete(previous);
           } catch (error) {
             $.ui.log(
@@ -482,8 +400,12 @@ export const register: Register = (on, options) => {
       // $.state was reset, the Workspace tab's with it, whatever the pad did.
       // The Undo card and an open note belonged to the pad left behind, so
       // they go too, should a host keep $.state.
-      await forgetPaneEdits($).catch(() => undefined);
-      await refreshOffer($);
+      try {
+        await forgetPaneEdits($);
+      } catch {
+        // Left as they were: the next delete or open replaces them.
+      }
+      await refreshOffer($, isSummaryOff);
       await showWorkspace($);
       return next(e);
     }
@@ -495,17 +417,19 @@ export const register: Register = (on, options) => {
     return next(e);
   });
 
-  on("command.run", { command: ["pad", "sessionpad"] }, ($, e, next) =>
-    served.has(e.command) ? openPane($) : next(e)
-  ).catch(($, e, next) =>
+  on("command.run", { command: ["pad", "sessionpad"] }, async ($, e, next) => {
+    if (!served.has(e.command)) return next(e);
+    return openPane($);
+  }).catch(($, e, next) =>
     next.called || !served.has(e.command)
       ? next(e)
       : { text: "sessionpad: the pane could not be opened." }
   );
 
-  // The commands do their work in the hook's own body: the plugin directory
-  // reads $ passed on to another file only from there, or from a function in
-  // this file that takes $ alone.
+  // The commands do their work in the hook's own body. The plugin directory
+  // reads $ handed to another file's function only from a hook's own body; a
+  // function in this file may use $ in plain $.noun.method(...) calls and hand
+  // it, alone, only to another function in this file.
   on("command.run", { command: ["note", "pad-note"] }, async ($, e, next) => {
     if (!served.has(e.command)) return next(e);
     try {
@@ -623,9 +547,11 @@ export const register: Register = (on, options) => {
     const log = turn?.turnId === e.turnId ? turn : newTurnLog(e.turnId, "");
     turn = undefined;
     try {
+      const sessionId = await $.session.id();
+      const at = await $.clock.now();
       const finished = {
-        sessionId: await $.session.id(),
-        at: await $.clock.now(),
+        sessionId,
+        at,
         log,
         durationMs: e.durationMs,
         isAborted: e.isAborted,
@@ -635,24 +561,15 @@ export const register: Register = (on, options) => {
       // A turn that wrote files or ran commands may have changed the tree's
       // size; any turn may have moved the branch.
       const isChanged = log.fileCount > 0 || log.commands > 0;
-      $.clock.after(0, () => {
-        scheduleRefresh($, isChanged ? "changed" : "none");
-        // A session at work stays seen, however long it stays open.
-        touchSeen($, finished.sessionId, finished.at).catch(() => undefined);
-        const followers = (id: string) =>
-          followersOf(clearedTo, id, finished.at);
-        finishTurn($, finished, timeline, followers).catch((error: unknown) => {
-          const why = String(error);
-          $.ui.log(`sessionpad: the turn was not recorded: ${why}`, {
-            to: "debug",
-          });
-          if (warned.has(finished.sessionId)) return;
-          warned.add(finished.sessionId);
-          $.ui.toast(
-            `sessionpad: turns in this session aren't being added to the timeline: ${why}`
-          );
-        });
-      });
+      // The slow parts (git, the model) run on a timer, from turns.ts.
+      finishTurnLater(
+        $,
+        finished,
+        timeline,
+        (id) => followersOf(clearedTo, id, finished.at),
+        isChanged,
+        warned
+      );
     } catch (error) {
       $.ui.log(`sessionpad: the turn was not recorded: ${String(error)}`, {
         to: "debug",
@@ -683,9 +600,10 @@ export const register: Register = (on, options) => {
     return { deny: "sessionpad: the note could not be saved." };
   });
 
-  on("tool.call", { tool: "mcp__sessionpad__notes_read" }, async ($) => ({
-    result: describePad(await readThisPad($)),
-  })).catch(($, e, next) => {
+  on("tool.call", { tool: "mcp__sessionpad__notes_read" }, async ($) => {
+    const pad = await readThisPad($);
+    return { result: describePad(pad) };
+  }).catch(($, e, next) => {
     $.ui.log(
       `sessionpad: notes_read failed: ${next.error?.message ?? "unknown error"}`,
       { to: "debug" }
