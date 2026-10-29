@@ -26,11 +26,13 @@ import {
   promoteThisNote,
 } from "./pad";
 import {
+  readDraft,
   readHeadline,
   readNotes,
   readRecent,
   readTab,
   readWorkspace,
+  showDraft,
   showTab,
 } from "./state";
 import { RECENT_COUNT } from "./timeline";
@@ -70,10 +72,16 @@ async function guarded(
   }
 }
 
-/** Adds the field's note; says so only when it was cut short or refused. */
+/**
+ * Adds the field's note and empties the field; says so only when it was cut
+ * short or refused. A refused note stays in the field, to try again.
+ */
 async function submitNote($: EngineInterface, value: string): Promise<void> {
   await guarded($, "adding the note", async () => {
     const added = await addThisNote($, value, "user");
+    if (added.status === "added" || added.status === "blank") {
+      await showDraft($, "");
+    }
     const isQuiet =
       added.status === "blank" ||
       (added.status === "added" && !added.isShortened);
@@ -86,9 +94,12 @@ export async function renderPane(
   e: PaneInput
 ): Promise<RenderElement> {
   const elements = $.ui.resolve(e);
-  const { Box, Button } = elements;
+  const { Box, Text, Button } = elements;
   const tab = await readTab($);
   const width = Math.max(10, e.props.bodyColumns);
+  // A digit presses a tab only while the pane holds the keyboard, which a
+  // terminal gives it (ctrl+x tab); elsewhere the digits would only puzzle.
+  const isTerminal = e.surface === "terminal";
 
   const tabs = (
     <Box flexDirection="row" flexWrap="wrap" columnGap={2}>
@@ -96,7 +107,7 @@ export async function renderPane(
         <Button
           key={`tab-${one.id}`}
           label={one.label}
-          hotkey={one.hotkey}
+          {...(isTerminal ? { hotkey: one.hotkey } : {})}
           plain
           dimColor={tab !== one.id}
           onPress={() =>
@@ -106,7 +117,15 @@ export async function renderPane(
               if (one.id === "workspace") scheduleRefresh($, "stale");
             })
           }
-        />
+        >
+          {tab === one.id ? (
+            <Text bold color="claude">
+              {one.label}
+            </Text>
+          ) : (
+            one.label
+          )}
+        </Button>
       ))}
     </Box>
   );
@@ -121,8 +140,11 @@ export async function renderPane(
   }
 
   return (
-    <Box flexDirection="column" width={width}>
+    <Box flexDirection="column" width="100%">
       {tabs}
+      <Text dimColor wrap="truncate-end">
+        {"─".repeat(width)}
+      </Text>
       <Box marginTop={1} flexDirection="column">
         {body}
       </Box>
@@ -140,46 +162,86 @@ async function renderNotesTab(
   const Input = "Input" in elements ? elements.Input : undefined;
   const headline = await readHeadline($);
   const notes = await readNotes($);
+  const draft = await readDraft($);
 
-  const noteRow = (note: Note): RenderElement => (
-    <Box key={`note-${note.id}`} flexDirection="row" columnGap={1}>
-      <Box flexDirection="column" flexGrow={1} flexShrink={1}>
-        <Markdown text={note.text} />
-        <Text dimColor wrap="truncate-end">
-          {formatTime(note.at)} · {AUTHOR_LABEL[note.by]}
-        </Text>
+  // A button with what it does shown under the note while the pointer is on
+  // it: Buttons have no tooltip of their own.
+  const action = (
+    id: string,
+    label: string,
+    hint: string,
+    onPress: () => Promise<void>
+  ) => ({
+    button: (
+      <Box key={`${id}-box`} hover={{ scope: id }}>
+        <Button key={id} label={label} onPress={() => void onPress()} />
       </Box>
-      <Button
-        key={`promote-${note.id}`}
-        label="h"
-        plain
-        dimColor
-        onPress={() =>
-          guarded($, "making it the headline", () =>
-            promoteThisNote($, note.id)
-          )
-        }
-      />
-      <Button
-        key={`delete-${note.id}`}
-        label="x"
-        plain
-        dimColor
-        onPress={() =>
-          guarded($, "deleting the note", () => deleteThisNote($, note.id))
-        }
-      />
-    </Box>
-  );
+    ),
+    hint: (
+      <Box
+        key={`${id}-hint`}
+        display="none"
+        hover={{ display: "flex", scope: id }}
+      >
+        <Text color="claude">{hint}</Text>
+      </Box>
+    ),
+  });
+
+  const noteRow = (note: Note): RenderElement => {
+    const promote = action(
+      `promote-${note.id}`,
+      "H",
+      "Make this note the headline",
+      () =>
+        guarded($, "making it the headline", () => promoteThisNote($, note.id))
+    );
+    const remove = action(`delete-${note.id}`, "X", "Delete this note", () =>
+      guarded($, "deleting the note", () => deleteThisNote($, note.id))
+    );
+    return (
+      <Box
+        key={`note-${note.id}`}
+        flexDirection="row"
+        columnGap={1}
+        borderStyle="round"
+        borderDimColor
+        paddingX={1}
+      >
+        <Box flexDirection="column" flexGrow={1} flexShrink={1}>
+          <Markdown text={note.text} />
+          <Text dimColor wrap="wrap">
+            {formatTime(note.at)} · {AUTHOR_LABEL[note.by]}
+          </Text>
+          {promote.hint}
+          {remove.hint}
+        </Box>
+        <Box flexDirection="row" columnGap={1} flexShrink={0}>
+          {promote.button}
+          {remove.button}
+        </Box>
+      </Box>
+    );
+  };
 
   return (
-    <Box flexDirection="column" width={width}>
+    <Box flexDirection="column" width="100%">
       {headline === "" ? (
-        <Text dimColor>
-          No headline yet. Press h beside a note, or ask Claude to set one.
+        <Text dimColor wrap="wrap">
+          No headline yet. Press H beside a note, or ask Claude to set one.
         </Text>
       ) : (
-        <Text bold>{headline}</Text>
+        <Box
+          flexDirection="column"
+          borderStyle="round"
+          borderColor="claude"
+          paddingX={1}
+        >
+          <Text dimColor>Headline</Text>
+          <Text bold wrap="wrap">
+            {headline}
+          </Text>
+        </Box>
       )}
       {Input === undefined ? null : (
         <Box marginTop={1}>
@@ -187,8 +249,9 @@ async function renderNotesTab(
             key="add-note"
             label="Note"
             placeholder="type a note, Enter adds it"
-            value=""
+            value={draft}
             submitLabel="add"
+            onInput={(value) => void showDraft($, value)}
             onSubmit={(value) => submitNote($, value)}
           />
         </Box>
@@ -263,18 +326,13 @@ async function renderTimelineTab(
             ? `The last ${RECENT_COUNT} entries, newest first`
             : `${plural(turns, "turn", "turns")}, newest first`}
       </Text>
-      <Button
-        key="export"
-        label="Export"
-        plain
-        onPress={() => pressExport($)}
-      />
+      <Button key="export" label="Export" onPress={() => pressExport($)} />
     </Box>
   );
 
   if (recent.length === 0) {
     return (
-      <Box flexDirection="column" width={width}>
+      <Box flexDirection="column" width="100%">
         {header}
         <Box marginTop={1}>
           <Text dimColor>
@@ -294,7 +352,7 @@ async function renderTimelineTab(
     if (entry.kind === "mark") {
       return (
         <Box key={`mark-${index}`}>
-          <Text dimColor wrap="truncate-end">
+          <Text dimColor italic wrap="wrap">
             {time} {entry.text}
           </Text>
         </Box>
@@ -309,7 +367,7 @@ async function renderTimelineTab(
           </Text>
         </Box>
         <Box flexGrow={1} flexShrink={1}>
-          <Text wrap="truncate-end" dimColor={entry.isAborted}>
+          <Text wrap="wrap" dimColor={entry.isAborted}>
             {entry.summary}
           </Text>
         </Box>
@@ -328,7 +386,7 @@ async function renderTimelineTab(
       <Box key={`turn-${entry.turnId}`} flexDirection="column">
         {line}
         <Box key={`marks-${entry.turnId}`} paddingLeft={2}>
-          <Text dimColor wrap="truncate-end">
+          <Text dimColor wrap="wrap">
             {marks}
           </Text>
         </Box>
@@ -346,7 +404,9 @@ async function renderTimelineTab(
       day = entryDay;
       rows.push(
         <Box key={`day-${day}`} marginTop={rows.length === 0 ? 0 : 1}>
-          <Text bold>{day}</Text>
+          <Text bold color="suggestion">
+            {day}
+          </Text>
         </Box>
       );
     }
@@ -354,7 +414,7 @@ async function renderTimelineTab(
   }
 
   return (
-    <Box flexDirection="column" width={width}>
+    <Box flexDirection="column" width="100%">
       {header}
       <Box marginTop={1} flexDirection="column">
         {rows}
@@ -383,11 +443,15 @@ export function renderBand(
   beneath: RenderElement
 ): RenderElement {
   const { Box, Text } = $.ui.resolve(e);
+  // The width goes on the line's own Box: the band refuses an engine node,
+  // `beneath`, under a Box with a width.
   return (
-    <Box flexDirection="column" width={Math.max(10, e.props.bodyColumns)}>
-      <Text dimColor wrap="truncate-end">
-        pad: {headline}
-      </Text>
+    <Box flexDirection="column">
+      <Box width={Math.max(10, e.props.bodyColumns)}>
+        <Text dimColor wrap="truncate-end">
+          pad: {headline}
+        </Text>
+      </Box>
       {beneath}
     </Box>
   );
@@ -450,7 +514,7 @@ async function renderWorkspaceTab(
   }
   if (view.status === "none") {
     return (
-      <Box flexDirection="column" width={width}>
+      <Box flexDirection="column" width="100%">
         <Text>Not a git repo</Text>
         <Text dimColor wrap="truncate-start">
           {view.cwd}
@@ -523,7 +587,7 @@ async function renderWorkspaceTab(
   };
 
   return (
-    <Box flexDirection="column" width={width}>
+    <Box flexDirection="column" width="100%">
       {field("branch", "Branch", view.branch ?? "", "truncate-end")}
       {field("worktree", "Worktree", path, "truncate-start")}
       {field("size", "Size", size, "truncate-end")}
@@ -532,7 +596,6 @@ async function renderWorkspaceTab(
           <Button
             key="refresh-sizes"
             label="Refresh sizes"
-            plain
             onPress={() => scheduleRefresh($, "all")}
           />
         </Box>

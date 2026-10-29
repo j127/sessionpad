@@ -144,6 +144,8 @@ declare module "claude-code" {
       /** The timeline's newest entries, oldest first, at most 50. */
       recent: TimelineEntry[];
       workspace: WorkspaceView;
+      /** What the Notes tab's field holds as it is typed, "" once added. */
+      draft: string;
     };
   }
 }

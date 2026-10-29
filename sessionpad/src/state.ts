@@ -43,6 +43,8 @@ export const EMPTY_WORKSPACE: WorkspaceView = {
   readAt: null,
 };
 
+const draftAtom = atom({ plugin: "sessionpad", key: "draft" } as const, "");
+
 const workspaceAtom = atom(
   { plugin: "sessionpad", key: "workspace" } as const,
   EMPTY_WORKSPACE
@@ -63,6 +65,10 @@ export function readNotes($: EngineInterface): Promise<Note[]> {
 
 export function readRecent($: EngineInterface): Promise<TimelineEntry[]> {
   return read($, recentAtom);
+}
+
+export function readDraft($: EngineInterface): Promise<string> {
+  return read($, draftAtom);
 }
 
 export function readWorkspace($: EngineInterface): Promise<WorkspaceView> {
@@ -94,4 +100,12 @@ export async function changeWorkspace(
   change: (view: WorkspaceView) => WorkspaceView
 ): Promise<void> {
   await update($, workspaceAtom, change);
+}
+
+/** Keeps what the note field holds, so drawing it again doesn't lose it. */
+export async function showDraft(
+  $: EngineInterface,
+  text: string
+): Promise<void> {
+  await update($, draftAtom, () => text);
 }
