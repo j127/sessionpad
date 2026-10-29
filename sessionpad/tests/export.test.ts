@@ -21,37 +21,42 @@ import {
   start,
   timelineFile,
   world,
+  SUMMARIES,
 } from "./harness";
 
 const DEFAULT_PATH = `${HOME}/.claude/sessionpad/exports/${SESSION}.md`;
 
 describe("/pad-export", () => {
-  test("writes notes and the whole timeline, and prints the path", async ($, on) => {
-    const w = world(on);
-    await start($);
-    await runCommand($, "headline", "Ship the parser");
-    await runCommand($, "note", "remember the **edge case**");
-    await runTurn($, w, {
-      text: "Fix the login bug",
-      calls: [
-        { tool: "Edit", path: `${REPO}/src/auth.ts` },
-        { tool: "Bash", command: "bun test" },
-      ],
-    });
-    const ran = await runCommand($, "pad-export");
-    expect(ran.text).toBe(
-      `Exported to ${DEFAULT_PATH}. It's outside this project, so the Desktop app's file pane can't open it: open it from Finder or your file manager, or export into the project with /pad-export <path>, such as /pad-export notes/pad.md.`
-    );
-    const markdown = w.files.get(DEFAULT_PATH)!;
-    expect(markdown).toContain("# sessionpad: Ship the parser");
-    expect(markdown).toContain(`Session \`${SESSION}\``);
-    expect(markdown).toContain("remember the **edge case**");
-    expect(markdown).toContain("Fixed the token expiry check");
-    expect(markdown).toContain("  - Asked: Fix the login bug");
-    expect(markdown).toContain(`  - On \`main\` in \`${REPO}\``);
-    expect(markdown).toContain(`  - Wrote \`${REPO}/src/auth.ts\``);
-    expect(markdown).toContain("Ran 1 command");
-  });
+  test(
+    "writes notes and the whole timeline, and prints the path",
+    SUMMARIES,
+    async ($, on) => {
+      const w = world(on);
+      await start($);
+      await runCommand($, "headline", "Ship the parser");
+      await runCommand($, "note", "remember the **edge case**");
+      await runTurn($, w, {
+        text: "Fix the login bug",
+        calls: [
+          { tool: "Edit", path: `${REPO}/src/auth.ts` },
+          { tool: "Bash", command: "bun test" },
+        ],
+      });
+      const ran = await runCommand($, "pad-export");
+      expect(ran.text).toBe(
+        `Exported to ${DEFAULT_PATH}. It's outside this project, so the Desktop app's file pane can't open it: open it from Finder or your file manager, or export into the project with /pad-export <path>, such as /pad-export notes/pad.md.`
+      );
+      const markdown = w.files.get(DEFAULT_PATH)!;
+      expect(markdown).toContain("# sessionpad: Ship the parser");
+      expect(markdown).toContain(`Session \`${SESSION}\``);
+      expect(markdown).toContain("remember the **edge case**");
+      expect(markdown).toContain("Fixed the token expiry check");
+      expect(markdown).toContain("  - Asked: Fix the login bug");
+      expect(markdown).toContain(`  - On \`main\` in \`${REPO}\``);
+      expect(markdown).toContain(`  - Wrote \`${REPO}/src/auth.ts\``);
+      expect(markdown).toContain("Ran 1 command");
+    }
+  );
 
   test("an export inside the project says where, and nothing more", async ($, on) => {
     const w = world(on);
@@ -262,22 +267,26 @@ describe("the Markdown", () => {
     expect(markdown).toContain("0 turns, oldest first.");
   });
 
-  test("summaries, prompts and headlines read as written", async ($, on) => {
-    const w = world(on);
-    await start($);
-    await runCommand($, "headline", "Fix <b>bold</b> #1");
-    w.modelReply = "Linked [docs](http://x) and *stars*";
-    await runTurn($, w, {
-      text: "Use `code` | pipes",
-      calls: [{ tool: "Edit", path: "/repo/odd`name.ts" }],
-    });
-    await runCommand($, "pad-export");
-    const markdown = w.files.get(DEFAULT_PATH)!;
-    expect(markdown).toContain("# sessionpad: Fix \\<b\\>bold\\</b\\> \\#1");
-    expect(markdown).toContain("Linked \\[docs\\](http://x) and \\*stars\\*");
-    expect(markdown).toContain("Asked: Use \\`code\\` \\| pipes");
-    expect(markdown).toContain("``/repo/odd`name.ts``");
-  });
+  test(
+    "summaries, prompts and headlines read as written",
+    SUMMARIES,
+    async ($, on) => {
+      const w = world(on);
+      await start($);
+      await runCommand($, "headline", "Fix <b>bold</b> #1");
+      w.modelReply = "Linked [docs](http://x) and *stars*";
+      await runTurn($, w, {
+        text: "Use `code` | pipes",
+        calls: [{ tool: "Edit", path: "/repo/odd`name.ts" }],
+      });
+      await runCommand($, "pad-export");
+      const markdown = w.files.get(DEFAULT_PATH)!;
+      expect(markdown).toContain("# sessionpad: Fix \\<b\\>bold\\</b\\> \\#1");
+      expect(markdown).toContain("Linked \\[docs\\](http://x) and \\*stars\\*");
+      expect(markdown).toContain("Asked: Use \\`code\\` \\| pipes");
+      expect(markdown).toContain("``/repo/odd`name.ts``");
+    }
+  );
 
   test("code spans hold any backticks", () => {
     expect(codeSpan("plain")).toBe("`plain`");

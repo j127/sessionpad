@@ -18,7 +18,18 @@ import {
   readThisPad,
   setThisHeadline,
 } from "../src/pad";
-import { forgetPaneEdits, readHeadline, readTab } from "../src/state";
+import {
+  OFFER_KEY,
+  SUMMARY_CONFIG_KEY,
+  summaryModelNow,
+  useSummaryModel,
+} from "../src/settings";
+import {
+  forgetPaneEdits,
+  readHeadline,
+  readTab,
+  showOffer,
+} from "../src/state";
 import { PRUNE_DELAY_MS, pruneOld, retentionDays } from "../src/prune";
 import { forgetRenewals, touchSeen } from "../src/store";
 import { summaryModel } from "../src/summary";
@@ -393,6 +404,19 @@ function keepSeen($: EngineInterface, days: number): void {
   });
 }
 
+/**
+ * Shows the Timeline tab's offer to turn summary lines on while they are off
+ * and nobody has answered it yet; never fails the caller.
+ */
+async function refreshOffer($: EngineInterface): Promise<void> {
+  try {
+    const isAnswered = (await $.store.get(OFFER_KEY)) !== undefined;
+    await showOffer($, summaryModelNow() === null && !isAnswered);
+  } catch {
+    // No offer this time: the store couldn't say whether it was answered.
+  }
+}
+
 /** Sets the Workspace tab up and reads git into it, never failing the caller. */
 async function showWorkspace($: EngineInterface): Promise<void> {
   try {
@@ -409,8 +433,12 @@ export const register: Register = (on, options) => {
   const showBand = options.showBand !== false;
   setMeasureDisk(options.measureDisk !== false);
   const retention = retentionDays(options.retentionDays);
+  useSummaryModel(summaryModel(options.summaryModel));
   const timeline: TimelineSettings = {
-    summaryModel: summaryModel(options.summaryModel),
+    // Read at each turn: the Timeline tab or /config may turn summaries on.
+    get summaryModel() {
+      return summaryModelNow();
+    },
     cap: timelineCap(options.timelineCap),
   };
   // The session id whose pad is loaded, to carry the pad across /clear and
@@ -445,6 +473,7 @@ export const register: Register = (on, options) => {
         to: "debug",
       });
     }
+    await refreshOffer($);
     // A new session or a reload: no `du` from before is still this module's.
     forgetMeasuring();
     forgetRenewals();
@@ -508,10 +537,27 @@ export const register: Register = (on, options) => {
       // The Undo card and an open note belonged to the pad left behind, so
       // they go too, should a host keep $.state.
       await forgetPaneEdits($).catch(() => undefined);
+      await refreshOffer($);
       await showWorkspace($);
       return next(e);
     }
   ).catch(($, e, next) => next(e));
+
+  // The person set summaryModel in /config: the next turn follows it, and the
+  // Timeline tab stops offering, since they have chosen.
+  on("config.set", { key: SUMMARY_CONFIG_KEY }, async ($, e, next) => {
+    const result = await next(e);
+    if (result.deny === undefined) {
+      useSummaryModel(summaryModel(result.value));
+      try {
+        await showOffer($, false);
+        await $.store.set(OFFER_KEY, { at: await $.clock.now() });
+      } catch {
+        // The setting is written either way; only the offer's answer is lost.
+      }
+    }
+    return result;
+  }).catch(($, e, next) => next(e)); // replays the result next settled to
 
   // Observe only, and instant: every session.end hook shares 1.5 seconds.
   on("session.end", ($, e, next) => {

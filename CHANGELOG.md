@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0 (not released yet)
+
+### Changed
+
+- Summary lines are off by default: `summaryModel` now defaults to `off`, since each one spends some of your usage. The Timeline tab offers to turn them on once, with **Turn on summaries** and **Not now**, and a change in `/config` is followed from the next turn. An install that never set `summaryModel` stops making summary calls when it updates; set it to `haiku` to keep them.
+
+### Added
+
+- The README says sessionpad is alpha software, what summary lines cost, and how to turn them on and off.
+
 ## 0.1.0 (2026-10-29)
 
 ### Added

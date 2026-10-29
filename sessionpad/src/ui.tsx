@@ -54,6 +54,7 @@ import {
   readHeadline,
   readNotes,
   readRecent,
+  readOffer,
   readTab,
   readUsage,
   readWorkspace,
@@ -64,8 +65,11 @@ import {
   showDraft,
   showEditing,
   showEditingText,
+  showOffer,
   showTab,
 } from "./state";
+import { OFFER_KEY, SUMMARY_CONFIG_KEY, useSummaryModel } from "./settings";
+import { summaryModel } from "./summary";
 import { RECENT_COUNT } from "./timeline";
 import { formatSize, isMeasureDisk, scheduleRefresh } from "./workspace";
 
@@ -562,6 +566,56 @@ export function turnMarks(
 }
 
 /**
+ * Turns summary lines on from the Timeline tab's offer, as the person would
+ * in /config, and records the answer so the offer isn't made again.
+ */
+async function pressSummariesOn($: EngineInterface): Promise<void> {
+  await guarded($, "turning summary lines on", async () => {
+    const result = await $.config.set({
+      key: SUMMARY_CONFIG_KEY,
+      value: "haiku",
+    });
+    if (result.deny !== undefined) {
+      $.ui.toast(`sessionpad: summary lines stay off: ${result.deny}`);
+      return;
+    }
+    // This module's own change: its config.set hook doesn't see it. What
+    // was written counts, since another plugin's hook may have changed it.
+    const model = summaryModel(result.value);
+    useSummaryModel(model);
+    await showOffer($, false);
+    await rememberAnswer($);
+    $.ui.toast(
+      model === null
+        ? "sessionpad: summary lines stay off: the setting was written as off."
+        : `Summary lines are on: ${model} writes one after each turn. Set summaryModel to off in /config to stop.`
+    );
+  });
+}
+
+/** Hides the offer, here and in every other session. */
+async function pressNotNow($: EngineInterface): Promise<void> {
+  await guarded($, "hiding the offer", async () => {
+    await showOffer($, false);
+    await rememberAnswer($);
+  });
+}
+
+/**
+ * Records that the offer was answered, so other sessions don't make it. A
+ * store that refuses (a full one) only means another session may ask again.
+ */
+async function rememberAnswer($: EngineInterface): Promise<void> {
+  try {
+    await $.store.set(OFFER_KEY, { at: await $.clock.now() });
+  } catch (error) {
+    $.ui.log(`sessionpad: the answer was not kept: ${String(error)}`, {
+      to: "debug",
+    });
+  }
+}
+
+/**
  * One line saying what the summary lines have cost, over every session; null
  * before the first call that spent anything.
  */
@@ -583,6 +637,42 @@ async function renderTimelineTab(
   const isTerminal = e.surface === "terminal";
   const recent = await readRecent($);
   const spent = usageText(await readUsage($));
+  // Summary lines spend the person's usage, so they are off until asked for.
+  const offer = (await readOffer($)) ? (
+    <Box
+      key="summary-offer"
+      flexDirection="column"
+      marginTop={1}
+      paddingX={1}
+      {...cardLook(isTerminal)}
+    >
+      <Text wrap="wrap">
+        Summary lines are off, so each turn shows its prompt's first line.
+      </Text>
+      <Text size="footnote" dimColor wrap="wrap">
+        Turned on, Haiku writes one line after each turn: about 500 tokens in
+        and 20 out, from your plan's usage or your API key.
+      </Text>
+      <Box
+        flexDirection="row"
+        flexWrap="wrap"
+        columnGap={1}
+        marginTop={isTerminal ? 0 : 1}
+      >
+        <Button
+          key="summaries-on"
+          label="Turn on summaries"
+          variant="primary"
+          onPress={() => pressSummariesOn($)}
+        />
+        <Button
+          key="summaries-not-now"
+          label="Not now"
+          onPress={() => pressNotNow($)}
+        />
+      </Box>
+    </Box>
+  ) : null;
   // Last, small and dim: what sessionpad itself has cost, not this session.
   const usage =
     spent === null ? null : (
@@ -616,6 +706,7 @@ async function renderTimelineTab(
     return (
       <Box flexDirection="column" width="100%">
         {header}
+        {offer}
         <Box marginTop={1}>
           <Text dimColor>
             Each turn in this session adds a line here when it ends.
@@ -711,6 +802,7 @@ async function renderTimelineTab(
   return (
     <Box flexDirection="column" width="100%">
       {header}
+      {offer}
       {days.map(({ day, rows }) => (
         <Box
           key={`day-${day}`}

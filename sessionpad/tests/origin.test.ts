@@ -21,6 +21,7 @@ import {
   start,
   timelineFile,
   world,
+  SUMMARIES,
 } from "./harness";
 
 const TASK_REPORT = [
@@ -344,21 +345,25 @@ describe("turns Claude Code started", () => {
     expect(entry?.kind === "turn" && entry.prompt).not.toContain("<");
   });
 
-  test("the summary model is told the turn wasn't typed", async ($, on) => {
-    const w = world(on);
-    await start($);
-    await runTurn($, w, {
-      text: TASK_REPORT,
-      origin: { kind: "task-notification" },
-    });
-    expect(w.modelCalls[0]?.prompt).toContain(
-      "Request: none typed; the turn began with a background task's report: b1 completed"
-    );
-    expect(w.timeline()[0]).toMatchObject({
-      summary: "Fixed the token expiry check",
-      summaryBy: "model",
-    });
-  });
+  test(
+    "the summary model is told the turn wasn't typed",
+    SUMMARIES,
+    async ($, on) => {
+      const w = world(on);
+      await start($);
+      await runTurn($, w, {
+        text: TASK_REPORT,
+        origin: { kind: "task-notification" },
+      });
+      expect(w.modelCalls[0]?.prompt).toContain(
+        "Request: none typed; the turn began with a background task's report: b1 completed"
+      );
+      expect(w.timeline()[0]).toMatchObject({
+        summary: "Fixed the token expiry check",
+        summaryBy: "model",
+      });
+    }
+  );
 
   test("with no origin seen, as after a reload, the tag decides", async ($, on) => {
     const w = world(on);
@@ -478,24 +483,28 @@ describe("turns Claude Code started", () => {
     ]);
   });
 
-  test("a prompt whose turn didn't start as it was submitted leaves nothing", async ($, on) => {
-    const w = world(on);
-    await start($);
-    // Resolves without its turn starting: queued behind another, or a
-    // plugin's prompt delivered into the running turn.
-    await $.prompt.submit({
-      text: "Run the tests",
-      origin: { kind: "plugin", name: "lint" },
-      wait: false,
-    });
-    // The person then types the same words.
-    await runTurn($, w, { text: "Run the tests" });
-    expect(w.timeline()[0]).toMatchObject({
-      startedBy: null,
-      summary: "Fixed the token expiry check",
-    });
-    expect(w.modelCalls[0]?.prompt).toContain("Request: Run the tests");
-  });
+  test(
+    "a prompt whose turn didn't start as it was submitted leaves nothing",
+    SUMMARIES,
+    async ($, on) => {
+      const w = world(on);
+      await start($);
+      // Resolves without its turn starting: queued behind another, or a
+      // plugin's prompt delivered into the running turn.
+      await $.prompt.submit({
+        text: "Run the tests",
+        origin: { kind: "plugin", name: "lint" },
+        wait: false,
+      });
+      // The person then types the same words.
+      await runTurn($, w, { text: "Run the tests" });
+      expect(w.timeline()[0]).toMatchObject({
+        startedBy: null,
+        summary: "Fixed the token expiry check",
+      });
+      expect(w.modelCalls[0]?.prompt).toContain("Request: Run the tests");
+    }
+  );
 
   test("a prompt a hook beneath rewrote is judged by its text", async ($, on) => {
     const w = world(on);

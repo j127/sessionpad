@@ -14,6 +14,7 @@ import {
   runTurn,
   start,
   world,
+  SUMMARIES,
 } from "./harness";
 
 /** One element of a drawn tree, as the kit describes it. */
@@ -703,22 +704,29 @@ describe("undoing a delete", () => {
 });
 
 describe("the timeline and workspace", () => {
-  test("a long summary wraps instead of running off the edge", async ($, on) => {
-    const w = world(on);
-    await start($);
-    w.modelReply =
-      "A summary long enough to need more than one row in a narrow pane";
-    await runTurn($, w);
-    for (const surface of SURFACES) {
-      const ui = await $.ui.mount(paneTarget(surface, 30));
-      await ui.press({ key: "tab-timeline" });
-      const summary = await ui.find({ type: "Text", text: /^A summary long/ });
-      expect(summary?.props.wrap).toBe("wrap");
-      expect((await ui.find({ key: "export" }))?.props.plain).toBeUndefined();
-      await ui.press({ key: "tab-notes" });
-      await ui.unmount();
+  test(
+    "a long summary wraps instead of running off the edge",
+    SUMMARIES,
+    async ($, on) => {
+      const w = world(on);
+      await start($);
+      w.modelReply =
+        "A summary long enough to need more than one row in a narrow pane";
+      await runTurn($, w);
+      for (const surface of SURFACES) {
+        const ui = await $.ui.mount(paneTarget(surface, 30));
+        await ui.press({ key: "tab-timeline" });
+        const summary = await ui.find({
+          type: "Text",
+          text: /^A summary long/,
+        });
+        expect(summary?.props.wrap).toBe("wrap");
+        expect((await ui.find({ key: "export" }))?.props.plain).toBeUndefined();
+        await ui.press({ key: "tab-notes" });
+        await ui.unmount();
+      }
     }
-  });
+  );
 
   test("Refresh sizes is the primary button on the current tree's card", async ($, on) => {
     const w = world(on);

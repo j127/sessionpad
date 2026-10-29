@@ -183,6 +183,8 @@ declare module "claude-code" {
       deleted: DeletedNote | null;
       /** What the summary lines have cost so far, every session counted. */
       usage: SummaryUsage;
+      /** Whether the Timeline tab offers to turn summary lines on. */
+      offer: boolean;
     };
   }
 }
