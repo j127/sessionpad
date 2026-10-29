@@ -1,27 +1,27 @@
 # What the pane can draw
 
-Measured with `/pad-demo`, the mod's design test page, on 2026-10-28 with Claude Code 2.1.308: in the Desktop app's Code tab in light and dark mode (screenshots from the owner; the light one is `reference/desktop-light.webp`), and in a terminal with a dark theme (captured through tmux, which reports 256-color approximations). Every mockup in this set keeps to what is listed here, so what it shows is what the mod can draw.
+Measured with `/pad-demo`, the mod's design test page, on 2026-10-28 and 2026-10-29 with Claude Code 2.1.308: in the Desktop app's Code tab in light and dark mode (screenshots from the owner, kept in `reference/`: `desktop-light.webp`, `desktop-dark.webp`, and `desktop-hover-button.png` with the pointer on section 12), and in a terminal with a dark theme (captured through tmux, which reports 256-color approximations). The Desktop colors below are read from the screenshots' flat areas; the screenshots are scaled down, which leaves a light or dark ring at sharp edges that isn't drawn by the app. Every mockup in this set keeps to what is listed here, so what it shows is what the mod can draw.
 
 ## Desktop app
 
-The pane body is the app's own background (white in light mode, near-black `#1e1e1e` in dark), set in the system font at about 15px, with text `#1b1b1b` (light) or `#e8e8e8` (dark).
+The pane body is the app's own background (white in light mode, near-black `#181818` in dark), set in the system font at about 15px, with text `#1b1b1b` (light) or `#e8e8e8` (dark).
 
 - **Text.** Theme colors follow the mode. Bold, italic, underline, dim, inverse and strikethrough all draw. `size` draws five steps (caption about 12px, footnote 13px, body 15px, heading 17px, title 22px), `weight` draws medium and semibold, and `mono` draws the system monospace face.
 - **Spaces.** Runs of spaces shrink to one, so columns can't be lined up with spaces: they need Boxes of a fixed width.
 - **Backgrounds.** `backgroundColor` fills a plain rectangle, with no rounding, just big enough for the text plus its padding (`paddingX={1}` is about 11px a side). Most theme keys fill strongly: `claude` is the orange accent, `success` green, `error` red, `warning` brown or amber, and `text`, `inactive`, `subtle`, `suggestion`, `remember`, `permission` and `ide` dark greys in light mode and light greys in dark. Three keys are soft shades that follow the mode:
-  - `promptBorder`: light grey `#dcdcdc` in light mode, dark grey `#3a3a3a` in dark. The one neutral shade for cards and stripes.
-  - `diffAddedDimmed`: pale green `#d7efd9` in light mode, deep green `#233a27` in dark.
-  - `diffRemovedDimmed`: pale pink `#fbd8e0` in light mode, deep maroon `#3d2327` in dark.
+  - `promptBorder`: light grey `#cecece` in light mode, dark grey `#474747` in dark. The one neutral shade for cards and stripes.
+  - `diffAddedDimmed`: pale green `#d7edda` in light mode, deep green `#223f23` in dark.
+  - `diffRemovedDimmed`: pale pink `#f9d5dd` in light mode, deep maroon `#472024` in dark.
 - **Raw colors.** A hex color draws exactly as given, but doesn't follow the mode: a light tint is right in light mode and an unreadable light block under white text in dark mode, and a dark tint the reverse. So none are used.
-- **Borders.** A Box with `borderStyle` draws as a rounded card, radius about 10px, 1px border (`bold` 2px, `double` a double line), with about 18px of padding above and below one line of text and about 11px at the sides. Every style but `bold` and `double` looks the same. `borderColor` takes a theme key; `borderDimColor` gives a very faint grey. A border and a background together make a filled rounded card, but only a soft theme key fills it in both modes.
+- **Borders.** A Box with `borderStyle` draws as a rounded card, radius about 10px, 1px border (`bold` 2px, `double` a double line), with about 18px of padding above and below one line of text and about 11px at the sides. Every style but `bold` and `double` looks the same. `borderColor` takes a theme key; `borderDimColor` gives a very faint grey. A border and a background in the same soft theme key make one filled rounded card, its border lost in the fill: tried with all three soft keys, each draws right in both modes (section 11). A raw color fills it too, but only in one mode.
 - **Buttons.** Drawn by the app, as rounded pills about 32px tall with about 14px of side padding:
-  - default and `variant="secondary"`: a grey pill (`#ececec` light, `#3a3a3a` dark) with normal text;
-  - `variant="primary"`: a black pill with white text in light mode, a white pill with black text in dark mode;
-  - `dimColor`: a fainter pill with grey text;
+  - default and `variant="secondary"`: a see-through grey pill with normal text, black at about 5% in light mode (`#f2f2f2` on white) and white at about 15% in dark (`#3b3b3b` on `#181818`). On a shaded card it draws a step darker or lighter than the card (`#c4c4c4` on `#cecece`);
+  - `variant="primary"`: a solid black pill (`#181818`) with white text in light mode, a solid white pill (`#efefef`) with black text in dark mode;
+  - `dimColor`: the same pill with grey text;
   - `plain`: bare text, no pill. A colored or bold `Text` inside a Button is ignored: the label draws plain.
 - **Fields.** An Input draws its label as text, then a rounded field (1px light border, radius about 8px, 32px tall, the placeholder grey), then its submit label as a grey pill button beside it. With `rows={3}` the field is about 88px tall, with the button beside its top.
 - **Line characters.** Box-drawing characters don't line up in the proportional font, nor fully in `mono`: no drawn frames or rails made of characters.
-- **Hover.** A Box's `hover` background change works. Hints tied to a Button's hover did not show.
+- **Hover.** A Box's `hover` background change works (section 10), and keeps working while the pointer is on a Button inside the Box (section 12). Nothing can be shown by hover: a hidden Box given `display: "flex"` on hover through a shared `scope` never appeared, neither the hint under section 12 nor the H and X hints in the pane.
 
 ## Terminal
 
@@ -43,4 +43,5 @@ Everything is in the terminal's one monospace font and one size, on its own back
 - The open tab is a `primary` button on Desktop (black or white pill) and bold or inverse in a terminal; a colored label inside a button does nothing.
 - Rounded cards on Desktop come from `borderStyle`; in a terminal the same Box is a box-drawn frame.
 - Text sizes and weights are for Desktop; a terminal has one.
+- Hover may tint a note card or a row on Desktop, as a sign it can be acted on, but nothing may depend on it: no hints, buttons or text that appear only on hover.
 - Frames, rails and tables are Boxes, never characters, on Desktop; characters are fine in a terminal.
