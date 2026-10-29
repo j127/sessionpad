@@ -202,10 +202,12 @@ describe("editing a note", () => {
       await ui.press({ key: `edit-${note.id}` });
       const field = await ui.find({ key: "edit-note" });
       expect(field?.props).toMatchObject({
-        rows: 3,
         value: w.pad(SESSION).notes[0]!.text,
         submitLabel: "Save",
       });
+      // Three rows where the engine draws them; 2.1.299, the oldest release
+      // the mod supports (CI's), has no `rows` and draws one line.
+      expect([3, undefined]).toContain(field?.props.rows);
       // The card stays where the note was, without its buttons.
       expect(await ui.find({ key: `note-${note.id}` })).toBeDefined();
       expect(await ui.find({ key: `edit-${note.id}` })).toBeUndefined();
