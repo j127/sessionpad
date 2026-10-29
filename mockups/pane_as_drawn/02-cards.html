@@ -13,7 +13,7 @@
     <title>02 · Cards — mockup</title>
     <meta
       name="mockup-direction"
-      content="Soft rounded cards everywhere: the headline, each note, each timeline day and the workspace sit on filled grey cards, with the open tab a black pill beside plain-text tabs and an undo card at the top."
+      content="Soft rounded cards everywhere: the headline, each note, each timeline day and the workspace sit on light, see-through grey cards, with the open tab a black pill beside plain-text tabs and an undo card at the top."
     />
     <!-- prettier-ignore -->
     <style>
@@ -24,6 +24,7 @@
         --d-accent: #c8643f; --t-accent: #d78787;
         --d-bg: #ffffff; --d-text: #1b1b1b; --d-dim: #8c8c8c; --d-faint: #e6e6e6;
         --d-shade: #cecece; --d-green: #d7edda; --d-pink: #f9d5dd;
+        --d-tint: #f0f0f0; --d-tint-red: #fbe8ea; --d-tint-edge: #e4e4e4;
         --d-btn: rgba(0, 0, 0, 0.05); --d-btn-text: #1b1b1b; --d-btn-dim: rgba(0, 0, 0, 0.05); --d-btn-dim-text: #9b9b9b;
         --d-primary: #181818; --d-primary-text: #ffffff;
         --d-field-bg: #ffffff; --d-field-border: #e2e2e2; --d-placeholder: #9a9a9a;
@@ -38,6 +39,7 @@
         --d-accent: #d97757; --t-accent: #d78787;
         --d-bg: #181818; --d-text: #e8e8e8; --d-dim: #9a9a9a; --d-faint: #2e2e2e;
         --d-shade: #474747; --d-green: #223f23; --d-pink: #472024;
+        --d-tint: #262626; --d-tint-red: #2f1c1f; --d-tint-edge: #2b2b2b;
         --d-btn: rgba(255, 255, 255, 0.15); --d-btn-text: #e8e8e8; --d-btn-dim: rgba(255, 255, 255, 0.15); --d-btn-dim-text: #8a8a8a;
         --d-primary: #efefef; --d-primary-text: #111111;
         --d-field-bg: #252525; --d-field-border: #3a3a3a; --d-placeholder: #7a7a7a;
@@ -52,6 +54,7 @@
         --d-accent: #8e5cd9; --t-accent: #afafff;
         --d-bg: #ffffff; --d-text: #1b1b1b; --d-dim: #8c8c8c; --d-faint: #e6e6e6;
         --d-shade: #cecece; --d-green: #d7edda; --d-pink: #f9d5dd;
+        --d-tint: #f0f0f0; --d-tint-red: #fbe8ea; --d-tint-edge: #e4e4e4;
         --d-btn: rgba(0, 0, 0, 0.05); --d-btn-text: #1b1b1b; --d-btn-dim: rgba(0, 0, 0, 0.05); --d-btn-dim-text: #9b9b9b;
         --d-primary: #181818; --d-primary-text: #ffffff;
         --d-field-bg: #ffffff; --d-field-border: #e2e2e2; --d-placeholder: #9a9a9a;
@@ -66,6 +69,7 @@
         --d-accent: #b39dfb; --t-accent: #afafff;
         --d-bg: #181818; --d-text: #e8e8e8; --d-dim: #9a9a9a; --d-faint: #2e2e2e;
         --d-shade: #474747; --d-green: #223f23; --d-pink: #472024;
+        --d-tint: #262626; --d-tint-red: #2f1c1f; --d-tint-edge: #2b2b2b;
         --d-btn: rgba(255, 255, 255, 0.15); --d-btn-text: #e8e8e8; --d-btn-dim: rgba(255, 255, 255, 0.15); --d-btn-dim-text: #8a8a8a;
         --d-primary: #efefef; --d-primary-text: #111111;
         --d-field-bg: #252525; --d-field-border: #3a3a3a; --d-placeholder: #7a7a7a;
@@ -80,6 +84,7 @@
         --d-accent: #2e9b45; --t-accent: #87d787;
         --d-bg: #ffffff; --d-text: #1b1b1b; --d-dim: #8c8c8c; --d-faint: #e6e6e6;
         --d-shade: #cecece; --d-green: #d7edda; --d-pink: #f9d5dd;
+        --d-tint: #f0f0f0; --d-tint-red: #fbe8ea; --d-tint-edge: #e4e4e4;
         --d-btn: rgba(0, 0, 0, 0.05); --d-btn-text: #1b1b1b; --d-btn-dim: rgba(0, 0, 0, 0.05); --d-btn-dim-text: #9b9b9b;
         --d-primary: #181818; --d-primary-text: #ffffff;
         --d-field-bg: #ffffff; --d-field-border: #e2e2e2; --d-placeholder: #9a9a9a;
@@ -94,6 +99,7 @@
         --d-accent: #4ec36a; --t-accent: #87d787;
         --d-bg: #181818; --d-text: #e8e8e8; --d-dim: #9a9a9a; --d-faint: #2e2e2e;
         --d-shade: #474747; --d-green: #223f23; --d-pink: #472024;
+        --d-tint: #262626; --d-tint-red: #2f1c1f; --d-tint-edge: #2b2b2b;
         --d-btn: rgba(255, 255, 255, 0.15); --d-btn-text: #e8e8e8; --d-btn-dim: rgba(255, 255, 255, 0.15); --d-btn-dim-text: #8a8a8a;
         --d-primary: #efefef; --d-primary-text: #111111;
         --d-field-bg: #252525; --d-field-border: #3a3a3a; --d-placeholder: #7a7a7a;
@@ -141,6 +147,9 @@
       .desk .card.filled { border-color: var(--d-shade); background: var(--d-shade); }
       .desk .card.filled-green { border-color: var(--d-green); background: var(--d-green); }
       .desk .card.filled-pink { border-color: var(--d-pink); background: var(--d-pink); }
+      /* A see-through fill (rgba at 12%) over the pane, as measured: borderDimColor edge. */
+      .desk .card.tinted { border-color: var(--d-tint-edge); background: var(--d-tint); }
+      .desk .card.tinted-red { border-color: var(--d-tint-edge); background: var(--d-tint-red); }
       .desk .card.tight { padding-left: 11px; padding-right: 11px; } /* paddingX 1 is already in */
       /* buttons, drawn by the app: pills; labels are plain text */
       .desk .btn { display: inline-flex; align-items: center; height: 32px; padding: 0 14px;
@@ -417,7 +426,7 @@
                   <span class="btn plain">Workspace</span>
                 </div>
 
-                <div class="card filled mt1">
+                <div class="card tinted mt1">
                   <div class="footnote accent semibold">HEADLINE</div>
                   <div class="title semibold">
                     Ship sessionpad 0.1.0: pruning, release, and the pane's look
@@ -430,16 +439,17 @@
                   <span class="btn">add</span>
                 </div>
 
-                <div class="card filled-pink mt1">
+                <div class="card tinted-red mt1">
                   <div class="row gap1">
                     <span class="grow"
                       >Note deleted: Check du from the home folder.</span
                     >
                     <span class="btn primary">Undo</span>
+                    <span class="btn">Dismiss</span>
                   </div>
                 </div>
 
-                <div class="card filled mt1">
+                <div class="card tinted mt1">
                   <div>
                     Use <code>prune:at</code> so sessions prune about once a
                     day.
@@ -464,7 +474,7 @@
                   </div>
                 </div>
 
-                <div class="card filled mt1">
+                <div class="card tinted mt1">
                   <div>
                     Minimum version is <span class="bold">2.1.299</span>:
                     earlier releases refuse the hooks module.
@@ -477,7 +487,7 @@
                   </div>
                 </div>
 
-                <div class="card filled mt1">
+                <div class="card tinted mt1">
                   <div>
                     Desktop's file pane can't open files outside the project;
                     <code>/pad-export notes/pad.md</code> works.
@@ -510,7 +520,7 @@
                   <span class="btn">Export</span>
                 </div>
 
-                <div class="card filled mt1">
+                <div class="card tinted mt1">
                   <div class="footnote semibold dim">2026-10-28</div>
                   <div class="row gap1 mt1">
                     <div class="col w10 noshrink">
@@ -565,7 +575,7 @@
                   </div>
                 </div>
 
-                <div class="card filled mt1">
+                <div class="card tinted mt1">
                   <div class="footnote semibold dim">2026-10-27</div>
                   <div class="row gap1 mt1">
                     <div class="col w10 noshrink">
@@ -629,7 +639,7 @@
                   <span class="btn primary">Workspace</span>
                 </div>
 
-                <div class="card filled mt1">
+                <div class="card tinted mt1">
                   <div class="footnote dim">Branch</div>
                   <div class="semibold">claude/sessionpad-mod-865578</div>
                   <div class="footnote dim mt1">Worktree</div>
@@ -681,15 +691,17 @@
         </div>
         <p class="caption">
           <strong>One trick carries the look:</strong> a Box with
-          <code class="chrome-code">borderStyle="round"</code> whose border and
-          background are both
-          <code class="chrome-code">promptBorder</code> draws as a soft, filled,
-          rounded card, light grey in light mode and dark grey in dark. The note
+          <code class="chrome-code">borderStyle="round"</code>,
+          <code class="chrome-code">borderDimColor</code> and the see-through
+          <code class="chrome-code">backgroundColor="rgba(128, 128, 128, 0.12)"</code>
+          draws as a soft, filled, rounded card, light grey in light mode and
+          dark grey in dark, since the grey is laid over the pane. The note
           being edited drops the fill for a faint outline, the deleted note's
-          undo card uses the soft pink
-          <code class="chrome-code">diffRemovedDimmed</code>, and the only black
-          (or, in dark mode, white) shapes are the app's primary buttons. Switch
-          the mode in the panel to see the Desktop app's dark mode.
+          undo card is tinted red the same way
+          (<code class="chrome-code">rgba(220, 60, 80, 0.12)</code>), and the
+          only black (or, in dark mode, white) shapes are the app's primary
+          buttons. Switch the mode in the panel to see the Desktop app's dark
+          mode.
         </p>
       </section>
 
@@ -714,7 +726,7 @@
                 <div class="field mt1"><span>Note: </span><span class="ph">Add a note…</span></div>
                 <div class="col mt1">
                   <div class="frame faint col">
-                    <div class="row gap1"><span class="grow">Note deleted: Check du from the home folder.</span><span class="btn primary noshrink">Undo</span></div>
+                    <div class="row gap1"><span class="grow">Note deleted: Check du from the home folder.</span><span class="btn primary noshrink">Undo</span><span class="btn noshrink">Dismiss</span></div>
                   </div>
                 </div>
                 <div class="col mt1">
@@ -888,13 +900,15 @@
         <h3>Direction</h3>
         <p>
           Every group of content is a soft card. The trick is a Box with
-          <code>borderStyle="round"</code>,
-          <code>borderColor="promptBorder"</code> and
-          <code>backgroundColor="promptBorder"</code>: on Desktop it draws a
-          filled rounded card that follows the app's mode, light grey
-          (<code>#cecece</code>) in light and dark grey (<code>#474747</code>)
-          in dark, because <code>promptBorder</code> is one of the three soft
-          theme keys. Cards replace dividers and indentation, so the pane reads
+          <code>borderStyle="round"</code>, <code>borderDimColor</code> and
+          <code>backgroundColor="rgba(128, 128, 128, 0.12)"</code>: on Desktop
+          it draws a filled rounded card that follows the app's mode, light
+          grey (<code>#f0f0f0</code>) in light and dark grey
+          (<code>#262626</code>) in dark, because the grey is see-through and
+          laid over the pane. (The first build filled the cards with the soft
+          theme key <code>promptBorder</code>, <code>#cecece</code> and
+          <code>#474747</code>, which drew too dark for the dim text and the
+          buttons on them.) Cards replace dividers and indentation, so the pane reads
           as a stack of objects you act on. The open tab is the app's black
           primary pill beside two bare-text tabs, which is the strongest "you
           are here" a Desktop Button can draw, since a colored or bold label
@@ -944,9 +958,9 @@
                 <td>Headline</td>
                 <td>
                   <code
-                    >&lt;Box borderStyle="round" borderColor="promptBorder"
-                    backgroundColor="promptBorder" flexDirection="column"
-                    marginTop={1}&gt;</code
+                    >&lt;Box borderStyle="round" borderDimColor
+                    backgroundColor="rgba(128, 128, 128, 0.12)"
+                    flexDirection="column" marginTop={1}&gt;</code
                   >
                   with
                   <code
@@ -981,8 +995,8 @@
                 <td>Undo card</td>
                 <td>
                   <code
-                    >&lt;Box borderStyle="round" borderColor="diffRemovedDimmed"
-                    backgroundColor="diffRemovedDimmed" flexDirection="row"
+                    >&lt;Box borderStyle="round" borderDimColor
+                    backgroundColor="rgba(220, 60, 80, 0.12)" flexDirection="row"
                     columnGap={1}&gt;</code
                   >
                   with
@@ -992,13 +1006,15 @@
                     …&lt;/Text&gt;&lt;/Box&gt;</code
                   >
                   and
-                  <code>&lt;Button label="Undo" variant="primary"&gt;</code>.
-                  First child of the notes list.
+                  <code>&lt;Button label="Undo" variant="primary"&gt;</code>,
+                  then <code>&lt;Button label="Dismiss"&gt;</code>, which takes
+                  the card away and leaves the note deleted. First child of the
+                  notes list.
                 </td>
                 <td>
                   <code>borderColor="promptBorder"</code>, no background (a
-                  terminal has no soft pink); <code>[ Undo ]</code> in light
-                  blue.
+                  terminal has no soft tint); <code>[ Undo ]</code> in light
+                  blue, then <code>[ Dismiss ]</code>.
                 </td>
               </tr>
               <tr>
@@ -1220,9 +1236,9 @@
         <h3>What differs between the surfaces</h3>
         <ul>
           <li>
-            <strong>Cards.</strong> Desktop fills the
-            <code>promptBorder</code> card softly in both modes. A terminal
-            would fill it with a mid grey block under white text, so the mod
+            <strong>Cards.</strong> Desktop fills the card with the
+            see-through grey, softly in both modes. A terminal has no
+            see-through color and fills with whole cells, so the mod
             drops <code>backgroundColor</code> there and the card is a grey
             frame drawn with the round box characters.
           </li>
@@ -1257,16 +1273,18 @@
         <h3>Honest costs of this direction</h3>
         <ul>
           <li>
-            In light mode, dim text (<code>#8c8c8c</code>) on the grey card
-            (<code>#cecece</code>) is low in contrast: the meta lines, dates and
-            durations are faint. Dark mode is better. Nothing softer than
-            <code>promptBorder</code> fills in both modes, so the only fix is
-            fewer dim lines on cards.
+            Dim text (<code>#8c8c8c</code>) and the faint buttons are fainter
+            on a card than on the bare pane. The first build's
+            <code>promptBorder</code> cards (<code>#cecece</code>) made them
+            hard to read; the see-through grey (<code>#f0f0f0</code>) keeps
+            them readable, at the cost of cards that stand out less, above all
+            in dark mode (<code>#262626</code> on <code>#181818</code>).
           </li>
           <li>
-            Markdown's inline code chip is drawn on the same grey as the card,
-            so on a note card <code>prune:at</code> is marked only by the mono
-            face, not by a chip.
+            Markdown draws inline code on its own grey chip, which the mod
+            doesn't choose. On the first build's <code>promptBorder</code>
+            cards the chip was lost in the card; on the lighter cards it should
+            stand out again, not yet seen in the app.
           </li>
           <li>
             Rows in the kit center their children, so the time column sits a
