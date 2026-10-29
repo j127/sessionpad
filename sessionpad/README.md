@@ -3,7 +3,7 @@
 A notepad for each Claude Code session. Give a session a one-line headline that says what it is for, keep notes beside the chat (yours, or ones Claude takes when you ask), and see a timeline of what each turn did and where the session's work lives on disk. Open a session after a few days away and see at a glance what it was doing and what is left to do.
 
 > [!WARNING]
-> **Session Pad is alpha software. Use it at your own risk.** It is new, and a later version may change how it stores your notes. Keep anything you can't lose somewhere else as well; `/pad-export` writes a session's notes and timeline to a Markdown file.
+> **Session Pad is beta software. Use it at your own risk.** A later version may change how it stores your notes. Keep anything you can't lose somewhere else as well; `/pad-export` writes a session's notes and timeline to a Markdown file.
 
 Session Pad is a Claude Code mod: it runs in Claude Code 2.1.299 or later, in the Desktop app's Code tab or a terminal, and not in claude.ai chat, Cowork or the Desktop app's WSL sessions.
 

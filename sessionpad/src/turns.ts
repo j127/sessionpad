@@ -18,7 +18,9 @@ import {
   withSummary,
 } from "./timeline";
 import type { FinishedTurn, TurnLog } from "./timeline";
+import { touchSeen } from "./store";
 import { isSpent, recordUsage } from "./usage";
+import { scheduleRefresh } from "./workspace";
 
 export type TimelineSettings = {
   /** The model that writes summary lines, or null when that is off. */
@@ -157,4 +159,36 @@ export async function finishTurn(
     }
   }
   if (failures.length > 0) throw failures[0];
+}
+
+/**
+ * After a turn ends, on a timer so the next prompt never waits for git or
+ * the model: measures the tree when the turn may have changed it, renews the
+ * session's last-seen time (a session at work stays seen, however long it
+ * stays open), and writes the turn's entry. A failure to write the entry is
+ * logged, and toasted once per session (`warned` holds the ones told).
+ */
+export function finishTurnLater(
+  $: EngineInterface,
+  finished: FinishedTurn,
+  settings: TimelineSettings,
+  followers: (sessionId: string) => readonly string[],
+  isChanged: boolean,
+  warned: Set<string>
+): void {
+  $.clock.after(0, () => {
+    scheduleRefresh($, isChanged ? "changed" : "none");
+    touchSeen($, finished.sessionId, finished.at).catch(() => undefined);
+    finishTurn($, finished, settings, followers).catch((error: unknown) => {
+      const why = String(error);
+      $.ui.log(`sessionpad: the turn was not recorded: ${why}`, {
+        to: "debug",
+      });
+      if (warned.has(finished.sessionId)) return;
+      warned.add(finished.sessionId);
+      $.ui.toast(
+        `sessionpad: turns in this session aren't being added to the timeline: ${why}`
+      );
+    });
+  });
 }

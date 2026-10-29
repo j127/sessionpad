@@ -287,3 +287,32 @@ async function removeFiles(
   }
   return removed;
 }
+
+/**
+ * Prunes sessions not seen for `days` on a timer, a minute after the session
+ * has loaded, so a start never waits on it and sessions starting alongside
+ * have marked themselves seen first.
+ */
+export function schedulePrune(
+  $: EngineInterface,
+  days: number,
+  keepId: string
+): void {
+  $.clock.after(PRUNE_DELAY_MS, async () => {
+    try {
+      // The session it is now too: a /resume may have moved it.
+      const current = await $.session.id().catch(() => keepId);
+      const pruned = await pruneOld($, days, [keepId, current]);
+      if (pruned.sessions + pruned.files + pruned.sizes > 0) {
+        $.ui.log(
+          `sessionpad: pruned ${pruned.sessions} sessions, ${pruned.files} files and ${pruned.sizes} sizes not seen for ${days} days`,
+          { to: "debug" }
+        );
+      }
+    } catch (error) {
+      $.ui.log(`sessionpad: pruning failed: ${String(error)}`, {
+        to: "debug",
+      });
+    }
+  });
+}
