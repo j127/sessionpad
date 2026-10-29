@@ -34,6 +34,15 @@ import type {
   Worktree,
   WorkspaceView,
 } from "../types";
+import {
+  editDraftText,
+  emptyNoteField,
+  forgetEditDraft,
+  forgetEditDrafts,
+  keepEditDraft,
+  keepNoteDraft,
+  noteDraftText,
+} from "./drafts";
 import { describeExport, exportThisSession, formatTokens } from "./export";
 import { formatClock, formatDay, formatDuration, formatTime } from "./format";
 import {
@@ -49,7 +58,6 @@ import {
 } from "./pad";
 import {
   readDeleted,
-  readDraft,
   readEditing,
   readHeadline,
   readNotes,
@@ -62,9 +70,7 @@ import {
   forgetDeleted,
   holdDeleted,
   keepDeleted,
-  showDraft,
   showEditing,
-  showEditingText,
   showOffer,
   showTab,
 } from "./state";
@@ -147,7 +153,9 @@ async function submitNote($: EngineInterface, value: string): Promise<void> {
   await guarded($, "adding the note", async () => {
     const added = await addThisNote($, value, "user");
     if (added.status === "added" || added.status === "blank") {
-      await showDraft($, "");
+      // What was submitted is what the field holds, whatever onInput saw.
+      keepNoteDraft(value);
+      emptyNoteField($);
     }
     const isQuiet =
       added.status === "blank" ||
@@ -212,6 +220,7 @@ async function submitEdit(
       return;
     }
     await closeEditing($, id);
+    forgetEditDraft(id);
     if (result.status === "missing" || result.isShortened) {
       $.ui.toast(describeEdit(result));
     }
@@ -313,7 +322,7 @@ async function renderNotesTab(
   const isTerminal = e.surface === "terminal";
   const headline = await readHeadline($);
   const notes = await readNotes($);
-  const draft = await readDraft($);
+  const draft = noteDraftText();
   const editing = await readEditing($);
   const deleted = await readDeleted($);
   const now = await $.clock.now();
@@ -411,9 +420,12 @@ async function renderNotesTab(
             label="Edit"
             dimColor
             onPress={() =>
-              guarded($, "opening the note", () =>
-                showEditing($, { id: note.id, text: note.text })
-              )
+              guarded($, "opening the note", () => {
+                // A note open before, and deleted elsewhere, may have left
+                // its typing behind; this one starts from its own text.
+                forgetEditDrafts();
+                return showEditing($, { id: note.id, text: note.text });
+              })
             }
           />
         )}
@@ -444,13 +456,10 @@ async function renderNotesTab(
         <Input
           key="edit-note"
           rows={3}
-          value={open.text}
+          value={editDraftText(note.id, open.text)}
           submitLabel="Save"
           autoFocus
-          onInput={(value) => {
-            // Keeping the text is a convenience, as the note field's draft.
-            showEditingText($, note.id, value).catch(() => undefined);
-          }}
+          onInput={(value) => keepEditDraft(note.id, value)}
           onSubmit={(value) => submitEdit($, note.id, value)}
         />
         <Box flexDirection="row" columnGap={1} marginTop={isTerminal ? 0 : 1}>
@@ -458,7 +467,10 @@ async function renderNotesTab(
             key="cancel-edit"
             label="Cancel"
             onPress={() =>
-              guarded($, "closing the note", () => closeEditing($, note.id))
+              guarded($, "closing the note", async () => {
+                await closeEditing($, note.id);
+                forgetEditDraft(note.id);
+              })
             }
           />
         </Box>
@@ -474,13 +486,12 @@ async function renderNotesTab(
             key="add-note"
             label="Note"
             placeholder="Add a note…"
+            // Three rows, so a long note wraps where it can be read rather
+            // than scrolling out of a one-line field; Enter still adds it.
+            rows={3}
             value={draft}
             submitLabel="add"
-            onInput={(value) => {
-              // Keeping the draft is a convenience: a write that fails loses
-              // only the field's emptying after the next note.
-              showDraft($, value).catch(() => undefined);
-            }}
+            onInput={(value) => keepNoteDraft(value)}
             onSubmit={(value) => submitNote($, value)}
           />
         </Box>
@@ -834,23 +845,71 @@ function turnBefore(
   return undefined;
 }
 
-/** One dim line, `pad: <headline>`, above whatever else draws in the band. */
+/** Opens the pad beside the transcript, or brings it forward. */
+export async function openPane($: EngineInterface): Promise<{ text?: string }> {
+  const opened = await $.ui.open({
+    id: PANE_ID,
+    title: PANE_TITLE,
+    focus: true,
+  });
+  // Opening on the Workspace tab is opening the tab.
+  if ((await readTab($).catch(() => "notes")) === "workspace") {
+    scheduleRefresh($, "stale");
+  }
+  return opened.isPlaced
+    ? {}
+    : { text: `The pad is open but not drawn yet: ${opened.reason}` };
+}
+
+/** Whether the band draws even with no headline: everywhere but a terminal. */
+export const isBandAlways = (e: BandInput): boolean => e.surface !== "terminal";
+
+/**
+ * One row above whatever else draws in the band: a dim `pad: <headline>`
+ * when there is one, and, on every surface but the terminal, an Open pad
+ * button at its right, since the app has no place a mod can put one in its
+ * own toolbar. A terminal keeps its band to the headline alone: a row in
+ * every terminal session for what `/pad` does is more than it is worth.
+ */
 export function renderBand(
   $: EngineInterface,
   e: BandInput,
   headline: string,
   beneath: RenderElement
 ): RenderElement {
-  const { Box, Text } = $.ui.resolve(e);
+  const { Box, Text, Button } = $.ui.resolve(e);
+  const line =
+    headline === "" ? null : (
+      <Text dimColor wrap="truncate-end">
+        pad: {headline}
+      </Text>
+    );
   // The width goes on the line's own Box: the band refuses an engine node,
   // `beneath`, under a Box with a width.
   return (
     <Box flexDirection="column">
-      <Box width="100%">
-        <Text dimColor wrap="truncate-end">
-          pad: {headline}
-        </Text>
-      </Box>
+      {isBandAlways(e) ? (
+        <Box width="100%" flexDirection="row" columnGap={1}>
+          {/* The line gives way to the button: a long headline is cut. */}
+          <Box flexGrow={1} flexShrink={1} minWidth={0}>
+            {line}
+          </Box>
+          <Box flexShrink={0}>
+            <Button
+              key="open-pad"
+              label="Open pad"
+              onPress={() =>
+                guarded($, "opening the pad", async () => {
+                  const opened = await openPane($);
+                  if (opened.text !== undefined) $.ui.toast(opened.text);
+                })
+              }
+            />
+          </Box>
+        </Box>
+      ) : (
+        <Box width="100%">{line}</Box>
+      )}
       {beneath}
     </Box>
   );

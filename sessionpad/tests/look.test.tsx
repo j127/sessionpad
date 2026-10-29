@@ -2,6 +2,7 @@ import { describe, expect, test } from "claude-code/testing";
 
 import { describeEdit, describeRestore } from "../src/pad";
 import { MAX_NOTES, MAX_NOTE_LENGTH, notesKey } from "../src/store";
+import { EMPTY_GAP_MS } from "../src/drafts";
 import { FILL } from "../src/ui";
 
 import {
@@ -34,17 +35,107 @@ function nodes(tree: unknown): DrawnNode[] {
 }
 
 describe("the note field", () => {
-  test("empties once a note is added", async ($, on) => {
+  test("typing draws nothing again, so the field doesn't flash", async ($, on) => {
+    const w = world(on);
+    await start($);
+    for (const surface of SURFACES) {
+      const ui = await $.ui.mount(paneTarget(surface));
+      const before = w.stateWrites.length;
+      const drawn = (await ui.find({ key: "add-note" }))?.props.value;
+      await ui.input({ key: "add-note", text: "f", kind: "change" });
+      await ui.input({ key: "add-note", text: "first", kind: "change" });
+      // No $.state write and no redraw: the field is as it was last drawn,
+      // and keeps what was typed in it on its own.
+      expect(w.stateWrites.length).toBe(before);
+      expect((await ui.find({ key: "add-note" }))?.props.value).toBe(drawn);
+      // A redraw for another reason puts back what was typed.
+      await ui.press({ key: "tab-timeline" });
+      await ui.press({ key: "tab-notes" });
+      expect(w.stateWrites.length).toBeGreaterThan(before);
+      expect((await ui.find({ key: "add-note" }))?.props.value).toBe("first");
+      await ui.unmount();
+    }
+  });
+
+  test("is three rows tall, so a long note wraps", async ($, on) => {
     world(on);
     await start($);
     for (const surface of SURFACES) {
       const ui = await $.ui.mount(paneTarget(surface));
+      const field = await ui.find({ key: "add-note" });
+      expect(field?.props).toMatchObject({
+        placeholder: "Add a note…",
+        submitLabel: "add",
+      });
+      // 2.1.299, the oldest release the mod supports (CI's), has no rows.
+      expect([3, undefined]).toContain(field?.props.rows);
+      await ui.unmount();
+    }
+  });
+
+  test("a note typed on several lines is added whole", async ($, on) => {
+    const w = world(on);
+    await start($);
+    const ui = await $.ui.mount(paneTarget("desktop"));
+    await ui.input({ key: "add-note", text: "first line\nsecond line" });
+    expect(w.pad(SESSION).notes[0]?.text).toBe("first line\nsecond line");
+    await ui.unmount();
+  });
+
+  test("empties once a note is added, drawn with its text and then empty", async ($, on) => {
+    const w = world(on);
+    await start($);
+    for (const surface of SURFACES) {
+      const ui = await $.ui.mount(paneTarget(surface));
       await ui.input({ key: "add-note", text: "first", kind: "change" });
-      expect((await ui.find({ key: "add-note" }))?.props.value).toBe("first");
       await ui.input({ key: "add-note", text: "first" });
+      // A field takes a value only when it changes, and it was last drawn
+      // empty: so first it is drawn with what it holds, then empty.
+      expect((await ui.find({ key: "add-note" }))?.props.value).toBe("first");
+      await w.clock.advance(EMPTY_GAP_MS);
       expect((await ui.find({ key: "add-note" }))?.props.value).toBe("");
       await ui.unmount();
     }
+  });
+
+  test("a note sent with no typing seen first is still drawn with its text", async ($, on) => {
+    const w = world(on);
+    await start($);
+    const ui = await $.ui.mount(paneTarget("desktop"));
+    await ui.input({ key: "add-note", text: "pasted and sent" });
+    expect((await ui.find({ key: "add-note" }))?.props.value).toBe(
+      "pasted and sent"
+    );
+    await w.clock.advance(EMPTY_GAP_MS);
+    expect((await ui.find({ key: "add-note" }))?.props.value).toBe("");
+    await ui.unmount();
+  });
+
+  test("typing during the gap keeps what was typed", async ($, on) => {
+    const w = world(on);
+    await start($);
+    const ui = await $.ui.mount(paneTarget("desktop"));
+    await ui.input({ key: "add-note", text: "first" });
+    await ui.input({ key: "add-note", text: "firstx", kind: "change" });
+    await w.clock.advance(EMPTY_GAP_MS);
+    await ui.press({ key: "tab-timeline" });
+    await ui.press({ key: "tab-notes" });
+    expect((await ui.find({ key: "add-note" }))?.props.value).toBe("firstx");
+    await ui.unmount();
+  });
+
+  test("a blank note empties the field too", async ($, on) => {
+    const w = world(on);
+    await start($);
+    const ui = await $.ui.mount(paneTarget("desktop"));
+    await ui.input({ key: "add-note", text: "   ", kind: "change" });
+    await ui.press({ key: "tab-timeline" });
+    await ui.press({ key: "tab-notes" });
+    expect((await ui.find({ key: "add-note" }))?.props.value).toBe("   ");
+    await ui.input({ key: "add-note", text: "   " });
+    await w.clock.advance(EMPTY_GAP_MS);
+    expect((await ui.find({ key: "add-note" }))?.props.value).toBe("");
+    await ui.unmount();
   });
 
   test("keeps a note the pad refused, to try again", async ($, on) => {
@@ -54,9 +145,42 @@ describe("the note field", () => {
     const ui = await $.ui.mount(paneTarget("desktop"));
     await ui.input({ key: "add-note", text: "will not save", kind: "change" });
     await ui.input({ key: "add-note", text: "will not save" });
+    await ui.press({ key: "tab-timeline" });
+    await ui.press({ key: "tab-notes" });
     expect((await ui.find({ key: "add-note" }))?.props.value).toBe(
       "will not save"
     );
+    await ui.unmount();
+  });
+
+  test("/clear, /resume and /branch empty the field, with the pane left open", async ($, on) => {
+    const w = world(on);
+    await start($);
+    const ui = await $.ui.mount(paneTarget("desktop"));
+    for (const [n, source] of (
+      ["clear", "resume", "fork"] as const
+    ).entries()) {
+      await ui.input({
+        key: "add-note",
+        text: "half a thought",
+        kind: "change",
+      });
+      // Drawn again for another reason, the field shows what was typed.
+      await ui.press({ key: "tab-timeline" });
+      await ui.press({ key: "tab-notes" });
+      expect((await ui.find({ key: "add-note" }))?.props.value).toBe(
+        "half a thought"
+      );
+      w.sessionId = `22222222-aaaa-bbbb-cccc-00000000000${n + 2}`;
+      await $.classic.SessionStart({ source, session_id: w.sessionId });
+      await w.clock.settle();
+      // Drawn with what it holds first, so the emptying is a change.
+      expect((await ui.find({ key: "add-note" }))?.props.value).toBe(
+        "half a thought"
+      );
+      await w.clock.advance(EMPTY_GAP_MS);
+      expect((await ui.find({ key: "add-note" }))?.props.value).toBe("");
+    }
     await ui.unmount();
   });
 });
@@ -253,12 +377,45 @@ describe("editing a note", () => {
     const id = w.pad(SESSION).notes[0]!.id;
     const ui = await $.ui.mount(paneTarget("desktop"));
     await ui.press({ key: `edit-${id}` });
+    const before = w.stateWrites.length;
     await ui.input({ key: "edit-note", text: "half typed", kind: "change" });
+    // Typing writes nothing, so the field isn't drawn again under the cursor.
+    expect(w.stateWrites.length).toBe(before);
+    expect((await ui.find({ key: "edit-note" }))?.props.value).toBe("draft me");
     await runCommand($, "note", "a note from elsewhere draws the pane again");
     expect((await ui.find({ key: "edit-note" }))?.props.value).toBe(
       "half typed"
     );
     expect(w.pad(SESSION).notes[0]!.text).toBe("draft me");
+    await ui.unmount();
+  });
+
+  test("an edit opened again starts from the note, not from what was typed", async ($, on) => {
+    const w = world(on);
+    await start($);
+    await runCommand($, "note", "keep me");
+    const id = w.pad(SESSION).notes[0]!.id;
+    const ui = await $.ui.mount(paneTarget("desktop"));
+    await ui.press({ key: `edit-${id}` });
+    await ui.input({ key: "edit-note", text: "thrown away", kind: "change" });
+    await ui.press({ key: "cancel-edit" });
+    await ui.press({ key: `edit-${id}` });
+    expect((await ui.find({ key: "edit-note" }))?.props.value).toBe("keep me");
+    await ui.unmount();
+  });
+
+  test("an edit opened after a save starts from the saved text", async ($, on) => {
+    const w = world(on);
+    await start($);
+    await runCommand($, "note", "rough");
+    const id = w.pad(SESSION).notes[0]!.id;
+    const ui = await $.ui.mount(paneTarget("desktop"));
+    await ui.press({ key: `edit-${id}` });
+    await ui.input({ key: "edit-note", text: "  better  ", kind: "change" });
+    await ui.input({ key: "edit-note", text: "  better  " });
+    expect(w.pad(SESSION).notes[0]!.text).toBe("better");
+    await ui.press({ key: `edit-${id}` });
+    expect((await ui.find({ key: "edit-note" }))?.props.value).toBe("better");
     await ui.unmount();
   });
 
@@ -335,6 +492,33 @@ describe("editing a note", () => {
     await runCommand($, "note", "later");
     expect(await ui.find({ key: "edit-note" })).toBeUndefined();
     expect(await ui.find({ key: `edit-${stays!.id}` })).toBeDefined();
+    await ui.unmount();
+  });
+
+  test("a note opened again after it was deleted elsewhere starts from its own text", async ($, on) => {
+    const w = world(on);
+    await start($);
+    await runCommand($, "note", "open me");
+    await runCommand($, "note", "other");
+    const pad = w.pad(SESSION);
+    const [open, other] = pad.notes;
+    const ui = await $.ui.mount(paneTarget("desktop"));
+    await ui.press({ key: `edit-${open!.id}` });
+    await ui.input({
+      key: "edit-note",
+      text: "typed, never saved",
+      kind: "change",
+    });
+    // Another process deletes it; a new note shows the change.
+    w.store.set(notesKey(SESSION), { headline: "", notes: [other] });
+    await runCommand($, "note", "shows it");
+    await ui.press({ key: `edit-${other!.id}` });
+    await ui.press({ key: "cancel-edit" });
+    // And puts it back.
+    w.store.set(notesKey(SESSION), pad);
+    await runCommand($, "note", "shows it again");
+    await ui.press({ key: `edit-${open!.id}` });
+    expect((await ui.find({ key: "edit-note" }))?.props.value).toBe("open me");
     await ui.unmount();
   });
 

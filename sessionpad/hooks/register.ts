@@ -5,6 +5,7 @@
 import type { EngineInterface, Register, Timer } from "claude-code";
 
 import type { Pad } from "../types";
+import { emptyNoteField, forgetEditDrafts } from "../src/drafts";
 import { describeExport, exportThisSession } from "../src/export";
 import { formatTime } from "../src/format";
 import { openingOf, submissionFor } from "../src/origin";
@@ -24,12 +25,7 @@ import {
   summaryModelNow,
   useSummaryModel,
 } from "../src/settings";
-import {
-  forgetPaneEdits,
-  readHeadline,
-  readTab,
-  showOffer,
-} from "../src/state";
+import { forgetPaneEdits, readHeadline, showOffer } from "../src/state";
 import { PRUNE_DELAY_MS, pruneOld, retentionDays } from "../src/prune";
 import { forgetRenewals, touchSeen } from "../src/store";
 import { summaryModel } from "../src/summary";
@@ -49,7 +45,7 @@ import {
   withCall,
 } from "../src/turns";
 import type { ClearMove, TimelineSettings } from "../src/turns";
-import { PANE_ID, PANE_TITLE, renderBand, renderPane } from "../src/ui";
+import { isBandAlways, openPane, renderBand, renderPane } from "../src/ui";
 import {
   forgetMeasuring,
   scheduleRefresh,
@@ -289,21 +285,6 @@ async function registerTools($: EngineInterface): Promise<void> {
   }
 }
 
-async function openPane($: EngineInterface): Promise<{ text?: string }> {
-  const opened = await $.ui.open({
-    id: PANE_ID,
-    title: PANE_TITLE,
-    focus: true,
-  });
-  // Opening on the Workspace tab is opening the tab.
-  if ((await readTab($).catch(() => "notes")) === "workspace") {
-    scheduleRefresh($, "stale");
-  }
-  return opened.isPlaced
-    ? {}
-    : { text: `The pad is open but not drawn yet: ${opened.reason}` };
-}
-
 async function noteCommand(
   $: EngineInterface,
   command: string,
@@ -492,6 +473,10 @@ export const register: Register = (on, options) => {
     "classic.SessionStart",
     { source: ["clear", "resume", "fork"] },
     async ($, e, next) => {
+      // The old session's typing goes: an open note's at once, the note
+      // field's in two draws (see emptyNoteField), whatever the move draws.
+      forgetEditDrafts();
+      emptyNoteField($);
       try {
         const id = e.session_id || (await $.session.id());
         const previous = loadedId ?? endedId;
@@ -741,7 +726,8 @@ export const register: Register = (on, options) => {
   on("ui.render", { component: "AbovePrompt" }, async ($, e, next) => {
     if (!showBand || e.props.hasSurvey) return next(e);
     const headline = await readHeadline($);
-    if (headline === "") return next(e);
+    // A terminal's band is the headline alone (see renderBand): none without.
+    if (headline === "" && !isBandAlways(e)) return next(e);
     return renderBand($, e, headline, await next(e));
   });
 };

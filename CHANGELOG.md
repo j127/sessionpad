@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.0 (not released yet)
+
+### Added
+
+- An **Open pad** button in the band above the prompt, in the Desktop app, in every session: the pane opens with a click instead of `/pad`. A terminal's band is unchanged. `showBand` hides it.
+
+### Changed
+
+- The note field is three rows tall, so a long note wraps where it can be read instead of scrolling out of a one-line field. Enter still adds the note. On 2.1.299, which has no `rows`, it stays one line.
+
+### Fixed
+
+- In the Desktop app, the note field's border, and an open note's, no longer flashes at every keystroke. Typing used to draw the pane again each time; what is typed is now kept without a redraw, and still comes back if the pane is drawn again for another reason.
+
 ## 0.2.0 (2026-10-29)
 
 ### Changed

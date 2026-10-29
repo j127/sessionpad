@@ -53,8 +53,6 @@ export const EMPTY_WORKSPACE: WorkspaceView = {
   readAt: null,
 };
 
-const draftAtom = atom({ plugin: "sessionpad", key: "draft" } as const, "");
-
 const workspaceAtom = atom(
   { plugin: "sessionpad", key: "workspace" } as const,
   EMPTY_WORKSPACE
@@ -92,10 +90,6 @@ export function readNotes($: EngineInterface): Promise<Note[]> {
 
 export function readRecent($: EngineInterface): Promise<TimelineEntry[]> {
   return read($, recentAtom);
-}
-
-export function readDraft($: EngineInterface): Promise<string> {
-  return read($, draftAtom);
 }
 
 export function readWorkspace($: EngineInterface): Promise<WorkspaceView> {
@@ -145,34 +139,12 @@ export async function changeWorkspace(
   await update($, workspaceAtom, change);
 }
 
-/** Keeps what the note field holds, so drawing it again doesn't lose it. */
-export async function showDraft(
-  $: EngineInterface,
-  text: string
-): Promise<void> {
-  await update($, draftAtom, () => text);
-}
-
 /** Opens a note for editing, or closes the one open with null. */
 export async function showEditing(
   $: EngineInterface,
   editing: Editing | null
 ): Promise<void> {
   await update($, editingAtom, () => editing);
-}
-
-/**
- * Keeps what the open note's field holds, so drawing it again doesn't lose
- * it; text for a note no longer open is dropped.
- */
-export async function showEditingText(
-  $: EngineInterface,
-  id: string,
-  text: string
-): Promise<void> {
-  await update($, editingAtom, (editing) =>
-    editing?.id === id ? { id, text } : editing
-  );
 }
 
 /**
