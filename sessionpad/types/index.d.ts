@@ -27,6 +27,18 @@ export type Pad = {
 
 export type Tab = "notes" | "timeline" | "workspace";
 
+/** The note open for editing in the pane, with what its field holds so far. */
+export type Editing = { id: string; text: string };
+
+/** The note deleted last in the pane, kept so Undo can put it back. */
+export type DeletedNote = {
+  /** The session whose pad it came from. */
+  sessionId: string;
+  note: Note;
+  /** Where it stood in the list, oldest first. */
+  index: number;
+};
+
 /** Tokens a turn spent, as the engine reported them. */
 export type TurnTokens = {
   input: number;
@@ -146,6 +158,10 @@ declare module "claude-code" {
       workspace: WorkspaceView;
       /** What the Notes tab's field holds as it is typed, "" once added. */
       draft: string;
+      /** The note being edited, or null. */
+      editing: Editing | null;
+      /** The note Undo would bring back, or null. */
+      deleted: DeletedNote | null;
     };
   }
 }

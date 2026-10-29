@@ -2,7 +2,7 @@ import { describe, expect, test } from "claude-code/testing";
 
 import type { TurnEntry } from "../types";
 import { markEntry, timelineText } from "../src/timeline";
-import { turnMarks } from "../src/ui";
+import { turnMarkParts, turnMarks } from "../src/ui";
 import {
   HOME,
   NOW,
@@ -73,7 +73,7 @@ describe("the Timeline tab", () => {
     }
   });
 
-  test("when narrow, a turn's marks go on a line under it", async ($, on) => {
+  test("a turn's marks go on a line under its summary at every width", async ($, on) => {
     const w = world(on);
     await start($);
     await runTurn($, w, {
@@ -81,15 +81,13 @@ describe("the Timeline tab", () => {
       calls: [{ tool: "Bash", command: "ls" }],
     });
     for (const surface of SURFACES) {
-      const narrow = await $.ui.mount(paneTarget(surface, 30));
-      await narrow.press({ key: "tab-timeline" });
-      expect(await narrow.find({ key: "marks-t1" })).toBeDefined();
-      await narrow.unmount();
-      const wide = await $.ui.mount(paneTarget(surface, 90));
-      await wide.press({ key: "tab-timeline" });
-      expect(await wide.find({ key: "marks-t1" })).toBeUndefined();
-      expect(await wide.find({ type: "Text", text: /^1 cmd$/ })).toBeDefined();
-      await wide.unmount();
+      for (const columns of [30, 90]) {
+        const ui = await $.ui.mount(paneTarget(surface, columns));
+        await ui.press({ key: "tab-timeline" });
+        const marks = await ui.find({ key: "marks-t1" });
+        expect(marks?.text).toBe("1 cmd");
+        await ui.unmount();
+      }
     }
   });
 
@@ -168,6 +166,21 @@ describe("the Timeline tab", () => {
 });
 
 describe("a turn's marks", () => {
+  test("color stopped and a moved branch, and leave the counts plain", () => {
+    expect(
+      turnMarkParts(
+        turn({ isAborted: true, fileCount: 1, commands: 3, branch: "feat/x" }),
+        turn({ branch: "main" })
+      )
+    ).toEqual([
+      { text: "stopped", tone: "warning" },
+      { text: "1 file", tone: null },
+      { text: "3 cmds", tone: null },
+      { text: "→ feat/x", tone: "accent" },
+    ]);
+    expect(turnMarkParts(turn({}), undefined)).toEqual([]);
+  });
+
   test("say stopped, files, commands, and a branch that moved", () => {
     const before = turn({ branch: "main" });
     expect(

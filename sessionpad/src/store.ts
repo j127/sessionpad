@@ -80,6 +80,23 @@ export const deleteNote = (pad: Pad, id: string): Pad => ({
   notes: pad.notes.filter((note) => note.id !== id),
 });
 
+/** Gives a note new text; its time and author stay as they were. */
+export const editNote = (pad: Pad, id: string, text: string): Pad => ({
+  ...pad,
+  notes: pad.notes.map((note) => (note.id === id ? { ...note, text } : note)),
+});
+
+/**
+ * Puts a deleted note back where it stood, or at the end when the list has
+ * since grown shorter. A note already in the list is not added twice.
+ */
+export function restoreNote(pad: Pad, note: Note, index: number): Pad {
+  if (pad.notes.some((one) => one.id === note.id)) return pad;
+  const notes = [...pad.notes];
+  notes.splice(Math.min(Math.max(0, index), notes.length), 0, note);
+  return { ...pad, notes };
+}
+
 export const setHeadline = (pad: Pad, text: string): Pad => ({
   ...pad,
   headline: cleanHeadline(text),

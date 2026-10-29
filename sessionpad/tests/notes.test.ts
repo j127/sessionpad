@@ -9,12 +9,14 @@ import {
   cleanHeadline,
   cleanNote,
   deleteNote,
+  editNote,
   emptyPad,
   makeNote,
   oneAtATime,
   notesKey,
   parsePad,
   promoteNote,
+  restoreNote,
   setHeadline,
 } from "../src/store";
 import { NOW, SESSION, runCommand, start, world } from "./harness";
@@ -36,6 +38,32 @@ describe("pad operations", () => {
     const drop = pad.notes[1]!;
     const after = deleteNote(pad, drop.id);
     expect(after.notes.map((note) => note.text)).toEqual(["keep"]);
+  });
+
+  test("edit changes only that note's text, keeping its time and author", async () => {
+    const pad = padWith("keep", "change me");
+    const [keep, change] = pad.notes;
+    const after = editNote(pad, change!.id, "changed");
+    expect(after.notes).toEqual([keep, { ...change!, text: "changed" }]);
+    expect(editNote(pad, "no-such-note", "x")).toEqual(pad);
+  });
+
+  test("restore puts a deleted note back where it stood", async () => {
+    const pad = padWith("one", "two", "three");
+    const two = pad.notes[1]!;
+    const back = restoreNote(deleteNote(pad, two.id), two, 1);
+    expect(back.notes).toEqual(pad.notes);
+  });
+
+  test("restore puts a note at the end of a list grown shorter, never twice", async () => {
+    const pad = padWith("one", "two", "three");
+    const three = pad.notes[2]!;
+    const shorter = deleteNote(deleteNote(pad, three.id), pad.notes[0]!.id);
+    expect(
+      restoreNote(shorter, three, 2).notes.map((note) => note.text)
+    ).toEqual(["two", "three"]);
+    expect(restoreNote(pad, three, 0)).toEqual(pad);
+    expect(restoreNote(emptyPad(), three, -4).notes).toEqual([three]);
   });
 
   test("promote moves a note into an empty headline", async () => {

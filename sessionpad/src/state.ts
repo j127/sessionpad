@@ -8,7 +8,15 @@
 import { atom, read, update } from "claude-code";
 import type { EngineInterface } from "claude-code";
 
-import type { Note, Pad, Tab, TimelineEntry, WorkspaceView } from "../types";
+import type {
+  DeletedNote,
+  Editing,
+  Note,
+  Pad,
+  Tab,
+  TimelineEntry,
+  WorkspaceView,
+} from "../types";
 import { recentEntries } from "./timeline";
 
 const tabAtom = atom(
@@ -50,6 +58,16 @@ const workspaceAtom = atom(
   EMPTY_WORKSPACE
 );
 
+const editingAtom = atom(
+  { plugin: "sessionpad", key: "editing" } as const,
+  null as Editing | null
+);
+
+const deletedAtom = atom(
+  { plugin: "sessionpad", key: "deleted" } as const,
+  null as DeletedNote | null
+);
+
 /** Read while drawing, these subscribe the site to later writes. */
 export function readTab($: EngineInterface): Promise<Tab> {
   return read($, tabAtom);
@@ -73,6 +91,14 @@ export function readDraft($: EngineInterface): Promise<string> {
 
 export function readWorkspace($: EngineInterface): Promise<WorkspaceView> {
   return read($, workspaceAtom);
+}
+
+export function readEditing($: EngineInterface): Promise<Editing | null> {
+  return read($, editingAtom);
+}
+
+export function readDeleted($: EngineInterface): Promise<DeletedNote | null> {
+  return read($, deletedAtom);
 }
 
 /** Never call these while drawing: write from a handler or another event. */
@@ -108,4 +134,34 @@ export async function showDraft(
   text: string
 ): Promise<void> {
   await update($, draftAtom, () => text);
+}
+
+/** Opens a note for editing, or closes the one open with null. */
+export async function showEditing(
+  $: EngineInterface,
+  editing: Editing | null
+): Promise<void> {
+  await update($, editingAtom, () => editing);
+}
+
+/**
+ * Keeps what the open note's field holds, so drawing it again doesn't lose
+ * it; text for a note no longer open is dropped.
+ */
+export async function showEditingText(
+  $: EngineInterface,
+  id: string,
+  text: string
+): Promise<void> {
+  await update($, editingAtom, (editing) =>
+    editing?.id === id ? { id, text } : editing
+  );
+}
+
+/** Keeps the note Undo would bring back, or forgets it with null. */
+export async function showDeleted(
+  $: EngineInterface,
+  deleted: DeletedNote | null
+): Promise<void> {
+  await update($, deletedAtom, () => deleted);
 }

@@ -3,7 +3,7 @@
 
 import type { EngineInterface } from "claude-code";
 
-import type { Note, NoteAuthor, Pad } from "../types";
+import type { DeletedNote, Note, NoteAuthor, Pad } from "../types";
 import { showPad, showTimeline } from "./state";
 import {
   MAX_HEADLINE_LENGTH,
@@ -15,10 +15,12 @@ import {
   cleanHeadline,
   cleanNote,
   deleteNote,
+  editNote,
   isEmptyPad,
   makeNote,
   promoteNote,
   readPad,
+  restoreNote,
   setHeadline,
   touchIndex,
 } from "./store";
@@ -111,14 +113,97 @@ export function describeAdd(result: AddResult): string {
     : "Added to the pad.";
 }
 
+/** What became of an edited note someone tried to save. */
+export type EditResult =
+  | { status: "saved"; isShortened: boolean }
+  | { status: "blank" }
+  | { status: "missing" };
+
+/**
+ * Saves a note's new text, unless it is blank (a note is never emptied: it
+ * is deleted instead) or the note is gone.
+ */
+export async function editThisNote(
+  $: EngineInterface,
+  id: string,
+  text: string
+): Promise<EditResult> {
+  const clean = cleanNote(text);
+  if (clean === "") return { status: "blank" };
+  let isFound = false;
+  const pad = await changePad($, await $.session.id(), (pad) => {
+    isFound = pad.notes.some((note) => note.id === id);
+    return isFound ? editNote(pad, id, clean) : pad;
+  });
+  await showPad($, pad);
+  if (!isFound) return { status: "missing" };
+  return { status: "saved", isShortened: clean !== text.trim() };
+}
+
+/** One line saying what became of an edit, when there is something to say. */
+export function describeEdit(result: EditResult): string {
+  if (result.status === "blank") {
+    return "Nothing saved: a note can't be empty. Delete it instead.";
+  }
+  if (result.status === "missing") {
+    return "That note was deleted, so the edit wasn't saved.";
+  }
+  return result.isShortened
+    ? `Saved, cut to its first ${MAX_NOTE_LENGTH} characters.`
+    : "Saved.";
+}
+
+/** Deletes a note, handing back what Undo needs to put it back. */
 export async function deleteThisNote(
   $: EngineInterface,
   id: string
-): Promise<void> {
-  const pad = await changePad($, await $.session.id(), (pad) =>
-    deleteNote(pad, id)
-  );
+): Promise<DeletedNote | null> {
+  const sessionId = await $.session.id();
+  let removed = null as DeletedNote | null;
+  const pad = await changePad($, sessionId, (pad) => {
+    const index = pad.notes.findIndex((note) => note.id === id);
+    const note = pad.notes[index];
+    removed = note === undefined ? null : { sessionId, note, index };
+    return deleteNote(pad, id);
+  });
   await showPad($, pad);
+  return removed;
+}
+
+/** What became of an Undo. */
+export type RestoreResult = "restored" | "present" | "full";
+
+/**
+ * Puts a deleted note back into the pad it came from, where it stood. A pad
+ * that has filled up since keeps its notes, and the note waits for room.
+ */
+export async function restoreDeletedNote(
+  $: EngineInterface,
+  deleted: DeletedNote
+): Promise<RestoreResult> {
+  let result: RestoreResult = "restored";
+  const pad = await changePad($, deleted.sessionId, (pad) => {
+    if (pad.notes.some((note) => note.id === deleted.note.id)) {
+      result = "present";
+      return pad;
+    }
+    if (pad.notes.length >= MAX_NOTES) {
+      result = "full";
+      return pad;
+    }
+    result = "restored";
+    return restoreNote(pad, deleted.note, deleted.index);
+  });
+  if (deleted.sessionId === (await $.session.id())) await showPad($, pad);
+  return result;
+}
+
+/** One line saying why an Undo did nothing. */
+export function describeRestore(result: RestoreResult): string {
+  if (result === "full") {
+    return `The pad already holds ${MAX_NOTES} notes, so the note was not put back. Delete one to make room, then press Undo again.`;
+  }
+  return result === "present" ? "That note is already back." : "Note restored.";
 }
 
 export async function promoteThisNote(

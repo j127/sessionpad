@@ -49,6 +49,16 @@ async function texts(ui: Awaited<ReturnType<typeof openTab>>) {
   return (await ui.findAll({ type: "Text" })).map((one) => one.text);
 }
 
+/**
+ * The current tree's size and, on the line under it, when it was measured:
+ * the current tree's card comes first, so its size is the first of a kind.
+ */
+function expectSize(shown: string[], size: string, when: string): void {
+  const at = shown.indexOf(size);
+  expect(at).toBeGreaterThan(-1);
+  expect(shown[at + 1]).toBe(when);
+}
+
 describe("reading the workspace", () => {
   test("git's worktree list, every kind of entry", () => {
     const porcelain = [
@@ -212,7 +222,7 @@ describe("the Workspace tab", () => {
         const shown = await texts(ui);
         expect(shown).toContain("main");
         expect(shown).toContain(REPO);
-        expect(shown).toContain(`2 MB, measured ${formatClock(NOW)}`);
+        expectSize(shown, "2 MB", `measured ${formatClock(NOW)}`);
         expect(shown).toContain("Other worktrees (4)");
         for (const text of [
           "feat/x",
@@ -249,8 +259,10 @@ describe("the Workspace tab", () => {
     });
     await start($);
     const ui = await openTab($, w);
-    expect(await texts(ui)).toContain(
-      `4 MB, measured ${formatClock(NOW - 5 * MINUTE)}`
+    expectSize(
+      await texts(ui),
+      "4 MB",
+      `measured ${formatClock(NOW - 5 * MINUTE)}`
     );
     expect(w.duRuns).toEqual([]);
     // Five minutes on, it is ten minutes old: opening the tab measures it.
@@ -259,8 +271,10 @@ describe("the Workspace tab", () => {
     await ui.press({ key: "tab-workspace" });
     await w.clock.settle();
     expect(w.duRuns.map((run) => run.path)).toEqual([REPO]);
-    expect(await texts(ui)).toContain(
-      `1 MB, measured ${formatClock(NOW + 5 * MINUTE)}`
+    expectSize(
+      await texts(ui),
+      "1 MB",
+      `measured ${formatClock(NOW + 5 * MINUTE)}`
     );
     await ui.unmount();
   });
@@ -284,7 +298,7 @@ describe("the Workspace tab", () => {
     await ui.press({ key: "refresh-sizes" });
     await w.clock.settle();
     expect(w.duRuns.map((run) => run.path)).toEqual([REPO, FEATURE]);
-    expect(await texts(ui)).toContain(`1 MB, measured ${formatClock(NOW)}`);
+    expectSize(await texts(ui), "1 MB", `measured ${formatClock(NOW)}`);
     await ui.unmount();
   });
 
@@ -330,8 +344,10 @@ describe("the Workspace tab", () => {
     const ui = await openTab($, w);
     expect(await texts(ui)).toContain("measuring…");
     await w.clock.advance(30_000);
-    expect(await texts(ui)).toContain(
-      `1 MB, measured ${formatClock(NOW + 30_000)}`
+    expectSize(
+      await texts(ui),
+      "1 MB",
+      `measured ${formatClock(NOW + 30_000)}`
     );
     await ui.unmount();
   });
@@ -356,8 +372,9 @@ describe("the Workspace tab", () => {
     await start($);
     const ui = await openTab($, w);
     const shown = await texts(ui);
-    expect(shown).toContain(`size unavailable, tried ${formatClock(NOW)}`);
-    expect(shown.filter((text) => text === "size unavailable")).toHaveLength(2);
+    expectSize(shown, "size unavailable", `tried ${formatClock(NOW)}`);
+    // This tree's own, and the two others'.
+    expect(shown.filter((text) => text === "size unavailable")).toHaveLength(3);
     expect(shown).toContain("at least 2 MB");
     await ui.unmount();
   });
@@ -491,10 +508,10 @@ describe("sizes shared with other sessions", () => {
     await start($);
     w.storeFull = true;
     const ui = await openTab($, w);
-    expect(await texts(ui)).toContain(`1 MB, measured ${formatClock(NOW)}`);
+    expectSize(await texts(ui), "1 MB", `measured ${formatClock(NOW)}`);
     // The next read of git keeps it: the newest size known wins.
     await runTurn($, w, {});
-    expect(await texts(ui)).toContain(`1 MB, measured ${formatClock(NOW)}`);
+    expectSize(await texts(ui), "1 MB", `measured ${formatClock(NOW)}`);
     await ui.unmount();
   });
 
@@ -530,8 +547,10 @@ describe("sizes shared with other sessions", () => {
     await w.clock.settle();
     expect(w.duRuns).toHaveLength(2);
     await w.clock.advance(30_000);
-    expect(await texts(ui)).toContain(
-      `1 MB, measured ${formatClock(NOW + 90_000)}`
+    expectSize(
+      await texts(ui),
+      "1 MB",
+      `measured ${formatClock(NOW + 90_000)}`
     );
     // The old run's end didn't free the tree for a third, needless run.
     expect(w.duRuns).toHaveLength(2);
@@ -583,8 +602,10 @@ describe("after the review of milestone 3", () => {
     await w.clock.settle();
     expect(await texts(ui)).toContain("measuring…");
     await w.clock.advance(30_000);
-    expect(await texts(ui)).toContain(
-      `1 MB, measured ${formatClock(NOW + 30_000)}`
+    expectSize(
+      await texts(ui),
+      "1 MB",
+      `measured ${formatClock(NOW + 30_000)}`
     );
     expect(w.duRuns).toHaveLength(1);
     await ui.unmount();
@@ -596,8 +617,10 @@ describe("after the review of milestone 3", () => {
     await start($);
     const ui = await openTab($, w);
     await w.clock.advance(DU_TIMEOUT_MS);
-    expect(await texts(ui)).toContain(
-      `too large to measure, tried ${formatClock(NOW + DU_TIMEOUT_MS)}`
+    expectSize(
+      await texts(ui),
+      "too large to measure",
+      `tried ${formatClock(NOW + DU_TIMEOUT_MS)}`
     );
     expect(w.store.get(sizeKey(REPO))).toEqual({
       kb: null,
@@ -642,8 +665,10 @@ describe("after the review of milestone 3", () => {
     w.du.set(REPO, "missing");
     await start($);
     const ui = await openTab($, w);
-    expect(await texts(ui)).toContain(
-      `size unavailable, tried ${formatClock(NOW)}`
+    expectSize(
+      await texts(ui),
+      "size unavailable",
+      `tried ${formatClock(NOW)}`
     );
     expect(w.store.has(sizeKey(REPO))).toBe(false);
     await ui.unmount();
@@ -709,7 +734,7 @@ describe("where du runs", () => {
     const ui = await openTab($, w);
     const at = w.processes.findIndex((argv) => argv[0] === "du");
     expect(w.processCwds[at]).toBe("/");
-    expect(await texts(ui)).toContain(`1 MB, measured ${formatClock(NOW)}`);
+    expectSize(await texts(ui), "1 MB", `measured ${formatClock(NOW)}`);
     await ui.unmount();
   });
 
@@ -720,8 +745,10 @@ describe("where du runs", () => {
     await start($);
     const ui = await openTab($, w);
     expect(w.duRuns).toEqual([]);
-    expect(await texts(ui)).toContain(
-      `size unavailable, tried ${formatClock(NOW)}`
+    expectSize(
+      await texts(ui),
+      "size unavailable",
+      `tried ${formatClock(NOW)}`
     );
     // Not kept for other sessions, which may have a home folder.
     expect(w.store.has(sizeKey(REPO))).toBe(false);
