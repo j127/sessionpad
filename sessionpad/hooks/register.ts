@@ -19,7 +19,7 @@ import {
   readThisPad,
   setThisHeadline,
 } from "../src/pad";
-import { OFFER_KEY, summaryModelNow, useSummaryModel } from "../src/settings";
+import { OFFER_KEY } from "../src/settings";
 import { forgetPaneEdits, readHeadline, showOffer } from "../src/state";
 import { PRUNE_DELAY_MS, pruneOld, retentionDays } from "../src/prune";
 import { forgetRenewals, touchSeen } from "../src/store";
@@ -93,7 +93,9 @@ export function describePad(pad: Pad): string {
 /** Command names another plugin or Claude Code itself already uses. */
 async function takenCommands($: EngineInterface): Promise<Set<string>> {
   try {
-    const own = $.plugin.name;
+    // The manifest's name, which never changes; the directory's check reads
+    // only $.noun.method(...) calls, not a property such as $.plugin.name.
+    const own = "sessionpad";
     const commands = await $.command.list();
     const others = commands.filter(
       (one) => !(one.source === "plugin" && one.plugin?.split("@")[0] === own)
@@ -280,45 +282,6 @@ async function registerTools($: EngineInterface): Promise<void> {
   }
 }
 
-async function noteCommand(
-  $: EngineInterface,
-  command: string,
-  args: string,
-  signal: AbortSignal
-): Promise<{ text: string }> {
-  try {
-    const added = await addThisNote($, args, "user", signal);
-    if (added.status === "blank") return { text: `Usage: /${command} <text>` };
-    return { text: describeAdd(added) };
-  } catch (error) {
-    return { text: `sessionpad: the note was not saved: ${String(error)}` };
-  }
-}
-
-async function headlineCommand(
-  $: EngineInterface,
-  args: string,
-  signal: AbortSignal
-): Promise<{ text: string }> {
-  try {
-    return { text: describeHeadline(await setThisHeadline($, args, signal)) };
-  } catch (error) {
-    return { text: `sessionpad: the headline was not saved: ${String(error)}` };
-  }
-}
-
-async function exportCommand(
-  $: EngineInterface,
-  args: string
-): Promise<{ text: string }> {
-  try {
-    const path = await exportThisSession($, args);
-    return { text: await describeExport($, path) };
-  } catch (error) {
-    return { text: `sessionpad: the export failed: ${String(error)}` };
-  }
-}
-
 /**
  * The most prompts kept waiting for their turns. Past it the oldest goes,
  * and its turn, if it ever starts, is judged by its text.
@@ -380,14 +343,19 @@ function keepSeen($: EngineInterface, days: number): void {
   });
 }
 
+// Whether summary lines are off in this module's settings; register sets it.
+// Kept here so refreshOffer takes $ alone, the one shape the plugin directory
+// reads for a function in a hook's file that passes $ on.
+let isSummaryOff = true;
+
 /**
  * Shows the Timeline tab's offer to turn summary lines on while they are off
- * and nobody has answered it yet; never fails the caller.
+ * and nobody has dismissed it yet; never fails the caller.
  */
 async function refreshOffer($: EngineInterface): Promise<void> {
   try {
     const isAnswered = (await $.store.get(OFFER_KEY)) !== undefined;
-    await showOffer($, summaryModelNow() === null && !isAnswered);
+    await showOffer($, isSummaryOff && !isAnswered);
   } catch {
     // No offer this time: the store couldn't say whether it was answered.
   }
@@ -409,14 +377,12 @@ export const register: Register = (on, options) => {
   const showBand = options.showBand !== false;
   setMeasureDisk(options.measureDisk !== false);
   const retention = retentionDays(options.retentionDays);
-  useSummaryModel(summaryModel(options.summaryModel));
+  // A change to the setting in /config reloads the module with it.
   const timeline: TimelineSettings = {
-    // Read at each turn: the Timeline tab or /config may turn summaries on.
-    get summaryModel() {
-      return summaryModelNow();
-    },
+    summaryModel: summaryModel(options.summaryModel),
     cap: timelineCap(options.timelineCap),
   };
+  isSummaryOff = timeline.summaryModel === null;
   // The session id whose pad is loaded, to carry the pad across /clear and
   // /branch, which give the conversation a new id without a session.start.
   let loadedId: string | undefined;
@@ -523,23 +489,6 @@ export const register: Register = (on, options) => {
     }
   ).catch(($, e, next) => next(e));
 
-  // The person set summaryModel in /config: the next turn follows it, and the
-  // Timeline tab stops offering, since they have chosen. The key is spelled
-  // out (SUMMARY_CONFIG_KEY's value) so validate can read the matcher.
-  on("config.set", { key: "sessionpad.summaryModel" }, async ($, e, next) => {
-    const result = await next(e);
-    if (result.deny === undefined) {
-      useSummaryModel(summaryModel(result.value));
-      try {
-        await showOffer($, false);
-        await $.store.set(OFFER_KEY, { at: await $.clock.now() });
-      } catch {
-        // The setting is written either way; only the offer's answer is lost.
-      }
-    }
-    return result;
-  }).catch(($, e, next) => next(e)); // replays the result next settled to
-
   // Observe only, and instant: every session.end hook shares 1.5 seconds.
   on("session.end", ($, e, next) => {
     endedId = e.sessionId;
@@ -554,27 +503,56 @@ export const register: Register = (on, options) => {
       : { text: "sessionpad: the pane could not be opened." }
   );
 
-  on("command.run", { command: ["note", "pad-note"] }, ($, e, next) =>
-    served.has(e.command)
-      ? noteCommand($, e.command, e.args, next.signal)
-      : next(e)
-  ).catch(($, e, next) =>
+  // The commands do their work in the hook's own body: the plugin directory
+  // reads $ passed on to another file only from there, or from a function in
+  // this file that takes $ alone.
+  on("command.run", { command: ["note", "pad-note"] }, async ($, e, next) => {
+    if (!served.has(e.command)) return next(e);
+    try {
+      const added = await addThisNote($, e.args, "user", next.signal);
+      if (added.status === "blank") {
+        return { text: `Usage: /${e.command} <text>` };
+      }
+      return { text: describeAdd(added) };
+    } catch (error) {
+      return { text: `sessionpad: the note was not saved: ${String(error)}` };
+    }
+  }).catch(($, e, next) =>
     next.called || !served.has(e.command)
       ? next(e)
       : { text: "sessionpad: the note was not saved." }
   );
 
-  on("command.run", { command: ["headline", "pad-headline"] }, ($, e, next) =>
-    served.has(e.command) ? headlineCommand($, e.args, next.signal) : next(e)
+  on(
+    "command.run",
+    { command: ["headline", "pad-headline"] },
+    async ($, e, next) => {
+      if (!served.has(e.command)) return next(e);
+      try {
+        const set = await setThisHeadline($, e.args, next.signal);
+        return { text: describeHeadline(set) };
+      } catch (error) {
+        return {
+          text: `sessionpad: the headline was not saved: ${String(error)}`,
+        };
+      }
+    }
   ).catch(($, e, next) =>
     next.called || !served.has(e.command)
       ? next(e)
       : { text: "sessionpad: the headline was not saved." }
   );
 
-  on("command.run", { command: "pad-export" }, ($, e, next) =>
-    served.has(e.command) ? exportCommand($, e.args) : next(e)
-  ).catch(($, e, next) =>
+  on("command.run", { command: "pad-export" }, async ($, e, next) => {
+    if (!served.has(e.command)) return next(e);
+    try {
+      const path = await exportThisSession($, e.args);
+      const text = await describeExport($, path);
+      return { text };
+    } catch (error) {
+      return { text: `sessionpad: the export failed: ${String(error)}` };
+    }
+  }).catch(($, e, next) =>
     next.called || !served.has(e.command)
       ? next(e)
       : { text: "sessionpad: the export failed." }

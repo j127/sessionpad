@@ -5,7 +5,7 @@
 // The pane reads these while drawing, so a redraw for any other reason (a
 // note added from another window, say) puts back what was typed. A reload
 // of the mod starts them over: it comes with an update of the mod, and with
-// a change to its settings (Turn on summaries is one). The note field then
+// a change to its settings in /config. The note field then
 // empties, and a note open for editing stays open but shows its own text
 // again, losing what was typed in it and not saved.
 

@@ -21,7 +21,7 @@ Session Pad is a Claude Code mod: it runs in Claude Code 2.1.299 or later, in th
 ## What it runs, sends and stores
 
 - **Nothing leaves your machine unless you turn on summary lines.** The mod makes no network calls of its own.
-- **Summary lines are off until you turn them on**, with **Turn on summaries** in the Timeline tab or the `summaryModel` setting. With them on, after each turn the mod asks Claude Haiku, on your own plan or API key, for a one-line summary. It sends the prompt's first 200 characters, the start of Claude's final answer (1,500 characters at most), the names of the files written (not their paths or contents) and the number of commands run. A call is about 500 tokens in and 20 out, roughly 6 cents per 1,000 turns on Haiku 5.5 at the API prices of October 2026 (ten times that if your Claude Code's `haiku` is Haiku 4.5); the Timeline tab shows the running total.
+- **Summary lines are off until you turn them on**, with the `summaryModel` setting (see [Settings](#settings)). With them on, after each turn the mod asks Claude Haiku, on your own plan or API key, for a one-line summary. It sends the prompt's first 200 characters, the start of Claude's final answer (1,500 characters at most), the names of the files written (not their paths or contents) and the number of commands run. A call is about 500 tokens in and 20 out, roughly 6 cents per 1,000 turns on Haiku 5.5 at the API prices of October 2026 (ten times that if your Claude Code's `haiku` is Haiku 4.5); the Timeline tab shows the running total.
 - **What it watches in the session:** it hooks each prompt you send, each turn's start and end, and each Edit, Write, NotebookEdit and Bash call, to write the timeline: the prompt's first 200 characters, the paths of the files written (up to 25 a turn) and how many commands ran. These hooks only observe: they pass every prompt and call on unchanged, and never block one.
 - **Programs it runs:** `git`, read-only, in the session's folder, for the branch and the worktrees; `du -sk` from your home folder (the root folder where there is none), in the background, to measure worktree sizes (the `measureDisk` setting turns this off); and `rm`, only on the mod's own timeline files, when old sessions are pruned (where there is no `rm`, as on Windows, those files are emptied instead).
 - **What it stores, all on your machine:**
@@ -32,7 +32,10 @@ Session Pad is a Claude Code mod: it runs in Claude Code 2.1.299 or later, in th
   The two `~/.claude` folders are under `CLAUDE_CONFIG_DIR` instead when that is set.
 
 - **What it deletes:** a session nobody has opened for `retentionDays` (90 by default) loses its pad, its timeline file (and any copy of one put aside as unreadable) and its index row; sizes measured that long ago go too, and so do timeline files that old that no session in the index owns. Exports are never touched.
-- **Settings it changes:** only its own `summaryModel`, when you press **Turn on summaries**.
+- **Settings it changes:** none. It reads its own settings, and a change you make in `/config` reloads it.
+- **The model call** goes through Claude Code's own model access, on the plan or API key the session already uses; the mod never reads a key, token or credential itself.
+- **What its hooks change:** nothing that passes through them, with two exceptions that are the mod's own: its hooks on its two tools, `note` and `notes_read`, answer those tools, which is how they work, and its commands answer `/pad`, `/note`, `/headline` and `/pad-export`.
+- **Files it writes outside its own folders:** only the `/pad-export` file you name. An export never replaces a file that isn't an earlier export: each one starts with the line `<!-- sessionpad export -->`, and a file without it is left alone.
 
 ## Settings
 
@@ -43,6 +46,14 @@ Session Pad is a Claude Code mod: it runs in Claude Code 2.1.299 or later, in th
 | `retentionDays` | `90`    | Days a session can go unopened before it is pruned; 0 keeps everything       |
 | `summaryModel`  | `off`   | `off`, or `haiku` to have Haiku write each turn's summary line               |
 | `timelineCap`   | `500`   | Entries a session's timeline file keeps, from 1 to 1000; the oldest go first |
+
+To change a setting, run `/config` in a terminal session, or `/plugin configure <id>`. From a shell, which also serves the Desktop app's sessions, this turns summary lines on:
+
+```bash
+echo '{"summaryModel":"haiku"}' | claude plugin configure <id> --values-stdin
+```
+
+`<id>` is the name `claude plugin list` shows for Session Pad: `sessionpad@sessionpad` when it came from the author's marketplace. Set `summaryModel` back to `off` the same way to turn them off. A change reloads the mod with the new value.
 
 ## Install, update, uninstall
 

@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 (not released yet)
+
+### Changed
+
+- The Timeline tab's summary offer says how to turn summary lines on (set `summaryModel` to `haiku`) and has a **Got it** button, instead of a **Turn on summaries** button that changed the setting: the plugin directory accepts no settings call from a mod that keeps its engine for later, as every button and timer in this one does. A change in `/config` reloads the mod with the new value.
 
 ### Added
 
