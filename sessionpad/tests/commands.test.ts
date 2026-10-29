@@ -7,7 +7,13 @@ describe("commands", () => {
   test("registers /pad, /note, /headline and /pad-export, all immediate", async ($, on) => {
     const w = world(on);
     await start($);
-    expect(w.commands).toEqual(["pad", "note", "headline", "pad-export"]);
+    expect(w.commands).toEqual([
+      "pad",
+      "note",
+      "headline",
+      "pad-export",
+      "pad-demo",
+    ]);
     expect(w.allImmediate()).toBe(true);
   });
 
@@ -60,6 +66,7 @@ describe("commands", () => {
       "pad-note",
       "pad-headline",
       "pad-export",
+      "pad-demo",
     ]);
     expect(w.logs.join("\n")).toContain("/pad-note");
     expect(w.logs.join("\n")).toContain("/pad-headline");
@@ -80,7 +87,13 @@ describe("commands", () => {
       ],
     });
     await start($);
-    expect(w.commands).toEqual(["pad", "note", "headline", "pad-export"]);
+    expect(w.commands).toEqual([
+      "pad",
+      "note",
+      "headline",
+      "pad-export",
+      "pad-demo",
+    ]);
   });
 });
 

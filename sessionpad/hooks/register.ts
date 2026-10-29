@@ -38,6 +38,7 @@ import {
   withCall,
 } from "../src/turns";
 import type { ClearMove, TimelineSettings } from "../src/turns";
+import { DEMO_ID, DEMO_TITLE, renderDemo } from "../src/demo";
 import { PANE_ID, PANE_TITLE, renderBand, renderPane } from "../src/ui";
 import {
   forgetMeasuring,
@@ -214,6 +215,20 @@ async function registerCommands($: EngineInterface): Promise<Set<string>> {
     fellBack.push("/pad-export is taken, so export from the Timeline tab");
   }
 
+  // A design test page, while the pane's new look is worked out. Temporary.
+  if (
+    await tryRegister(taken, "pad-demo", () =>
+      $.command.register({
+        name: "pad-demo",
+        description:
+          "Open sessionpad's design test page: every color, border and button it can draw",
+        immediate: true,
+      })
+    )
+  ) {
+    served.add("pad-demo");
+  }
+
   for (const line of fellBack) $.ui.log(`sessionpad: ${line}.`);
   return served;
 }
@@ -264,6 +279,18 @@ async function registerTools($: EngineInterface): Promise<void> {
       }
     );
   }
+}
+
+/** Opens the design test page beside the pane. */
+async function openDemo($: EngineInterface): Promise<{ text?: string }> {
+  const opened = await $.ui.open({
+    id: DEMO_ID,
+    title: DEMO_TITLE,
+    focus: true,
+  });
+  return opened.isPlaced
+    ? {}
+    : { text: `The design test is open but not drawn yet: ${opened.reason}` };
 }
 
 async function openPane($: EngineInterface): Promise<{ text?: string }> {
@@ -644,6 +671,18 @@ export const register: Register = (on, options) => {
 
   on("ui.render", { component: "Pane", requestId: "sessionpad" }, ($, e) =>
     renderPane($, e)
+  );
+
+  on("ui.render", { component: "Pane", requestId: "sessionpad-demo" }, ($, e) =>
+    renderDemo($, e)
+  );
+
+  on("command.run", { command: "pad-demo" }, ($, e, next) =>
+    served.has(e.command) ? openDemo($) : next(e)
+  ).catch(($, e, next) =>
+    next.called || !served.has(e.command)
+      ? next(e)
+      : { text: "sessionpad: the design test could not be opened." }
   );
 
   on("ui.render", { component: "AbovePrompt" }, async ($, e, next) => {
