@@ -43,3 +43,15 @@ type_check:
 # Start a terminal session with the mod loaded from this folder
 dev:
   claude --plugin-dir ./sessionpad
+
+# Open the mockup gallery: every set, or one set (`just mockups ios_app`)
+mockups set_name="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    page={{ quote(justfile_directory() + "/mockups/" + if set_name == "" { "index.html" } else { set_name + "/index.html" }) }}
+    if [ ! -f "$page" ]; then echo "No mockups at $page" >&2; exit 1; fi
+    if grep -qi microsoft /proc/version 2>/dev/null; then
+        if command -v wslview >/dev/null 2>&1; then wslview "$page"; else explorer.exe "$(wslpath -w "$page")" || true; fi
+    elif [ "$(uname -s)" = "Darwin" ]; then open "$page"
+    elif command -v xdg-open >/dev/null 2>&1; then xdg-open "$page"
+    else echo "Open $page in a browser"; fi

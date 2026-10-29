@@ -1,0 +1,1906 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-palette="graphite" data-font="mono">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- DP:CSP -->
+<meta
+  id="dp-csp"
+  http-equiv="Content-Security-Policy"
+  content="default-src 'none'; img-src data:; font-src data:; media-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'"
+/>
+<!-- /DP:CSP -->
+    <title>03 · Ledger — mockup</title>
+    <meta
+      name="mockup-direction"
+      content="A compact, terminal-first ledger: underlined tabs, zebra-shaded notes with compact H E X buttons and a key, a Recently deleted shelf, and aligned tables for the timeline and workspace."
+    />
+    <style>
+      /* 1. Palette blocks: all 7 --c-* variables, light AND dark, per palette.
+         --tone-error and --tone-warn are this direction's two semantic extras
+         (the X button and the "stopped" mark). They live here so that every
+         color literal stays inside a palette block and dark mode stays a pure
+         variable swap. In the real pane they are the theme's error and warning colors. */
+      [data-palette="graphite"] {
+        --c-bg: #e9ecef;
+        --c-surface: #f8f9fa;
+        --c-text: #1a1f24;
+        --c-muted: #66707a;
+        --c-accent: #0a7f88;
+        --c-on-accent: #ffffff;
+        --c-border: #d3d8dd;
+        --tone-error: #c4363c;
+        --tone-warn: #9a6400;
+      }
+      [data-palette="graphite"][data-theme="dark"] {
+        --c-bg: #0b0e11;
+        --c-surface: #12161a;
+        --c-text: #d5dce2;
+        --c-muted: #7a8792;
+        --c-accent: #42c4cc;
+        --c-on-accent: #04191b;
+        --c-border: #232a31;
+        --tone-error: #f0686c;
+        --tone-warn: #e2b55a;
+      }
+      [data-palette="amber"] {
+        --c-bg: #f3ecdf;
+        --c-surface: #fcf8f0;
+        --c-text: #2a2116;
+        --c-muted: #7b6a52;
+        --c-accent: #b05c00;
+        --c-on-accent: #fffaf2;
+        --c-border: #e2d6c1;
+        --tone-error: #b3301e;
+        --tone-warn: #7e7000;
+      }
+      [data-palette="amber"][data-theme="dark"] {
+        --c-bg: #0f0b06;
+        --c-surface: #17120b;
+        --c-text: #f2e3c6;
+        --c-muted: #a38c69;
+        --c-accent: #ffb22e;
+        --c-on-accent: #1a1000;
+        --c-border: #33291a;
+        --tone-error: #ff6a52;
+        --tone-warn: #e6dc72;
+      }
+      [data-palette="clay"] {
+        --c-bg: #f2eee8;
+        --c-surface: #fcfaf7;
+        --c-text: #29221e;
+        --c-muted: #75685e;
+        --c-accent: #c96442;
+        --c-on-accent: #ffffff;
+        --c-border: #e0d7cc;
+        --tone-error: #b0202e;
+        --tone-warn: #94680a;
+      }
+      [data-palette="clay"][data-theme="dark"] {
+        --c-bg: #12100e;
+        --c-surface: #1a1714;
+        --c-text: #ece3da;
+        --c-muted: #9b8e83;
+        --c-accent: #e0805d;
+        --c-on-accent: #1c0d06;
+        --c-border: #302924;
+        --tone-error: #f2606e;
+        --tone-warn: #e3b04f;
+      }
+
+      /* 2. Component CSS: consumes only contract variables (and the two tones above).
+         Shades are mixed from surface and text, so the zebra step is darker in light
+         mode and lighter in dark mode without any per-mode CSS. */
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--c-bg);
+        color: var(--c-text);
+        font-family: var(--font-body);
+        font-size: 13px;
+        line-height: 1.45;
+        --zebra: color-mix(in srgb, var(--c-surface) 94.5%, var(--c-text));
+        --shade: color-mix(in srgb, var(--c-surface) 89%, var(--c-text));
+        --tint: color-mix(in srgb, var(--c-surface) 80%, var(--c-accent));
+        --tint-soft: color-mix(in srgb, var(--c-surface) 90%, var(--c-accent));
+        --accent-muted: color-mix(in srgb, var(--c-accent) 62%, var(--c-muted));
+      }
+      button,
+      input,
+      textarea {
+        font: inherit;
+        color: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+
+      /* Page */
+      .page {
+        max-width: 1212px;
+        margin: 0 auto;
+        padding: calc(var(--density) * 28px) 16px calc(var(--density) * 48px);
+      }
+      .page-head {
+        margin-bottom: calc(var(--density) * 26px);
+      }
+      .eyebrow {
+        margin: 0 0 calc(var(--density) * 4px);
+        font-family: var(--font-heading);
+        font-size: 11.5px;
+        color: var(--c-muted);
+        letter-spacing: 0.04em;
+      }
+      .page-head h1 {
+        margin: 0;
+        font-family: var(--font-heading);
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
+      .page-head h1 .n {
+        color: var(--c-accent);
+      }
+      .lede {
+        margin: calc(var(--density) * 6px) 0 0;
+        max-width: 68ch;
+        color: var(--c-muted);
+        font-size: 13px;
+      }
+
+      .frames {
+        display: flex;
+        flex-wrap: wrap;
+        gap: calc(var(--density) * 22px) calc(var(--density) * 20px);
+        justify-content: center;
+        align-items: flex-start;
+      }
+      .frame-wrap {
+        flex: 0 1 380px;
+        min-width: 0;
+        max-width: 100%;
+      }
+      .cap {
+        display: flex;
+        gap: calc(var(--density) * 8px);
+        align-items: baseline;
+        margin: 0 0 calc(var(--density) * 8px);
+        color: var(--c-muted);
+        font-size: 12px;
+      }
+      .cap-n {
+        font-family: var(--font-heading);
+        color: var(--c-accent);
+        font-weight: 700;
+      }
+
+      /* Pane frame and its docked title bar */
+      .pane {
+        background: var(--c-surface);
+        border: 1px solid var(--c-border);
+        border-radius: var(--radius);
+        overflow: hidden;
+        font-size: 12.5px;
+      }
+      .chrome {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: calc(var(--density) * 5px) calc(var(--density) * 10px)
+          calc(var(--density) * 5px) calc(var(--density) * 12px);
+        background: var(--c-bg);
+        border-bottom: 1px solid var(--c-border);
+        color: var(--c-muted);
+        font-family: var(--font-heading);
+        font-size: 11px;
+        letter-spacing: 0.03em;
+      }
+      .chrome-x {
+        font-size: 14px;
+        line-height: 1;
+        padding: 0 calc(var(--density) * 2px);
+      }
+
+      /* Tabs: active = bold + accent + 3px bar; one thin rule under the row */
+      .tabs {
+        display: flex;
+        gap: calc(var(--density) * 18px);
+        padding: 0 calc(var(--density) * 12px);
+        border-bottom: 1px solid var(--c-border);
+      }
+      .tab {
+        position: relative;
+        display: inline-flex;
+        align-items: baseline;
+        gap: 4px;
+        margin: 0;
+        padding: calc(var(--density) * 9px) 0 calc(var(--density) * 8px);
+        background: none;
+        border: 0;
+        color: var(--c-muted);
+        font-size: 12.5px;
+      }
+      .tab .hk {
+        font-family: var(--font-heading);
+        font-size: 9.5px;
+        color: var(--c-muted);
+        opacity: 0.8;
+        font-weight: 400;
+      }
+      .tab.is-active {
+        color: var(--c-accent);
+        font-weight: 700;
+      }
+      .tab.is-active::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -1px;
+        height: 3px;
+        background: var(--c-accent);
+      }
+
+      /* Headline strip */
+      .headline {
+        display: flex;
+        gap: calc(var(--density) * 7px);
+        align-items: flex-start;
+        padding: calc(var(--density) * 9px) calc(var(--density) * 12px);
+        background: var(--tint);
+        font-weight: 700;
+        font-size: 13px;
+        line-height: 1.35;
+      }
+      .headline .bar {
+        color: var(--c-accent);
+        flex: none;
+      }
+
+      /* Prompt-like note input */
+      .prompt {
+        display: flex;
+        align-items: center;
+        gap: calc(var(--density) * 8px);
+        margin: calc(var(--density) * 10px) calc(var(--density) * 12px);
+        padding: calc(var(--density) * 6px) calc(var(--density) * 6px)
+          calc(var(--density) * 6px) calc(var(--density) * 9px);
+        background: var(--shade);
+        border-radius: calc(var(--radius) * 0.75);
+      }
+      .prompt .caret {
+        color: var(--c-accent);
+        font-weight: 700;
+        font-family: var(--font-heading);
+      }
+      .prompt input {
+        flex: 1;
+        min-width: 0;
+        padding: 0;
+        background: transparent;
+        border: 0;
+        outline: 0;
+        color: var(--c-text);
+      }
+      .prompt input::placeholder {
+        color: var(--c-muted);
+      }
+      .prompt .submit {
+        flex: none;
+        padding: calc(var(--density) * 1px) calc(var(--density) * 6px);
+        background: none;
+        border: 0;
+        color: var(--c-muted);
+        font-family: var(--font-heading);
+        font-size: 11px;
+        white-space: nowrap;
+      }
+
+      /* List header with the H E X key */
+      .listhead {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 2px calc(var(--density) * 10px);
+        padding: 0 calc(var(--density) * 12px) calc(var(--density) * 6px);
+        color: var(--c-muted);
+        font-size: 11px;
+      }
+      .key {
+        font-family: var(--font-heading);
+      }
+      .key b {
+        color: var(--c-text);
+        font-weight: 700;
+      }
+      .key b.x {
+        color: var(--tone-error);
+      }
+
+      /* Notes: zebra rows, no outlines */
+      .notes {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .note {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: calc(var(--density) * 10px);
+        align-items: start;
+        padding: calc(var(--density) * 7px) calc(var(--density) * 12px);
+        background: var(--c-surface);
+      }
+      .note:nth-child(even) {
+        background: var(--zebra);
+      }
+      .ntext {
+        overflow-wrap: break-word;
+        min-width: 0;
+      }
+      .ntext code,
+      .design-notes code {
+        font-family: var(--font-heading);
+        font-size: 0.94em;
+        padding: 0 0.3em;
+        background: var(--shade);
+        border-radius: calc(var(--radius) * 0.5);
+        overflow-wrap: anywhere;
+      }
+      .meta {
+        margin-left: 0.5ch;
+        color: var(--c-muted);
+        font-family: var(--font-heading);
+        font-size: 10.5px;
+        white-space: nowrap;
+      }
+      .btns {
+        display: flex;
+        gap: calc(var(--density) * 3px);
+        padding-top: 1px;
+      }
+      .sq {
+        display: inline-grid;
+        place-items: center;
+        width: calc(var(--density) * 21px);
+        height: calc(var(--density) * 21px);
+        padding: 0;
+        border: 0;
+        border-radius: calc(var(--radius) * 0.6);
+        background: var(--shade);
+        color: var(--c-text);
+        font-family: var(--font-heading);
+        font-size: 10.5px;
+        font-weight: 700;
+        line-height: 1;
+      }
+      .sq.x {
+        color: var(--tone-error);
+      }
+
+      /* Edit state */
+      .note.editing {
+        display: block;
+        background: var(--tint-soft);
+        padding-top: calc(var(--density) * 8px);
+        padding-bottom: calc(var(--density) * 8px);
+      }
+      .edit textarea {
+        display: block;
+        width: 100%;
+        resize: none;
+        padding: calc(var(--density) * 6px) calc(var(--density) * 8px);
+        background: var(--c-surface);
+        border: 1px solid var(--c-accent);
+        border-radius: calc(var(--radius) * 0.6);
+        outline: none;
+        color: var(--c-text);
+        line-height: 1.45;
+      }
+      .edit-foot {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: calc(var(--density) * 6px);
+        margin-top: calc(var(--density) * 6px);
+      }
+      .hint {
+        color: var(--c-muted);
+        font-family: var(--font-heading);
+        font-size: 10.5px;
+      }
+      .edit-btns {
+        display: flex;
+        gap: calc(var(--density) * 4px);
+      }
+
+      /* Small text buttons: save, cancel, Restore, Export, Refresh */
+      .tiny {
+        flex: none;
+        padding: calc(var(--density) * 2px) calc(var(--density) * 8px);
+        border: 0;
+        border-radius: calc(var(--radius) * 0.6);
+        background: var(--shade);
+        color: var(--c-text);
+        font-size: 11px;
+        line-height: 1.5;
+        white-space: nowrap;
+      }
+      .tiny.primary {
+        background: var(--c-accent);
+        color: var(--c-on-accent);
+        font-weight: 700;
+      }
+      .tiny.accent {
+        color: var(--c-accent);
+        font-weight: 700;
+      }
+
+      /* Recently deleted shelf */
+      .shelf {
+        margin-top: calc(var(--density) * 10px);
+        border-top: 1px solid var(--c-border);
+      }
+      .shelf summary {
+        display: flex;
+        gap: 6px;
+        padding: calc(var(--density) * 8px) calc(var(--density) * 12px);
+        list-style: none;
+        cursor: pointer;
+        color: var(--c-muted);
+        font-size: 11.5px;
+      }
+      .shelf summary::-webkit-details-marker {
+        display: none;
+      }
+      .shelf summary::before {
+        content: "▸";
+        font-family: var(--font-heading);
+      }
+      .shelf[open] summary::before {
+        content: "▾";
+      }
+      .shelf summary .n {
+        font-family: var(--font-heading);
+      }
+      .shelf-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: calc(var(--density) * 10px);
+        align-items: center;
+        padding: calc(var(--density) * 7px) calc(var(--density) * 12px);
+        background: var(--zebra);
+      }
+      .shelf-row .ntext {
+        color: var(--c-muted);
+      }
+      .shelf-foot {
+        margin: 0;
+        padding: calc(var(--density) * 6px) calc(var(--density) * 12px)
+          calc(var(--density) * 11px);
+        color: var(--c-muted);
+        font-size: 11px;
+      }
+
+      /* Shared ledger table */
+      .tl-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: calc(var(--density) * 8px);
+        padding: calc(var(--density) * 10px) calc(var(--density) * 12px)
+          calc(var(--density) * 3px);
+      }
+      .tl-head .count {
+        font-weight: 700;
+      }
+      .tl-key {
+        margin: 0;
+        padding: 0 calc(var(--density) * 12px) calc(var(--density) * 8px);
+        color: var(--c-muted);
+        font-family: var(--font-heading);
+        font-size: 10.5px;
+      }
+      .tl-key b {
+        color: var(--c-text);
+      }
+      table.ledger {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+      .ledger td,
+      .ledger th {
+        padding: calc(var(--density) * 6px) calc(var(--density) * 5px);
+        vertical-align: top;
+        text-align: left;
+      }
+      .ledger td:first-child,
+      .ledger th:first-child {
+        padding-left: calc(var(--density) * 12px);
+      }
+      .ledger td:last-child,
+      .ledger th:last-child {
+        padding-right: calc(var(--density) * 12px);
+      }
+      .ledger tr.z2 {
+        background: var(--zebra);
+      }
+      .t,
+      .d {
+        width: 1%;
+        white-space: nowrap;
+        text-align: right !important;
+        color: var(--c-muted);
+        font-family: var(--font-heading);
+        font-variant-numeric: tabular-nums;
+        font-size: 11.5px;
+      }
+      .s {
+        overflow-wrap: break-word;
+      }
+      .m {
+        width: 1%;
+        white-space: nowrap;
+        text-align: right !important;
+        color: var(--c-muted);
+        font-family: var(--font-heading);
+        font-variant-numeric: tabular-nums;
+        font-size: 10.5px;
+        padding-top: calc(var(--density) * 7px) !important;
+      }
+      .warn {
+        color: var(--tone-warn);
+        font-weight: 700;
+      }
+      .acc {
+        color: var(--c-accent);
+      }
+      .ledger tr.has-sub td {
+        padding-bottom: 0;
+      }
+      .ledger tr.sub td {
+        padding-top: 1px;
+      }
+      .br {
+        text-align: right !important;
+        white-space: nowrap;
+        color: var(--c-accent);
+        font-family: var(--font-heading);
+        font-size: 10.5px;
+        font-weight: 700;
+      }
+      .ledger tr.day td {
+        padding-top: calc(var(--density) * 5px);
+        padding-bottom: calc(var(--density) * 5px);
+        background: var(--shade);
+        font-family: var(--font-heading);
+        font-size: 11.5px;
+      }
+      .ledger tr.day b {
+        font-weight: 700;
+      }
+      .dow {
+        margin-left: 1ch;
+        color: var(--c-muted);
+      }
+      .ledger td.a {
+        color: var(--c-muted);
+        font-style: italic;
+      }
+
+      /* Workspace */
+      .sec {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin: 0;
+        padding: calc(var(--density) * 11px) calc(var(--density) * 12px)
+          calc(var(--density) * 5px);
+        color: var(--c-muted);
+        font-size: 11px;
+        letter-spacing: 0.02em;
+      }
+      .kv {
+        font-family: var(--font-heading);
+        font-size: 12px;
+      }
+      .kv-row {
+        display: grid;
+        grid-template-columns: 9ch 1fr auto;
+        gap: calc(var(--density) * 8px);
+        align-items: center;
+        min-height: calc(var(--density) * 30px);
+        padding: calc(var(--density) * 5px) calc(var(--density) * 12px);
+        background: var(--c-surface);
+      }
+      .kv-row.z2 {
+        background: var(--zebra);
+      }
+      .kv-row .k {
+        color: var(--c-muted);
+      }
+      .kv-row .v {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      .kv-row .v .q {
+        color: var(--c-muted);
+      }
+      .kv-row .tiny {
+        font-family: var(--font-body);
+      }
+      .ledger.wt {
+        font-family: var(--font-heading);
+        font-size: 11.5px;
+      }
+      .ledger.wt th {
+        padding-top: calc(var(--density) * 4px);
+        padding-bottom: calc(var(--density) * 4px);
+        border-bottom: 1px solid var(--c-border);
+        color: var(--c-muted);
+        font-weight: 400;
+        font-size: 10.5px;
+      }
+      .ledger.wt .r {
+        width: 1%;
+        white-space: nowrap;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .ledger.wt .path {
+        color: var(--c-muted);
+        overflow-wrap: anywhere;
+      }
+      .measuring {
+        color: var(--accent-muted);
+      }
+      .unavail {
+        color: var(--c-muted);
+      }
+      .pane-foot {
+        height: calc(var(--density) * 10px);
+      }
+
+      /* Band and mock prompt box */
+      .band-demo {
+        max-width: 780px;
+        margin: calc(var(--density) * 34px) auto 0;
+      }
+      .chat {
+        padding: calc(var(--density) * 16px);
+        background: var(--c-bg);
+        border: 1px solid var(--c-border);
+        border-radius: var(--radius);
+      }
+      .msg {
+        margin: 0 0 calc(var(--density) * 18px);
+        color: var(--c-muted);
+        font-size: 13px;
+      }
+      .msg .who {
+        color: var(--c-text);
+        font-weight: 700;
+        margin-right: 0.6ch;
+      }
+      .band {
+        margin: 0;
+        padding: 0 calc(var(--density) * 4px) calc(var(--density) * 6px);
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        color: var(--c-muted);
+        font-size: 12px;
+      }
+      .band .band-k {
+        font-weight: 700;
+      }
+      .promptbox {
+        padding: calc(var(--density) * 11px) calc(var(--density) * 13px)
+          calc(var(--density) * 9px);
+        background: var(--c-surface);
+        border: 1px solid var(--c-border);
+        border-radius: calc(var(--radius) * 2);
+      }
+      .pb-ph {
+        color: var(--c-muted);
+        font-size: 13.5px;
+      }
+      .pb-foot {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: calc(var(--density) * 12px);
+        color: var(--c-muted);
+        font-family: var(--font-heading);
+        font-size: 11px;
+      }
+
+      /* Design notes */
+      .design-notes {
+        max-width: 1180px;
+        margin: calc(var(--density) * 40px) auto 0;
+        padding: calc(var(--density) * 12px) calc(var(--density) * 18px);
+        background: var(--c-surface);
+        border: 1px solid var(--c-border);
+        border-radius: var(--radius);
+        font-size: 13.5px;
+        line-height: 1.6;
+      }
+      .design-notes summary {
+        cursor: pointer;
+        font-family: var(--font-heading);
+        font-weight: 700;
+      }
+      .design-notes h3 {
+        margin: 1.5em 0 0.4em;
+        color: var(--c-accent);
+        font-family: var(--font-heading);
+        font-size: 13px;
+      }
+      .design-notes p,
+      .design-notes li {
+        max-width: 92ch;
+      }
+      .design-notes ul {
+        padding-left: 1.3em;
+      }
+      .design-notes li {
+        margin-bottom: 0.35em;
+      }
+      .design-notes pre {
+        margin: 0.6em 0 1em;
+        padding: calc(var(--density) * 12px) calc(var(--density) * 14px);
+        overflow-x: auto;
+        background: var(--c-bg);
+        border: 1px solid var(--c-border);
+        border-radius: calc(var(--radius) * 0.75);
+        font-family: var(--font-heading);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+      .design-notes pre .acc {
+        color: var(--c-accent);
+      }
+      .design-notes pre .err {
+        color: var(--tone-error);
+      }
+      .design-notes pre .wrn {
+        color: var(--tone-warn);
+      }
+      .design-notes pre .dim {
+        color: var(--c-muted);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 3. The mockup content itself -->
+    <div class="page">
+      <header class="page-head">
+        <p class="eyebrow">sessionpad · side pane · direction</p>
+        <h1><span class="n">03</span> · Ledger</h1>
+        <p class="lede">
+          Dense, precise and keyboard-tool-like: the pane reads like a well-made
+          TUI that also sits comfortably in the Desktop app. Dark is the default
+          to show the terminal feel; flip the mode, palette and face in the
+          design panel.
+        </p>
+      </header>
+
+      <div class="frames">
+        <!-- Frame 1: Notes -->
+        <div class="frame-wrap">
+          <p class="cap">
+            <span class="cap-n">1</span> Notes — note 2 in edit, one deleted
+          </p>
+          <section class="pane" aria-label="sessionpad pane, Notes tab">
+            <div class="chrome">
+              <span>sessionpad</span
+              ><span class="chrome-x" aria-label="Close pane">×</span>
+            </div>
+            <div class="tabs" role="tablist">
+              <button
+                type="button"
+                class="tab is-active"
+                role="tab"
+                aria-selected="true"
+              >
+                Notes <span class="hk">1</span>
+              </button>
+              <button
+                type="button"
+                class="tab"
+                role="tab"
+                aria-selected="false"
+              >
+                Timeline <span class="hk">2</span>
+              </button>
+              <button
+                type="button"
+                class="tab"
+                role="tab"
+                aria-selected="false"
+              >
+                Workspace <span class="hk">3</span>
+              </button>
+            </div>
+
+            <div class="headline">
+              <span class="bar" aria-hidden="true">▌</span
+              ><span
+                >Ship sessionpad 0.1.0: pruning, release, and the pane's
+                look</span
+              >
+            </div>
+
+            <div class="prompt">
+              <span class="caret" aria-hidden="true">›</span>
+              <input
+                type="text"
+                placeholder="Add a note…"
+                aria-label="Add a note"
+              />
+              <button type="button" class="submit">add ⏎</button>
+            </div>
+
+            <div class="listhead">
+              <span>4 notes</span>
+              <span class="key"
+                ><b>H</b> headline · <b>E</b> edit ·
+                <b class="x">X</b> delete</span
+              >
+            </div>
+
+            <ol class="notes">
+              <li class="note">
+                <div class="ntext">
+                  Use <code>prune:at</code> so sessions prune about once a
+                  day.<span class="meta">09:12 · Claude</span>
+                </div>
+                <div class="btns">
+                  <button type="button" class="sq" aria-label="Make headline">
+                    H
+                  </button>
+                  <button type="button" class="sq" aria-label="Edit note">
+                    E
+                  </button>
+                  <button type="button" class="sq x" aria-label="Delete note">
+                    X
+                  </button>
+                </div>
+              </li>
+              <li class="note editing">
+                <div class="edit">
+                  <textarea rows="3" aria-label="Edit note 2">
+Ask J for the two README screenshots.</textarea>
+                  <div class="edit-foot">
+                    <span class="hint">⏎ save · esc cancel</span>
+                    <span class="edit-btns">
+                      <button type="button" class="tiny primary">save</button>
+                      <button type="button" class="tiny">cancel</button>
+                    </span>
+                  </div>
+                </div>
+              </li>
+              <li class="note">
+                <div class="ntext">
+                  Minimum version is <strong>2.1.299</strong>: earlier releases
+                  refuse the hooks module.<span class="meta"
+                    >11:40 · Claude</span
+                  >
+                </div>
+                <div class="btns">
+                  <button type="button" class="sq" aria-label="Make headline">
+                    H
+                  </button>
+                  <button type="button" class="sq" aria-label="Edit note">
+                    E
+                  </button>
+                  <button type="button" class="sq x" aria-label="Delete note">
+                    X
+                  </button>
+                </div>
+              </li>
+              <li class="note">
+                <div class="ntext">
+                  Desktop's file pane can't open files outside the project;
+                  <code>/pad-export notes/pad.md</code> works.<span class="meta"
+                    >12:15 · you</span
+                  >
+                </div>
+                <div class="btns">
+                  <button type="button" class="sq" aria-label="Make headline">
+                    H
+                  </button>
+                  <button type="button" class="sq" aria-label="Edit note">
+                    E
+                  </button>
+                  <button type="button" class="sq x" aria-label="Delete note">
+                    X
+                  </button>
+                </div>
+              </li>
+            </ol>
+
+            <details class="shelf" open>
+              <summary>Recently deleted <span class="n">(1)</span></summary>
+              <div class="shelf-row">
+                <div class="ntext">
+                  Check du from the home folder.<span class="meta"
+                    >12:20 · you</span
+                  >
+                </div>
+                <button type="button" class="tiny accent">Restore</button>
+              </div>
+              <p class="shelf-foot">Kept until the session ends</p>
+            </details>
+          </section>
+        </div>
+
+        <!-- Frame 2: Timeline -->
+        <div class="frame-wrap">
+          <p class="cap">
+            <span class="cap-n">2</span> Timeline — one row per turn
+          </p>
+          <section class="pane" aria-label="sessionpad pane, Timeline tab">
+            <div class="chrome">
+              <span>sessionpad</span
+              ><span class="chrome-x" aria-label="Close pane">×</span>
+            </div>
+            <div class="tabs" role="tablist">
+              <button
+                type="button"
+                class="tab"
+                role="tab"
+                aria-selected="false"
+              >
+                Notes <span class="hk">1</span>
+              </button>
+              <button
+                type="button"
+                class="tab is-active"
+                role="tab"
+                aria-selected="true"
+              >
+                Timeline <span class="hk">2</span>
+              </button>
+              <button
+                type="button"
+                class="tab"
+                role="tab"
+                aria-selected="false"
+              >
+                Workspace <span class="hk">3</span>
+              </button>
+            </div>
+
+            <div class="tl-head">
+              <span class="count">8 turns, newest first</span>
+              <button type="button" class="tiny">Export</button>
+            </div>
+            <p class="tl-key">
+              <b>f</b> files · <b>c</b> commands ·
+              <span class="acc">→</span> branch switch
+            </p>
+
+            <table class="ledger tl">
+              <tbody>
+                <tr class="day">
+                  <td colspan="4">
+                    <b>2026-10-28</b><span class="dow">Wed</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="t">12:31</td>
+                  <td class="d">4m10s</td>
+                  <td class="s">
+                    Restyled the pane: tabs, note cards and a wrapping timeline
+                  </td>
+                  <td class="m">3f · 12c</td>
+                </tr>
+                <tr class="z2">
+                  <td class="t">11:52</td>
+                  <td class="d">1m05s</td>
+                  <td class="s">
+                    Found that 2.1.299 is the first release that loads the mod
+                  </td>
+                  <td class="m">9c</td>
+                </tr>
+                <tr>
+                  <td class="t">11:20</td>
+                  <td class="d">38s</td>
+                  <td class="s">Answered how to do the manual pass</td>
+                  <td class="m"><span class="warn">stopped</span></td>
+                </tr>
+                <tr class="z2 has-sub">
+                  <td class="t">10:44</td>
+                  <td class="d">6m20s</td>
+                  <td class="s">Fixed the review findings for pruning</td>
+                  <td class="m">4f · 21c</td>
+                </tr>
+                <tr class="z2 sub">
+                  <td></td>
+                  <td></td>
+                  <td class="br" colspan="2">→ feat/pane-look</td>
+                </tr>
+                <tr class="day">
+                  <td colspan="4">
+                    <b>2026-10-27</b><span class="dow">Tue</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="t">16:03</td>
+                  <td class="d">10m41s</td>
+                  <td class="s">
+                    Followed up on a message from another session
+                  </td>
+                  <td class="m">1f · 11c</td>
+                </tr>
+                <tr class="z2">
+                  <td class="t">15:48</td>
+                  <td class="d">8m02s</td>
+                  <td class="s">
+                    Named the turns that Claude Code starts instead of showing
+                    markup
+                  </td>
+                  <td class="m">2f · 25c</td>
+                </tr>
+                <tr>
+                  <td class="t">15:40</td>
+                  <td class="a" colspan="3">— The conversation was cleared.</td>
+                </tr>
+                <tr class="z2">
+                  <td class="t">15:12</td>
+                  <td class="d">2m30s</td>
+                  <td class="s">Added the MIT license</td>
+                  <td class="m">2f · 3c</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="pane-foot"></div>
+          </section>
+        </div>
+
+        <!-- Frame 3: Workspace -->
+        <div class="frame-wrap">
+          <p class="cap">
+            <span class="cap-n">3</span> Workspace — git and disk
+          </p>
+          <section class="pane" aria-label="sessionpad pane, Workspace tab">
+            <div class="chrome">
+              <span>sessionpad</span
+              ><span class="chrome-x" aria-label="Close pane">×</span>
+            </div>
+            <div class="tabs" role="tablist">
+              <button
+                type="button"
+                class="tab"
+                role="tab"
+                aria-selected="false"
+              >
+                Notes <span class="hk">1</span>
+              </button>
+              <button
+                type="button"
+                class="tab"
+                role="tab"
+                aria-selected="false"
+              >
+                Timeline <span class="hk">2</span>
+              </button>
+              <button
+                type="button"
+                class="tab is-active"
+                role="tab"
+                aria-selected="true"
+              >
+                Workspace <span class="hk">3</span>
+              </button>
+            </div>
+
+            <p class="sec"><span>this worktree</span></p>
+            <div class="kv">
+              <div class="kv-row">
+                <span class="k">branch</span>
+                <span class="v">claude/sessionpad-mod-865578</span>
+              </div>
+              <div class="kv-row z2">
+                <span class="k">worktree</span>
+                <span class="v">…/worktrees/sessionpad-mod-865578</span>
+              </div>
+              <div class="kv-row">
+                <span class="k">size</span>
+                <span class="v"
+                  ><b>412 MB</b> <span class="q">· measured 12:30</span></span
+                >
+                <button type="button" class="tiny">Refresh</button>
+              </div>
+            </div>
+
+            <p class="sec"><span>other worktrees (3)</span></p>
+            <table class="ledger wt">
+              <thead>
+                <tr>
+                  <th>branch</th>
+                  <th>path</th>
+                  <th class="r">size</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>main</td>
+                  <td class="path">
+                    /Users/<wbr />pv/<wbr />code/<wbr />sessionpad
+                  </td>
+                  <td class="r">2.3 GB</td>
+                </tr>
+                <tr class="z2">
+                  <td>feat/notes-ui</td>
+                  <td class="path">…/worktrees/<wbr />notes-ui</td>
+                  <td class="r measuring">measuring…</td>
+                </tr>
+                <tr>
+                  <td>detached at 9f8e7d6</td>
+                  <td class="path">…/worktrees/<wbr />old-try</td>
+                  <td class="r unavail">unavailable</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="pane-foot"></div>
+          </section>
+        </div>
+      </div>
+
+      <!-- The band above the prompt box -->
+      <section class="band-demo" aria-label="Band above the prompt box">
+        <p class="cap">
+          <span class="cap-n">4</span> Band — the one line above the prompt box
+        </p>
+        <div class="chat">
+          <p class="msg">
+            <span class="who">Claude</span>Restyled the pane: tabs, note cards
+            and a wrapping timeline.
+          </p>
+          <p class="band">
+            <span class="band-k">pad:</span> Ship sessionpad 0.1.0: pruning,
+            release, and the pane's look
+          </p>
+          <div class="promptbox">
+            <div class="pb-ph">Reply to Claude…</div>
+            <div class="pb-foot"><span>⏎ send</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. Design notes -->
+      <details class="design-notes">
+        <summary>Design notes — 03 · Ledger</summary>
+
+        <h3>Direction</h3>
+        <p>
+          Ledger treats the pane as a keyboard tool. Hierarchy comes from
+          alignment, weight and two background steps rather than cards and
+          outlines: an underlined tab row, a strongly tinted headline strip, a
+          prompt-style input, zebra rows, and fixed columns for times,
+          durations, marks and sizes. Every action is a visible, labelled
+          control (H, E, X, Restore, Export, Refresh) and a one-line key
+          explains the letters, because hover tooltips don't work in the Desktop
+          app.
+        </p>
+
+        <h3>Typography</h3>
+        <ul>
+          <li>
+            <strong>Mono (default)</strong> is one face at a fixed advance, so
+            the columns line up by construction and the Desktop pane looks
+            almost exactly like the terminal pane. Sizes stay between 10.5 and
+            13px, and hierarchy comes from weight and color (bold and accent for
+            the active tab and the headline, muted for metadata) rather than
+            size, because a terminal has only one size.
+          </li>
+          <li>
+            <strong>Sans</strong> sets prose (notes, summaries, labels) in
+            system-ui. The heading stack is this direction's "figure face" and
+            stays ui-monospace in both options: it carries times, durations,
+            marks, sizes, paths, code, the hotkey digits and the H E X letters.
+            Sans mode therefore reads like the Desktop app while the ledger
+            columns keep their alignment.
+          </li>
+        </ul>
+
+        <h3>Palettes</h3>
+        <ul>
+          <li>
+            <strong>Graphite</strong> (default): neutral grey with a teal
+            accent. Teal reads as "selected" without the alarm of red or the
+            caution of amber, so both stay free for X and "stopped".
+          </li>
+          <li>
+            <strong>Amber</strong>: an old phosphor terminal. Its warning tone
+            moves to a pale yellow so "stopped" doesn't blur into the accent.
+          </li>
+          <li>
+            <strong>Clay</strong>: a Claude-like clay (#c96442 in light). Its
+            error tone moves to a cooler crimson so a red X still reads apart
+            from the accent.
+          </li>
+          <li>
+            Only two neutral steps are used: zebra (surface mixed with 5.5%
+            text) and shade (11%: day rows, buttons, the input), plus two accent
+            tints (10% for the edit row, 20% for the headline). Mixing from
+            surface and text makes the zebra darker in light mode and lighter in
+            dark mode with no per-mode CSS. Error and warning live in the
+            palette blocks as <code>--tone-error</code> and
+            <code>--tone-warn</code>; in the real pane they are the theme's
+            error and warning colors.
+          </li>
+        </ul>
+
+        <h3>How each piece maps to the primitives</h3>
+        <ul>
+          <li>
+            <strong>Pane title bar</strong> ("sessionpad ×"): drawn by the host,
+            meaning Desktop's docked pane header or the terminal's own frame.
+            It's shown here only for context.
+          </li>
+          <li>
+            <strong>Tab row</strong>: a row Box. Each tab is a column Box
+            holding the pressable label (a Button, or whatever the pane uses for
+            tabs today) and, under it, a Box of height 1 row with
+            backgroundColor = accent when active and none otherwise. In a
+            terminal that bar can just as well be a Text of <code>━</code> in
+            the accent. The full-width rule is a Box with a single bottom border
+            in the border color, or a Text of <code>─</code>. Active label: Text
+            bold + accent. Hotkey digit: Text dim.
+          </li>
+          <li>
+            <strong>Headline</strong>: a Box with backgroundColor = accent tint,
+            holding Text <code>▌</code> in the accent and Text bold. No border.
+          </li>
+          <li>
+            <strong>Note input</strong>: an Input with label <code>›</code>,
+            placeholder "Add a note…" and submit label "add ⏎", inside a Box
+            with the shade backgroundColor and no borderStyle.
+          </li>
+          <li>
+            <strong>Key line</strong>: a row Box of two Texts: dim "4 notes" and
+            a dim key with the H, E and X letters bold (X in the error color).
+          </li>
+          <li>
+            <strong>Notes</strong>: one row Box per note, with backgroundColor
+            alternating between the surface and zebra colors. Markdown carries
+            the note text, a dim Text the time · author suffix, and three
+            Buttons labelled H, E and X. X takes the error color where the
+            button allows it. If Desktop's native button can't be tinted, X
+            stays a plain button and the key line still carries the meaning; in
+            a terminal, <code>[ X ]</code> is red.
+          </li>
+          <li>
+            <strong>Edit state</strong>: the row's backgroundColor switches to
+            the soft accent tint. An Input with rows = 3 is prefilled with the
+            note and has submit label "save"; a Button "cancel" and a dim Text
+            "⏎ save · esc cancel" sit beside it.
+          </li>
+          <li>
+            <strong>Recently deleted</strong>: a Button "▾ Recently deleted (1)"
+            toggles a Box holding a zebra row (dim Text, Button "Restore") and a
+            dim Text "Kept until the session ends". The dim text stands in for
+            strikethrough, which Text doesn't offer.
+          </li>
+          <li>
+            <strong>Timeline</strong>: a header row Box (Text bold, Button
+            "Export") and a dim key Text. Each turn is a row Box of fixed-width
+            Boxes: time (5 cells) and duration (6 cells), both right-aligned
+            with justifyContent flex-end; summary with flexGrow 1, wrapping;
+            marks at 9 cells, right-aligned. The rows alternate backgroundColor.
+            A day row is a Box with the shade backgroundColor, a bold date and a
+            dim weekday. An aside is an italic dim Text spanning the row. A
+            branch switch adds a second row Box under the turn, holding only an
+            accent Text pushed to the right.
+          </li>
+          <li>
+            <strong>Workspace</strong>: key/value row Boxes with a label Box 9
+            cells wide (dim Text) and the value Text. The path is cut at the
+            start in code ("…" plus the tail), since Text can't truncate from
+            the left. Refresh is a Button. "Other worktrees" has a dim header
+            row with a single bottom border, then alternating rows of branch |
+            path | size, with size right-aligned in a fixed Box; "measuring…" is
+            accent + dim, and "unavailable" is dim.
+          </li>
+          <li><strong>Band</strong>: one dim Text, with "pad:" bold.</li>
+          <li>
+            Nothing here is hover-only, animated or shadowed, and the only
+            symbols are Unicode characters (› ▌ ▸ ▾ ⏎ → … · ×).
+          </li>
+        </ul>
+
+        <h3>In a terminal</h3>
+        <p>
+          Because the default face is already mono, the terminal pane is nearly
+          the same picture cell for cell. Background colors carry the zebra
+          rows, the headline strip and the day rows, and the 3px tab bar becomes
+          a full row of <code>━</code> under the active tab. Buttons become
+          <code>[ label ]</code>, so H E X take 15 columns; below about 44
+          columns they drop to their own right-aligned line under the note.
+          Rounded corners disappear. In the sketch below, which shows Notes and
+          Timeline at 50 columns, shading can't be shown:
+        </p>
+        <pre> Notes <span class="dim">1</span>   Timeline <span class="dim">2</span>   Workspace <span class="dim">3</span>
+<span class="acc">━━━━━━━━━━</span><span class="dim">────────────────────────────────────────</span>
+<span class="acc">▌</span><b>Ship sessionpad 0.1.0: pruning, release, and</b>
+ <b>the pane's look</b>
+<span class="acc">›</span> <span class="dim">Add a note…</span>                                <span class="dim">add ⏎</span>
+<span class="dim">4 notes</span>             <b>H</b><span class="dim"> headline · </span><b>E</b><span class="dim"> edit · </span><b class="err">X</b><span class="dim"> delete</span>
+Use prune:at so sessions prune     [ H ][ E ][ X ]
+about once a day. <span class="dim">09:12 · Claude</span>
+┌────────────────────────────────────────────────┐
+│Ask J for the two README screenshots.           │
+└────────────────────────────────────────────────┘
+<span class="dim">⏎ save · esc cancel</span>             [ save ][ cancel ]
+
+<b>8 turns, newest first</b>                   [ Export ]
+<b>2026-10-28</b> <span class="dim">Wed</span>
+<span class="dim">12:31  4m10s</span>  Restyled the pane: tabs,    <span class="dim">3f · 12c</span>
+              note cards and a wrapping
+              timeline
+<span class="dim">11:20    38s</span>  Answered how to do the       <span class="wrn">stopped</span>
+              manual pass
+<span class="dim">10:44  6m20s</span>  Fixed the review findings   <span class="dim">4f · 21c</span>
+              for pruning         <span class="acc">→ feat/pane-look</span>
+<span class="dim">15:40</span>         <i class="dim">— The conversation was cleared.</i></pre>
+        <p>
+          Colors map to the Claude Code theme: accent to the theme's accent, X
+          to its error color, "stopped" to its warning color, and every muted
+          string to dim Text. The terminal's 1, 2 and 3 keys switch tabs, which
+          is what the small digits in the tab row hint at.
+        </p>
+      </details>
+    </div>
+
+    <!-- DP:STYLE -->
+<style id="dp-style">
+  #design-panel {
+    all: initial;
+    --dp-bg: rgba(28, 30, 34, 0.92);
+    --dp-text: #e7e9ee;
+    --dp-muted: #9aa1ad;
+    --dp-line: rgba(255, 255, 255, 0.14);
+    --dp-active: #6ea8fe;
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 99999;
+    width: 240px;
+    max-height: min(70vh, 560px);
+    overflow: auto;
+    background: var(--dp-bg);
+    color: var(--dp-text);
+    font:
+      12px/1.45 system-ui,
+      -apple-system,
+      "Segoe UI",
+      sans-serif;
+    border: 1px solid var(--dp-line);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(6px);
+  }
+  #design-panel * {
+    all: revert;
+    box-sizing: border-box;
+    font: inherit;
+    color: inherit;
+  }
+  #design-panel header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--dp-line);
+  }
+  #design-panel header strong {
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  #dp-toggle {
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 6px;
+    line-height: 1;
+  }
+  #dp-toggle:hover {
+    background: var(--dp-line);
+  }
+  #design-panel[data-collapsed="true"] {
+    width: auto;
+    max-height: none;
+    overflow: hidden;
+  }
+  #design-panel[data-collapsed="true"] #dp-body {
+    display: none;
+  }
+  #design-panel[data-collapsed="true"] header {
+    border-bottom: 0;
+  }
+  #dp-body {
+    padding: 10px 12px 12px;
+    display: grid;
+    gap: 12px;
+  }
+  #design-panel fieldset {
+    border: 0;
+    margin: 0;
+    padding: 0;
+  }
+  #design-panel legend {
+    padding: 0 0 6px;
+    color: var(--dp-muted);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+  }
+  #design-panel .dp-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  #design-panel .dp-options label {
+    border: 1px solid var(--dp-line);
+    border-radius: 999px;
+    padding: 3px 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+  #design-panel .dp-options input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  #design-panel .dp-options input:checked + span {
+    color: var(--dp-active);
+  }
+  #design-panel .dp-options label:has(input:checked) {
+    border-color: var(--dp-active);
+  }
+  #design-panel .dp-options label:has(input:focus-visible) {
+    outline: 2px solid var(--dp-active);
+    outline-offset: 2px;
+  }
+  #design-panel .dp-slider {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 8px;
+  }
+  #design-panel .dp-slider input[type="range"] {
+    width: 100%;
+    accent-color: var(--dp-active);
+  }
+  #design-panel .dp-slider output {
+    min-width: 42px;
+    text-align: right;
+    color: var(--dp-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  #dp-reset,
+  #dp-copy {
+    width: 100%;
+    border: 1px solid var(--dp-line);
+    background: transparent;
+    border-radius: 8px;
+    padding: 6px 0;
+    cursor: pointer;
+  }
+  #dp-reset:hover,
+  #dp-copy:hover {
+    border-color: var(--dp-active);
+    color: var(--dp-active);
+  }
+  #design-panel [hidden] {
+    display: none;
+  }
+  #dp-copy-status {
+    margin: 0;
+    color: var(--dp-muted);
+  }
+  #dp-settings {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 6px 8px;
+    resize: vertical;
+    border: 1px solid var(--dp-line);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.25);
+    font:
+      11px/1.4 ui-monospace,
+      SFMono-Regular,
+      Menlo,
+      Consolas,
+      monospace;
+  }
+</style>
+<!-- /DP:STYLE -->
+    <!-- DP:MARKUP -->
+<aside
+  id="design-panel"
+  data-collapsed="false"
+  aria-label="Design control panel"
+>
+  <header>
+    <strong>Design panel</strong>
+    <button
+      id="dp-toggle"
+      type="button"
+      aria-expanded="true"
+      title="Collapse panel"
+    >
+      −
+    </button>
+  </header>
+  <div id="dp-body">
+    <fieldset data-dp-group="mode">
+      <legend>Mode</legend>
+      <div class="dp-options"></div>
+    </fieldset>
+    <fieldset data-dp-group="palette">
+      <legend>Palette</legend>
+      <div class="dp-options"></div>
+    </fieldset>
+    <fieldset data-dp-group="font">
+      <legend>Font</legend>
+      <div class="dp-options"></div>
+    </fieldset>
+    <fieldset>
+      <legend>Radius</legend>
+      <div class="dp-slider">
+        <input
+          type="range"
+          data-dp-range="radius"
+          min="0"
+          max="24"
+          step="1"
+          aria-label="Radius"
+        />
+        <output data-dp-out="radius"></output>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Density</legend>
+      <div class="dp-slider">
+        <input
+          type="range"
+          data-dp-range="density"
+          min="0.8"
+          max="1.3"
+          step="0.05"
+          aria-label="Density"
+        />
+        <output data-dp-out="density"></output>
+      </div>
+    </fieldset>
+    <button id="dp-reset" type="button">Reset to defaults</button>
+    <button id="dp-copy" type="button">Copy settings</button>
+    <p id="dp-copy-status" role="status" hidden></p>
+    <textarea
+      id="dp-settings"
+      rows="6"
+      readonly
+      hidden
+      aria-label="Design settings as JSON"
+    ></textarea>
+  </div>
+</aside>
+<!-- /DP:MARKUP -->
+    <script type="application/json" id="dp-config">
+      {
+        "slug": "03-ledger",
+        "palettes": [
+          { "id": "graphite", "label": "Graphite" },
+          { "id": "amber", "label": "Amber" },
+          { "id": "clay", "label": "Clay" }
+        ],
+        "fonts": [
+          {
+            "id": "mono",
+            "label": "Mono",
+            "body": "ui-monospace, SFMono-Regular, Menlo, monospace",
+            "heading": "ui-monospace, SFMono-Regular, Menlo, monospace"
+          },
+          {
+            "id": "sans",
+            "label": "Sans",
+            "body": "system-ui, -apple-system, 'Segoe UI', sans-serif",
+            "heading": "ui-monospace, SFMono-Regular, Menlo, monospace"
+          }
+        ],
+        "defaults": {
+          "mode": "dark",
+          "palette": "graphite",
+          "font": "mono",
+          "radius": 4,
+          "density": 0.9
+        }
+      }
+    </script>
+    <!-- DP:SCRIPT -->
+<script id="dp-script">
+  (function () {
+    function readConfig() {
+      var node = document.getElementById("dp-config");
+      if (!node) return null;
+      try {
+        return JSON.parse(node.textContent);
+      } catch (error) {
+        return null;
+      }
+    }
+    var config = window.DP_CONFIG || readConfig();
+    if (
+      !config ||
+      !config.slug ||
+      !Array.isArray(config.palettes) ||
+      !Array.isArray(config.fonts) ||
+      !config.defaults
+    ) {
+      console.error(
+        "design-panel: the dp-config JSON block (or window.DP_CONFIG) is missing or malformed"
+      );
+      return;
+    }
+    // The set folder is the last directory segment of the page's own path,
+    // so 01-editorial in two sets keeps two states. A page with no directory
+    // segment keeps the plain slug key.
+    var folder = window.location.pathname.split("/").slice(0, -1).pop();
+    var KEY = "design-panel:" + (folder ? folder + "/" : "") + config.slug;
+    var root = document.documentElement;
+    var panel = document.getElementById("design-panel");
+    var defaults = {
+      mode: config.defaults.mode === "dark" ? "dark" : "light",
+      palette: idOrFirst(config.palettes, config.defaults.palette),
+      font: idOrFirst(config.fonts, config.defaults.font),
+      radius: clamp(num(config.defaults.radius, 8), 0, 24),
+      density: clamp(num(config.defaults.density, 1), 0.8, 1.3),
+      collapsed: false,
+    };
+
+    function idOrFirst(list, id) {
+      for (var i = 0; i < list.length; i += 1) {
+        if (list[i].id === id) return id;
+      }
+      return list.length > 0 ? list[0].id : "";
+    }
+    function hasId(list, id) {
+      for (var i = 0; i < list.length; i += 1) {
+        if (list[i].id === id) return true;
+      }
+      return false;
+    }
+    function num(value, fallback) {
+      return typeof value === "number" && isFinite(value) ? value : fallback;
+    }
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+    function findFont(id) {
+      for (var i = 0; i < config.fonts.length; i += 1) {
+        if (config.fonts[i].id === id) return config.fonts[i];
+      }
+      return config.fonts[0];
+    }
+
+    function load() {
+      var state = {};
+      try {
+        state = JSON.parse(localStorage.getItem(KEY) || "{}") || {};
+      } catch (error) {
+        state = {};
+      }
+      return {
+        mode:
+          state.mode === "dark" || state.mode === "light"
+            ? state.mode
+            : defaults.mode,
+        palette: hasId(config.palettes, state.palette)
+          ? state.palette
+          : defaults.palette,
+        font: hasId(config.fonts, state.font) ? state.font : defaults.font,
+        radius: clamp(num(state.radius, defaults.radius), 0, 24),
+        density: clamp(num(state.density, defaults.density), 0.8, 1.3),
+        collapsed: state.collapsed === true,
+      };
+    }
+    function save() {
+      try {
+        localStorage.setItem(
+          KEY,
+          JSON.stringify(Object.assign({ v: 1 }, current))
+        );
+      } catch (error) {
+        /* storage unavailable (e.g. some file:// modes): live state still works */
+      }
+    }
+
+    var current = load();
+
+    function apply() {
+      root.setAttribute("data-theme", current.mode);
+      root.setAttribute("data-palette", current.palette);
+      root.setAttribute("data-font", current.font);
+      root.style.setProperty("--radius", current.radius + "px");
+      root.style.setProperty("--density", String(current.density));
+      var font = findFont(current.font);
+      root.style.setProperty("--font-body", font.body);
+      root.style.setProperty("--font-heading", font.heading || font.body);
+      panel.setAttribute("data-collapsed", String(current.collapsed));
+      var toggle = document.getElementById("dp-toggle");
+      toggle.textContent = current.collapsed ? "✦" : "−";
+      toggle.setAttribute("aria-expanded", String(!current.collapsed));
+      toggle.setAttribute(
+        "title",
+        current.collapsed ? "Expand panel" : "Collapse panel"
+      );
+      document.getElementById("dp-settings").hidden = true;
+      document.getElementById("dp-copy-status").hidden = true;
+      syncControls();
+    }
+
+    function radioGroup(group, options) {
+      var container = panel.querySelector(
+        '[data-dp-group="' + group + '"] .dp-options'
+      );
+      options.forEach(function (option) {
+        var label = document.createElement("label");
+        var input = document.createElement("input");
+        input.type = "radio";
+        input.name = "dp-" + group + "-" + config.slug;
+        input.setAttribute("value", option.id);
+        input.addEventListener("change", function () {
+          current[group] = option.id;
+          save();
+          apply();
+        });
+        var text = document.createElement("span");
+        text.textContent = option.label;
+        label.appendChild(input);
+        label.appendChild(text);
+        container.appendChild(label);
+      });
+    }
+
+    function syncControls() {
+      ["mode", "palette", "font"].forEach(function (group) {
+        var inputs = panel.querySelectorAll(
+          '[data-dp-group="' + group + '"] input'
+        );
+        inputs.forEach(function (input) {
+          input.checked = input.value === current[group];
+        });
+      });
+      var radius = panel.querySelector('[data-dp-range="radius"]');
+      var density = panel.querySelector('[data-dp-range="density"]');
+      radius.value = String(current.radius);
+      density.value = String(current.density);
+      var radiusText = current.radius + "px";
+      var densityText = "×" + current.density.toFixed(2);
+      panel.querySelector('[data-dp-out="radius"]').textContent = radiusText;
+      panel.querySelector('[data-dp-out="density"]').textContent = densityText;
+      radius.setAttribute("aria-valuetext", radiusText);
+      density.setAttribute("aria-valuetext", densityText);
+    }
+
+    radioGroup("mode", [
+      { id: "light", label: "Light" },
+      { id: "dark", label: "Dark" },
+    ]);
+    radioGroup("palette", config.palettes);
+    radioGroup("font", config.fonts);
+
+    panel
+      .querySelector('[data-dp-range="radius"]')
+      .addEventListener("input", function (event) {
+        current.radius = clamp(
+          num(Number(event.target.value), defaults.radius),
+          0,
+          24
+        );
+        save();
+        apply();
+      });
+    panel
+      .querySelector('[data-dp-range="density"]')
+      .addEventListener("input", function (event) {
+        current.density = clamp(
+          num(Number(event.target.value), defaults.density),
+          0.8,
+          1.3
+        );
+        save();
+        apply();
+      });
+    document.getElementById("dp-toggle").addEventListener("click", function () {
+      current.collapsed = !current.collapsed;
+      save();
+      apply();
+    });
+    document.getElementById("dp-reset").addEventListener("click", function () {
+      try {
+        localStorage.removeItem(KEY);
+      } catch (error) {
+        /* ignore */
+      }
+      current = load();
+      apply();
+    });
+
+    var TOKENS = [
+      "--c-bg",
+      "--c-surface",
+      "--c-text",
+      "--c-muted",
+      "--c-accent",
+      "--c-on-accent",
+      "--c-border",
+    ];
+    function tokensFor(mode) {
+      var tokens = {};
+      root.setAttribute("data-theme", mode);
+      var computed = window.getComputedStyle(root);
+      TOKENS.forEach(function (name) {
+        tokens[name] = computed.getPropertyValue(name).trim();
+      });
+      root.setAttribute("data-theme", current.mode);
+      return tokens;
+    }
+    function settings() {
+      var font = findFont(current.font);
+      return {
+        v: 1,
+        slug: config.slug,
+        mode: current.mode,
+        palette: current.palette,
+        font: current.font,
+        radius: current.radius,
+        density: current.density,
+        fontStacks: { body: font.body, heading: font.heading || font.body },
+        tokens: { light: tokensFor("light"), dark: tokensFor("dark") },
+      };
+    }
+    document.getElementById("dp-copy").addEventListener("click", function () {
+      var json = JSON.stringify(settings(), null, 2);
+      var field = document.getElementById("dp-settings");
+      var status = document.getElementById("dp-copy-status");
+      function manual() {
+        status.textContent = "Select the text below and copy it.";
+        field.focus();
+        field.select();
+      }
+      field.value = json;
+      field.hidden = false;
+      status.textContent = "Copying…";
+      status.hidden = false;
+      var clipboard = window.navigator && window.navigator.clipboard;
+      if (!clipboard || typeof clipboard.writeText !== "function") {
+        manual();
+        return;
+      }
+      try {
+        clipboard.writeText(json).then(function () {
+          status.textContent = "Copied to clipboard.";
+        }, manual);
+      } catch (error) {
+        manual();
+      }
+    });
+
+    apply();
+  })();
+</script>
+<!-- /DP:SCRIPT -->
+  </body>
+</html>

@@ -1,0 +1,152 @@
+<!doctype html>
+<!--
+  MOCKUP SETS — root index template. scripts/build_mockups.ts writes the
+  mockups root's index.html from this file after it builds one set or all of
+  them: it fills the page placeholder PROJECT_NAME and repeats the block
+  between the CARD and /CARD comments once per set that has a gallery, sorted
+  by folder name, filling SET (the folder name), TITLE and BRIEF (read from
+  the set gallery's gallery-title and gallery-brief meta tags), COUNT (the
+  mockups that gallery links to), STATUS (the mockup named in the set's
+  DECISION.md, when there is one) and PREVIEW (the chosen mockup, else the
+  first). Edit this template, not a generated index.html; the next build
+  overwrites it.
+
+  The mockups-project meta tag stores the project name for later builds and
+  marks the page as written by the build, which never overwrites an
+  index.html without it (an old flat gallery excepted). The title ends in
+  "— mockups", never "— design mockups", so the page is never mistaken for a
+  set gallery.
+
+  The page holds no script and loads nothing from anywhere. The links are the
+  contract; the iframe previews are best-effort decoration, as in the set
+  galleries: if they render blank, the links still work.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>sessionpad — mockups</title>
+    <meta name="mockups-project" content="sessionpad" />
+    <style>
+      :root {
+        --bg: #f5f6f8;
+        --surface: #ffffff;
+        --text: #16181d;
+        --muted: #5c6470;
+        --border: #e2e5ea;
+        --accent: #2563eb;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #111317;
+          --surface: #1a1d23;
+          --text: #e7e9ee;
+          --muted: #9aa1ad;
+          --border: #2a2e36;
+          --accent: #6ea8fe;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          15px/1.5 system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+      main {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 32px 20px 64px;
+      }
+      h1 {
+        font-size: 22px;
+        margin: 0 0 4px;
+      }
+      p.lead {
+        margin: 0 0 28px;
+        color: var(--muted);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .card .preview {
+        height: 200px;
+        overflow: hidden;
+        border-bottom: 1px solid var(--border);
+        background: var(--bg);
+      }
+      .card .preview iframe {
+        width: 400%;
+        height: 800px;
+        border: 0;
+        transform: scale(0.25);
+        transform-origin: top left;
+        pointer-events: none;
+      }
+      .card .meta {
+        padding: 14px 16px 16px;
+      }
+      .card h2 {
+        font-size: 16px;
+        margin: 0 0 4px;
+      }
+      .card h2 a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      .card h2 a:hover {
+        text-decoration: underline;
+      }
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .card p.facts {
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>sessionpad — mockups</h1>
+      <p class="lead">
+        One card per set of mockups. Open a set to compare its directions, then
+        open a mockup and use its design panel.
+      </p>
+      <div class="grid">
+        <!-- one card per set; keep folder-name order -->
+        <article class="card">
+          <div class="preview">
+            <iframe
+              src="sessionpad_pane/01-segmented.html"
+              title="sessionpad pane preview"
+              loading="lazy"
+            ></iframe>
+          </div>
+          <div class="meta">
+            <h2><a href="sessionpad_pane/index.html">sessionpad pane</a></h2>
+            <p>Three looks for the sessionpad side pane: tabs, notes with edit and undo, the timeline and the workspace.</p>
+            <p class="facts">3 mockups · No direction chosen yet · sessionpad_pane/</p>
+          </div>
+        </article>
+      </div>
+    </main>
+  </body>
+</html>
