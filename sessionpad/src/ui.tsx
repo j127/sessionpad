@@ -861,15 +861,15 @@ export async function openPane($: EngineInterface): Promise<{ text?: string }> {
     : { text: `The pad is open but not drawn yet: ${opened.reason}` };
 }
 
-/** Whether the band draws even with no headline: everywhere it can be clicked. */
+/** Whether the band draws even with no headline: everywhere but a terminal. */
 export const isBandAlways = (e: BandInput): boolean => e.surface !== "terminal";
 
 /**
- * One dim line, `pad: <headline>`, above whatever else draws in the band.
- *
- * The band above the prompt: `pad: <headline>` when there is one, and,
- * where the band can be clicked (not a terminal), an Open pad button at its
- * right, since the app has no place a mod can put one in its own toolbar.
+ * One row above whatever else draws in the band: a dim `pad: <headline>`
+ * when there is one, and, on every surface but the terminal, an Open pad
+ * button at its right, since the app has no place a mod can put one in its
+ * own toolbar. A terminal keeps its band to the headline alone: a row in
+ * every terminal session for what `/pad` does is more than it is worth.
  */
 export function renderBand(
   $: EngineInterface,
@@ -890,19 +890,22 @@ export function renderBand(
     <Box flexDirection="column">
       {isBandAlways(e) ? (
         <Box width="100%" flexDirection="row" columnGap={1}>
-          <Box flexGrow={1} flexShrink={1}>
+          {/* The line gives way to the button: a long headline is cut. */}
+          <Box flexGrow={1} flexShrink={1} minWidth={0}>
             {line}
           </Box>
-          <Button
-            key="open-pad"
-            label="Open pad"
-            onPress={() =>
-              guarded($, "opening the pad", async () => {
-                const opened = await openPane($);
-                if (opened.text !== undefined) $.ui.toast(opened.text);
-              })
-            }
-          />
+          <Box flexShrink={0}>
+            <Button
+              key="open-pad"
+              label="Open pad"
+              onPress={() =>
+                guarded($, "opening the pad", async () => {
+                  const opened = await openPane($);
+                  if (opened.text !== undefined) $.ui.toast(opened.text);
+                })
+              }
+            />
+          </Box>
         </Box>
       ) : (
         <Box width="100%">{line}</Box>

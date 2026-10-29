@@ -173,6 +173,25 @@ describe("the headline band", () => {
     await ui.unmount();
   });
 
+  test("Open pad says when the pane can't be opened at all", async ($, on) => {
+    const w = world(on, { openFails: true });
+    await start($);
+    const ui = await $.ui.mount(bandTarget("desktop"));
+    await ui.press({ key: "open-pad" });
+    expect(w.toasts.join("\n")).toContain("opening the pad failed");
+    await ui.unmount();
+  });
+
+  test("on Desktop with no headline, the band holds the app's own row too", async ($, on) => {
+    world(on, { engineBeneath: true });
+    await start($);
+    const ui = await $.ui.mount(bandTarget("desktop"));
+    expect(await ui.find({ key: "open-pad" })).toBeDefined();
+    const drawn = JSON.stringify(await ui.drawn());
+    expect(drawn).toContain('"engine"');
+    await ui.unmount();
+  });
+
   test("Open pad says when the pane waits for room", async ($, on) => {
     const w = world(on, { placed: false });
     await start($);

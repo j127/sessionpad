@@ -726,7 +726,7 @@ export const register: Register = (on, options) => {
   on("ui.render", { component: "AbovePrompt" }, async ($, e, next) => {
     if (!showBand || e.props.hasSurvey) return next(e);
     const headline = await readHeadline($);
-    // A terminal can't click the band's button: there it shows a headline only.
+    // A terminal's band is the headline alone (see renderBand): none without.
     if (headline === "" && !isBandAlways(e)) return next(e);
     return renderBand($, e, headline, await next(e));
   });
