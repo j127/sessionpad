@@ -3,7 +3,7 @@
 // names of the files written, on the person's own plan or key; nothing else
 // leaves the machine.
 
-import type { EngineInterface } from "claude-code";
+import type { EngineInterface, ModelUsage } from "claude-code";
 
 import type { TurnEntry } from "../types";
 import { cleanSummary } from "./timeline";
@@ -57,13 +57,19 @@ export function summaryPrompt(entry: TurnEntry, answer: string): string {
   ].join("\n");
 }
 
-/** The model's line for a turn, or null when it gave none. */
+/**
+ * What the model gave for a turn: its line, or null when it gave none, and
+ * what the call cost, or null when no call was made.
+ */
+export type SummaryReply = { line: string | null; usage: ModelUsage | null };
+
+/** Asks the model for a turn's line. */
 export async function modelSummary(
   $: EngineInterface,
   model: string,
   entry: TurnEntry,
   answer: string
-): Promise<string | null> {
+): Promise<SummaryReply> {
   try {
     const reply = await $.model.complete({
       model,
@@ -73,11 +79,12 @@ export async function modelSummary(
       effort: "low",
       timeoutMs: SUMMARY_TIMEOUT_MS,
     });
-    if (!reply.isAnswered) return null;
+    // A failed call carries what it cost too.
+    if (!reply.isAnswered) return { line: null, usage: reply.usage };
     const line = cleanSummary(reply.text).replace(/\.$/, "");
-    return line === "" ? null : line;
+    return { line: line === "" ? null : line, usage: reply.usage };
   } catch {
     // Refused before it was sent: a blocked model, say.
-    return null;
+    return { line: null, usage: null };
   }
 }

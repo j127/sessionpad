@@ -44,6 +44,20 @@ export type DeletedNote = {
   isWaiting?: boolean;
 };
 
+/**
+ * What the summary lines have cost, summed over every session on the machine,
+ * as the store keeps it under `summary-usage`.
+ */
+export type SummaryUsage = {
+  /** Model calls that spent tokens. */
+  calls: number;
+  /** Input tokens, cached or not. */
+  input: number;
+  output: number;
+  /** When the first was counted, in milliseconds since the epoch. */
+  since: number | null;
+};
+
 /** Tokens a turn spent, as the engine reported them. */
 export type TurnTokens = {
   input: number;
@@ -167,6 +181,8 @@ declare module "claude-code" {
       editing: Editing | null;
       /** The note Undo would bring back, or null. */
       deleted: DeletedNote | null;
+      /** What the summary lines have cost so far, every session counted. */
+      usage: SummaryUsage;
     };
   }
 }

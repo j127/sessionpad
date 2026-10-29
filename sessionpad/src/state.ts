@@ -13,11 +13,13 @@ import type {
   Editing,
   Note,
   Pad,
+  SummaryUsage,
   Tab,
   TimelineEntry,
   WorkspaceView,
 } from "../types";
 import { recentEntries } from "./timeline";
+import { EMPTY_USAGE } from "./usage";
 
 const tabAtom = atom(
   { plugin: "sessionpad", key: "tab" } as const,
@@ -68,6 +70,11 @@ const deletedAtom = atom(
   null as DeletedNote | null
 );
 
+const usageAtom = atom(
+  { plugin: "sessionpad", key: "usage" } as const,
+  EMPTY_USAGE
+);
+
 /** Read while drawing, these subscribe the site to later writes. */
 export function readTab($: EngineInterface): Promise<Tab> {
   return read($, tabAtom);
@@ -99,6 +106,10 @@ export function readEditing($: EngineInterface): Promise<Editing | null> {
 
 export function readDeleted($: EngineInterface): Promise<DeletedNote | null> {
   return read($, deletedAtom);
+}
+
+export function readUsage($: EngineInterface): Promise<SummaryUsage> {
+  return read($, usageAtom);
 }
 
 /** Never call these while drawing: write from a handler or another event. */
@@ -205,6 +216,14 @@ export async function forgetDeleted(
   await update($, deletedAtom, (kept) =>
     kept?.note.id === noteId ? null : kept
   );
+}
+
+/** Puts what the summary lines have cost where the Timeline tab reads it. */
+export async function showUsage(
+  $: EngineInterface,
+  usage: SummaryUsage
+): Promise<void> {
+  await update($, usageAtom, () => usage);
 }
 
 /** Drops the open note and the kept one, for a session that starts afresh. */

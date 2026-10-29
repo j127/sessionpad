@@ -7,6 +7,7 @@ import { mock } from "claude-code/testing";
 import type { Engine, MockClock } from "claude-code/testing";
 import type {
   CommandInfo,
+  ModelUsage,
   On,
   PromptOrigin,
   PromptSubmitCommand,
@@ -131,6 +132,8 @@ export type World = {
   duRuns: { path: string; timeoutMs: number | undefined }[];
   /** The model's reply, null for an empty reply, "refused" to reject. */
   modelReply: string | null | "refused";
+  /** What each model call costs; all zeros, a call that spent nothing. */
+  modelUsage: ModelUsage;
   modelCalls: ModelCall[];
   /** The timeline file as it stood at each model call. */
   modelSaw: TimelineEntry[][];
@@ -214,6 +217,12 @@ export function world(on: On, options: WorldOptions = {}): World {
     duDelayMs: 0,
     duRuns: [],
     modelReply: "Fixed the token expiry check",
+    modelUsage: {
+      input_tokens: 0,
+      output_tokens: 0,
+      cache_read_input_tokens: 0,
+      cache_creation_input_tokens: 0,
+    },
     modelCalls: [],
     modelSaw: [],
     toolAnswer: { result: "done" } as ToolCallResult,
@@ -453,12 +462,7 @@ export function world(on: On, options: WorldOptions = {}): World {
       system: e.system,
     });
     state.modelSaw.push(state.timeline());
-    const usage = {
-      input_tokens: 0,
-      output_tokens: 0,
-      cache_read_input_tokens: 0,
-      cache_creation_input_tokens: 0,
-    };
+    const usage = state.modelUsage;
     if (state.modelReply === "refused") return { deny: "model not allowed" };
     return {
       value:

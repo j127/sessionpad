@@ -7,7 +7,7 @@ import type { EngineInterface, ToolCallResult, TurnUsage } from "claude-code";
 
 import type { TimelineEntry, TurnTokens } from "../types";
 import { gitPlace } from "./git";
-import { showTimeline } from "./state";
+import { showTimeline, showUsage } from "./state";
 import { isWorthSummary, modelSummary } from "./summary";
 import {
   addEntry,
@@ -18,6 +18,7 @@ import {
   withSummary,
 } from "./timeline";
 import type { FinishedTurn, TurnLog } from "./timeline";
+import { isSpent, recordUsage } from "./usage";
 
 export type TimelineSettings = {
   /** The model that writes summary lines, or null when that is off. */
@@ -92,7 +93,8 @@ async function showIfOpen(
  * Writes a finished turn's entry, with a line made from its prompt, then asks
  * the model for a better line and puts that on the entry when it answers.
  * The entry is in the file before the model is asked, so a slow or failed
- * call, or a reload, never loses the turn.
+ * call, or a reload, never loses the turn. What the call cost is added to the
+ * total every session shares.
  *
  * A /clear can come between the turn's end and this work, carrying the
  * timeline to a new id before the entry is in it, so each write goes to the
@@ -124,7 +126,7 @@ export async function finishTurn(
 
   await writeEach((entries) => addEntry(entries, entry, settings.cap));
   if (settings.summaryModel !== null && isWorthSummary(entry)) {
-    const line = await modelSummary(
+    const { line, usage } = await modelSummary(
       $,
       settings.summaryModel,
       entry,
@@ -132,6 +134,13 @@ export async function finishTurn(
     );
     if (line !== null) {
       await writeEach((entries) => withSummary(entries, entry.turnId, line));
+    }
+    if (usage !== null && isSpent(usage)) {
+      try {
+        await showUsage($, await recordUsage($, usage, await $.clock.now()));
+      } catch (error) {
+        failures.push(error);
+      }
     }
   }
   if (failures.length > 0) throw failures[0];

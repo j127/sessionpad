@@ -27,13 +27,14 @@ import type {
   Editing,
   Note,
   NoteAuthor,
+  SummaryUsage,
   Tab,
   TimelineEntry,
   TurnEntry,
   Worktree,
   WorkspaceView,
 } from "../types";
-import { describeExport, exportThisSession } from "./export";
+import { describeExport, exportThisSession, formatTokens } from "./export";
 import { formatClock, formatDay, formatDuration, formatTime } from "./format";
 import {
   addThisNote,
@@ -53,6 +54,7 @@ import {
   readNotes,
   readRecent,
   readTab,
+  readUsage,
   readWorkspace,
   closeEditing,
   forgetDeleted,
@@ -557,6 +559,20 @@ export function turnMarks(
     .join(" · ");
 }
 
+/**
+ * One line saying what the summary lines have cost, over every session; null
+ * before the first call that spent anything.
+ */
+export function usageText(usage: SummaryUsage): string | null {
+  if (usage.calls === 0) return null;
+  const since = usage.since === null ? "" : ` since ${formatDay(usage.since)}`;
+  return (
+    `Summary lines, all sessions${since}: ` +
+    `${plural(usage.calls, "call", "calls")} · ` +
+    `${formatTokens(usage.input)} tokens in · ${formatTokens(usage.output)} out`
+  );
+}
+
 async function renderTimelineTab(
   $: EngineInterface,
   e: PaneInput
@@ -564,6 +580,16 @@ async function renderTimelineTab(
   const { Box, Text, Button } = $.ui.resolve(e);
   const isTerminal = e.surface === "terminal";
   const recent = await readRecent($);
+  const spent = usageText(await readUsage($));
+  // Last, small and dim: what sessionpad itself has cost, not this session.
+  const usage =
+    spent === null ? null : (
+      <Box key="usage" marginTop={1}>
+        <Text size="footnote" dimColor wrap="wrap">
+          {spent}
+        </Text>
+      </Box>
+    );
   const turns = recent.filter((entry) => entry.kind === "turn").length;
   // The time column, in cells: spaces collapse on both surfaces, so a Box of
   // a fixed width is what lines the summaries up.
@@ -593,6 +619,7 @@ async function renderTimelineTab(
             Each turn in this session adds a line here when it ends.
           </Text>
         </Box>
+        {usage}
       </Box>
     );
   }
@@ -696,6 +723,7 @@ async function renderTimelineTab(
           {rows}
         </Box>
       ))}
+      {usage}
     </Box>
   );
 }
