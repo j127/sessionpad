@@ -9,6 +9,9 @@
   "homepage": "https://github.com/j127/sessionpad",
   "license": "MIT",
   "repository": "https://github.com/j127/sessionpad",
+  "supportUrl": "https://github.com/j127/sessionpad/issues",
+  "privacyPolicyUrl": "https://github.com/j127/sessionpad/blob/main/PRIVACY.md",
+  "termsOfServiceUrl": "https://github.com/j127/sessionpad/blob/main/LICENSE",
   "types": "./types/index.d.ts",
   "userConfig": {
     "showBand": {

@@ -36,11 +36,11 @@ script_test:
 
 # Check formatting of the mod, the scripts, the marketplace file and the docs
 format_check:
-  bunx prettier --check sessionpad scripts .claude-plugin README.md CHANGELOG.md package.json
+  bunx prettier --check sessionpad scripts .claude-plugin README.md CHANGELOG.md PRIVACY.md package.json
 
 # Rewrite files into Prettier's format
 format:
-  bunx prettier --write sessionpad scripts .claude-plugin README.md CHANGELOG.md package.json
+  bunx prettier --write sessionpad scripts .claude-plugin README.md CHANGELOG.md PRIVACY.md package.json
 
 # Read the mod, then the marketplace file that lists it, the way Claude Code
 # will, treating warnings as errors

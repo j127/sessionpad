@@ -63,6 +63,10 @@ From the author's own marketplace instead: in a terminal session, `/plugin insta
 
 The full README, with the design notes, how to run the tests and what each setting does in detail, is at [github.com/j127/sessionpad](https://github.com/j127/sessionpad).
 
+## Privacy and support
+
+The [privacy policy](https://github.com/j127/sessionpad/blob/main/PRIVACY.md) says what the mod keeps and sends, as above: the author collects nothing. Ask questions and report problems on [GitHub issues](https://github.com/j127/sessionpad/issues).
+
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE). The license is also the mod's terms of use.

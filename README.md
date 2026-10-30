@@ -103,7 +103,7 @@ For the Desktop app, add the folder to `CLAUDE_CODE_PLUGIN_DIRS` in the `env` bl
 
 ## What is stored, and where
 
-Everything stays on your machine, with one exception: the summary line. The mod makes no network calls of its own.
+Everything stays on your machine, with one exception: the summary line. The mod makes no network calls of its own. [PRIVACY.md](PRIVACY.md), the privacy policy the plugin directory's listing links to, says the same in one page.
 
 - The headline and notes for each session live in the mod's key-value store, a JSON file under `~/.claude/plugins/store/`, under the key `notes:<session id>`.
 - A small index, `index`, records each session's working directory, repository root and when it was last seen. Pruning reads it, and an all-sessions view could later.
@@ -215,4 +215,4 @@ Decisions made while building, and places where this build of Claude Code (2.1.3
 
 ## License
 
-MIT. See [LICENSE](LICENSE); the same file ships inside `sessionpad/`, the folder people install.
+MIT. See [LICENSE](LICENSE); the same file ships inside `sessionpad/`, the folder people install. The license is also the terms the plugin directory's listing links to. Ask questions and report problems on [GitHub issues](https://github.com/j127/sessionpad/issues).
