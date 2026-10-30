@@ -12,7 +12,7 @@
 ### Added
 
 - An icon and a README of its own in the plugin folder, for a listing in Anthropic's plugin directory. The icon's source is `assets/icon.svg`.
-- The listing's links in `plugin.json`: a privacy policy (`PRIVACY.md`: the author collects nothing, and only the opt-in summary lines leave your machine), the terms (the MIT license) and support (GitHub issues).
+- The listing's links in `plugin.json`: a privacy policy (`PRIVACY.md`: the author collects nothing, and what leaves your machine goes only through Claude Code's own model requests, as the notes Claude reads when you ask about the pad and the opt-in summary lines), the terms (the MIT license) and support (GitHub issues).
 
 ## 0.3.0 (2026-10-29)
 
