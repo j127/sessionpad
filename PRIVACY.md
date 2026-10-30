@@ -1,6 +1,6 @@
 # Session Pad privacy policy
 
-This policy applies from version 0.4.0 of Session Pad, a mod for Claude Code made by J and published at [github.com/j127/sessionpad](https://github.com/j127/sessionpad). It covers the mod itself.
+This policy applies from version 0.4.0 of Session Pad, a mod for Claude Code made by j127 and published at [github.com/j127/sessionpad](https://github.com/j127/sessionpad). It covers the mod itself.
 
 ## What the author collects
 
