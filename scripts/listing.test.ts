@@ -58,3 +58,16 @@ describe("the listing's links in plugin.json", () => {
     expect(isTracked("NO-SUCH-FILE.md")).toBe(false);
   });
 });
+
+describe("the publisher's name", () => {
+  test("the author and the marketplace's owner are the repository's account", async () => {
+    const account = new URL(REPOSITORY).pathname.split("/")[1];
+    const marketplace = (await Bun.file(
+      `${ROOT}/.claude-plugin/marketplace.json`
+    ).json()) as { owner?: { name?: unknown } };
+    const author = manifest.author as { name?: unknown } | undefined;
+    expect(account).toBe("j127");
+    expect(author?.name).toBe(account);
+    expect(marketplace.owner?.name).toBe(account);
+  });
+});
