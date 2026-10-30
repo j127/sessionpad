@@ -70,4 +70,11 @@ describe("the publisher's name", () => {
     expect(author?.name).toBe(account);
     expect(marketplace.owner?.name).toBe(account);
   });
+
+  test("both copies of the license name the same copyright holder", async () => {
+    const root = await Bun.file(`${ROOT}/LICENSE`).text();
+    const shipped = await Bun.file(`${ROOT}/sessionpad/LICENSE`).text();
+    expect(shipped).toBe(root);
+    expect(root).toMatch(/^Copyright \(c\) \d{4} j127$/m);
+  });
 });
