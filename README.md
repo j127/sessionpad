@@ -15,7 +15,7 @@ sessionpad is beta software. A later version may change how it stores your notes
 >
 > To turn them off, set it back to `off` the same way. Sessions already open in other windows may keep the old setting until they start again. While they are off, each turn's line in the Timeline is its prompt's first line, and the mod makes no model calls at all.
 
-Status: beta. Version 0.4.0, not released yet; 0.3.0 was released 2026-10-29, with all four milestones built (notes, timeline, workspace, pruning).
+Status: beta. Version 0.4.0, released 2026-10-29, with all four milestones built (notes, timeline, workspace, pruning).
 
 ## What it does
 
