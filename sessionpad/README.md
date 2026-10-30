@@ -2,8 +2,7 @@
 
 A notepad for each Claude Code session. Give a session a one-line headline that says what it is for, keep notes beside the chat (yours, or ones Claude takes when you ask), and see a timeline of what each turn did and where the session's work lives on disk. Open a session after a few days away and see at a glance what it was doing and what is left to do.
 
-> [!WARNING]
-> **Session Pad is beta software. Use it at your own risk.** A later version may change how it stores your notes. Keep anything you can't lose somewhere else as well; `/pad-export` writes a session's notes and timeline to a Markdown file.
+Session Pad is beta software. A later version may change how it stores your notes. Keep anything you can't lose somewhere else as well; `/pad-export` writes a session's notes and timeline to a Markdown file.
 
 Session Pad is a Claude Code mod: it runs in Claude Code 2.1.299 or later, in the Desktop app's Code tab or a terminal, and not in claude.ai chat, Cowork or the Desktop app's WSL sessions.
 
@@ -20,7 +19,7 @@ Session Pad is a Claude Code mod: it runs in Claude Code 2.1.299 or later, in th
 
 ## What it runs, sends and stores
 
-- **Nothing leaves your machine unless you turn on summary lines.** The mod makes no network calls of its own.
+- **Nothing leaves your machine except through Claude Code's own model requests**, in two cases: when you ask Claude about the pad, its `notes_read` tool hands Claude the headline and the newest notes (up to 50, or 20,000 characters), which then go out as part of your conversation; and summary lines, if you turn them on. The mod makes no network calls of its own.
 - **Summary lines are off until you turn them on**, with the `summaryModel` setting (see [Settings](#settings)). With them on, after each turn the mod asks Claude Haiku, on your own plan or API key, for a one-line summary. It sends the prompt's first 200 characters, the start of Claude's final answer (1,500 characters at most), the names of the files written (not their paths or contents) and the number of commands run. A call is about 500 tokens in and 20 out, roughly 6 cents per 1,000 turns on Haiku 5.5 at the API prices of October 2026 (ten times that if your Claude Code's `haiku` is Haiku 4.5); the Timeline tab shows the running total.
 - **What it watches in the session:** it hooks each prompt you send, each turn's start and end, and each Edit, Write, NotebookEdit and Bash call, to write the timeline: the prompt's first 200 characters, the paths of the files written (up to 25 a turn) and how many commands ran. These hooks only observe: they pass every prompt and call on unchanged, and never block one.
 - **Programs it runs:** `git`, read-only, in the session's folder, for the branch and the worktrees; `du -sk` from your home folder (the root folder where there is none), in the background, to measure worktree sizes (the `measureDisk` setting turns this off); and `rm`, only on the mod's own timeline files, when old sessions are pruned (where there is no `rm`, as on Windows, those files are emptied instead).
@@ -63,6 +62,10 @@ From the author's own marketplace instead: in a terminal session, `/plugin insta
 
 The full README, with the design notes, how to run the tests and what each setting does in detail, is at [github.com/j127/sessionpad](https://github.com/j127/sessionpad).
 
+## Privacy and support
+
+The [privacy policy](https://github.com/j127/sessionpad/blob/main/PRIVACY.md) says what the mod keeps and sends, as above: the author collects nothing. Ask questions and report problems on [GitHub issues](https://github.com/j127/sessionpad/issues).
+
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE). The license is also the mod's terms of use.

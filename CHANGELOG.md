@@ -4,7 +4,7 @@
 
 ### Changed
 
-- The READMEs call sessionpad beta software rather than alpha.
+- The READMEs call sessionpad beta software rather than alpha, in a plain note at the top instead of a warning.
 - The Timeline tab's summary offer says how to turn summary lines on (set `summaryModel` to `haiku`) and has a **Got it** button, instead of a **Turn on summaries** button that changed the setting: the plugin directory accepts no settings call from a mod that keeps its engine for later, as every button and timer in this one does. A change in `/config` reloads the mod with the new value.
 - The modules in `sessionpad/src` no longer take Claude Code's `$`. The hooks module builds one object from it, `ioOf($)`, with every call the mod makes written out there, and hands them that: the plugin directory reads a mod's calls from its hooks module alone and refuses `$` passed to another file. What the mod does is unchanged.
 - `just dollar_check` applies the plugin directory's rule for `$` and `on` (`scripts/dollar_check.ts`) and lists every place that breaks it, and `just check` runs the script's tests (`just script_test`).
@@ -12,6 +12,7 @@
 ### Added
 
 - An icon and a README of its own in the plugin folder, for a listing in Anthropic's plugin directory. The icon's source is `assets/icon.svg`.
+- The listing's links in `plugin.json`: a privacy policy (`PRIVACY.md`: the author collects nothing, and what leaves your machine goes only through Claude Code's own model requests, as the notes Claude reads when you ask about the pad and the opt-in summary lines), the terms (the MIT license) and support (GitHub issues).
 
 ## 0.3.0 (2026-10-29)
 

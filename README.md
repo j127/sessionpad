@@ -2,8 +2,7 @@
 
 A Claude Code mod that gives every session a small notepad: a one-line headline that says what the session is for, plus notes written by you or by Claude. Open any session after a few days away and see at a glance what it was doing and what is left to do.
 
-> [!WARNING]
-> **sessionpad is beta software. Use it at your own risk.** A later version may change how it stores your notes. Keep anything you can't lose somewhere else as well; `/pad-export` writes a session's notes and timeline to a Markdown file.
+sessionpad is beta software. A later version may change how it stores your notes. Keep anything you can't lose somewhere else as well; `/pad-export` writes a session's notes and timeline to a Markdown file.
 
 > [!NOTE]
 > **Summary lines spend some of your Claude usage, so they are off until you turn them on.** With them on, the mod asks Claude Haiku for a one-line summary after each turn. A call sends about 500 tokens and gets about 20 back. At the API prices of October 2026 that is about $0.00006 a turn on Haiku 5.5 ($0.10 and $0.50 per million tokens in and out), or about 6 cents per 1,000 turns; if your Claude Code's `haiku` is Haiku 4.5 ($1 and $5), ten times that. On a Pro or Max plan it counts against your usage limits instead of costing money, and a single turn of your own conversation usually uses thousands of times as much. The Timeline tab's last line shows the running total.
@@ -103,7 +102,7 @@ For the Desktop app, add the folder to `CLAUDE_CODE_PLUGIN_DIRS` in the `env` bl
 
 ## What is stored, and where
 
-Everything stays on your machine, with one exception: the summary line. The mod makes no network calls of its own.
+Everything stays on your machine, with two exceptions, both sent through Claude Code's own model requests: the notes Claude reads with the `notes_read` tool when you ask about the pad, which go out as part of your conversation, and the summary line, if you turn it on. The mod makes no network calls of its own. [PRIVACY.md](PRIVACY.md), the privacy policy the plugin directory's listing links to, says the same in one page.
 
 - The headline and notes for each session live in the mod's key-value store, a JSON file under `~/.claude/plugins/store/`, under the key `notes:<session id>`.
 - A small index, `index`, records each session's working directory, repository root and when it was last seen. Pruning reads it, and an all-sessions view could later.
@@ -215,4 +214,4 @@ Decisions made while building, and places where this build of Claude Code (2.1.3
 
 ## License
 
-MIT. See [LICENSE](LICENSE); the same file ships inside `sessionpad/`, the folder people install.
+MIT. See [LICENSE](LICENSE); the same file ships inside `sessionpad/`, the folder people install. The license is also the terms the plugin directory's listing links to. Ask questions and report problems on [GitHub issues](https://github.com/j127/sessionpad/issues).
