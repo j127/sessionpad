@@ -8,13 +8,18 @@ clean:
 
 # Run every check: formatting, types, tests. CI runs this recipe on pull
 # requests into main, and you run it before pushing.
-check: format_check validate type_check dollar_check test
+check: format_check validate type_check dollar_check script_test test
 
 # Fail when a call on $ is split across lines or a property of $ is read:
 # the plugin directory reads $ only as whole $.noun.method(...) calls. It
 # reads each line with its comments taken off; it doesn't see a $ taken
 # apart by destructuring, a call split between noun and method, or anything
 # after a "//" inside a string on the same line.
+# Then scripts/dollar_check.ts applies the directory's rule for $ and on, the
+# way it reads the source: in the hooks module, $ goes only to a function
+# declared at the top of that file, each registration is on("event", hook) on
+# a line of its own, and no module in src holds $ at all. It lists every
+# place at once, where the developer portal shows ten a round.
 dollar_check:
   #!/usr/bin/env bash
   set -uo pipefail
@@ -23,14 +28,19 @@ dollar_check:
   if [ "$status" -gt 1 ]; then echo "dollar_check: grep failed"; exit "$status"; fi
   found=$(printf '%s\n' "$lines" | sed -E 's#//.*$##; s#/\*.*\*/##g' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*\*' | grep -E '\$\.[a-z]+(\.[a-zA-Z]+)?[[:space:]]*$|\$\.[a-z]+\.[a-zA-Z]+[^a-zA-Z(<]|\$\.[a-z]+[^a-zA-Z.]' || true)
   if [ -n "$found" ]; then echo "$found"; echo "Write each call on \$ whole, on one line: \$.noun.method(...)"; exit 1; fi
+  bun scripts/dollar_check.ts
 
-# Check formatting of the mod, the marketplace file and the docs
+# Run the tests of the repository's own scripts (scripts/*.test.ts)
+script_test:
+  bun test ./scripts
+
+# Check formatting of the mod, the scripts, the marketplace file and the docs
 format_check:
-  bunx prettier --check sessionpad .claude-plugin README.md CHANGELOG.md package.json
+  bunx prettier --check sessionpad scripts .claude-plugin README.md CHANGELOG.md package.json
 
 # Rewrite files into Prettier's format
 format:
-  bunx prettier --write sessionpad .claude-plugin README.md CHANGELOG.md package.json
+  bunx prettier --write sessionpad scripts .claude-plugin README.md CHANGELOG.md package.json
 
 # Read the mod, then the marketplace file that lists it, the way Claude Code
 # will, treating warnings as errors

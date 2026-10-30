@@ -3,8 +3,7 @@
 // shared $.store, which holds 4 MiB for every session together. Each session
 // writes only its own file, and this module's writes run one at a time.
 
-import type { EngineInterface } from "claude-code";
-
+import type { Io } from "./io";
 import type { MarkEntry, TimelineEntry, TurnEntry, TurnTokens } from "../types";
 import { oldOpening } from "./origin";
 import { oneAtATime } from "./store";
@@ -356,21 +355,21 @@ export const fileName = (sessionId: string): string =>
  * config folder (`CLAUDE_CONFIG_DIR`, else `~/.claude`), or null when no home
  * folder is known.
  */
-export async function dataDir($: EngineInterface): Promise<string | null> {
-  const config = await $.env.get("CLAUDE_CONFIG_DIR");
+export async function dataDir(io: Io): Promise<string | null> {
+  const config = await io.env.configDir();
   if (config !== undefined && config !== "") {
     return `${config.replace(/[\\/]+$/, "")}/sessionpad`;
   }
-  const home = (await $.env.get("HOME")) || (await $.env.get("USERPROFILE"));
+  const home = (await io.env.home()) || (await io.env.userProfile());
   if (home === undefined || home === "") return null;
   return `${home.replace(/[\\/]+$/, "")}/.claude/sessionpad`;
 }
 
 export async function timelinePath(
-  $: EngineInterface,
+  io: Io,
   sessionId: string
 ): Promise<string | null> {
-  const dir = await dataDir($);
+  const dir = await dataDir(io);
   return dir === null ? null : `${dir}/timeline/${fileName(sessionId)}.json`;
 }
 
@@ -385,14 +384,14 @@ type FileRead =
   | { status: "corrupt"; text: string }
   | { status: "unreadable"; reason: string };
 
-async function readFile($: EngineInterface, path: string): Promise<FileRead> {
+async function readFile(io: Io, path: string): Promise<FileRead> {
   let text: string;
   try {
-    if (!(await $.fs.exists(path))) return { status: "missing" };
-    text = await $.fs.read(path);
+    if (!(await io.fs.exists(path))) return { status: "missing" };
+    text = await io.fs.read(path);
   } catch (error) {
     // Deleted between the two calls: as good as never there.
-    const isGone = await $.fs.exists(path).then(
+    const isGone = await io.fs.exists(path).then(
       (exists) => !exists,
       () => false
     );
@@ -420,13 +419,13 @@ export type LoadedTimeline = { entries: TimelineEntry[]; problem?: string };
 
 /** The session's timeline for showing; never rejects. */
 export async function loadTimeline(
-  $: EngineInterface,
+  io: Io,
   sessionId: string
 ): Promise<LoadedTimeline> {
   try {
-    const path = await timelinePath($, sessionId);
+    const path = await timelinePath(io, sessionId);
     if (path === null) return { entries: [] };
-    const read = await readFile($, path);
+    const read = await readFile(io, path);
     if (read.status === "read") return { entries: read.entries };
     if (read.status === "unreadable") {
       return { entries: [], problem: `${path} could not be read` };
@@ -442,10 +441,10 @@ export async function loadTimeline(
 
 /** The session's whole timeline, oldest first; empty when there is none to read. */
 export async function readTimeline(
-  $: EngineInterface,
+  io: Io,
   sessionId: string
 ): Promise<TimelineEntry[]> {
-  return (await loadTimeline($, sessionId)).entries;
+  return (await loadTimeline(io, sessionId)).entries;
 }
 
 /**
@@ -457,29 +456,29 @@ export async function readTimeline(
  * Resolves null when there is no folder to write in.
  */
 export async function changeTimeline(
-  $: EngineInterface,
+  io: Io,
   sessionId: string,
   change: (
     entries: TimelineEntry[]
   ) => TimelineEntry[] | Promise<TimelineEntry[]>
 ): Promise<TimelineEntry[] | null> {
   return oneAtATime(async () => {
-    const path = await timelinePath($, sessionId);
+    const path = await timelinePath(io, sessionId);
     if (path === null) return null;
-    const read = await readFile($, path);
+    const read = await readFile(io, path);
     if (read.status === "unreadable") {
       throw new Error(`the timeline file could not be read: ${read.reason}`);
     }
     const isPartial = read.status === "read" && !read.isWhole;
     if (read.status === "corrupt" || isPartial) {
-      await $.fs.write(`${path}.corrupt-${await $.clock.now()}`, read.text);
+      await io.fs.write(`${path}.corrupt-${await io.clock.now()}`, read.text);
     }
     const changed = fitEntries(
       await change(read.status === "read" ? read.entries : [])
     );
     // Nothing to keep and no file yet: leave no empty file behind.
     if (read.status === "missing" && changed.length === 0) return changed;
-    await $.fs.write(path, timelineText(changed));
+    await io.fs.write(path, timelineText(changed));
     return changed;
   });
 }
@@ -492,21 +491,21 @@ export async function changeTimeline(
  * to send it the entry of a turn that ended just before and isn't written yet.
  */
 export async function carryTimeline(
-  $: EngineInterface,
+  io: Io,
   fromId: string,
   toId: string,
   how: "clear" | "branch"
 ): Promise<boolean> {
-  const at = await $.clock.now();
+  const at = await io.clock.now();
   let isTaken = false;
-  await changeTimeline($, toId, async (target) => {
+  await changeTimeline(io, toId, async (target) => {
     if (target.length > 0) return target;
     isTaken = true;
     if (how === "branch") {
       return [markEntry(at, `Branched from session \`${fromId}\`.`)];
     }
     // Read here, in the queue, so a write to the source just before is in it.
-    const source = await readTimeline($, fromId);
+    const source = await readTimeline(io, fromId);
     if (source.length === 0) return [];
     return [...source, markEntry(at, "The conversation was cleared.")];
   });

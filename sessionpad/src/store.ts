@@ -6,8 +6,9 @@
 // land. Two processes writing the same key can still race; each session id
 // normally lives in one process.
 
-import type { EngineInterface, Timer } from "claude-code";
+import type { Timer } from "claude-code";
 
+import type { Io } from "./io";
 import type { Note, NoteAuthor, Pad } from "../types";
 
 export const MAX_HEADLINE_LENGTH = 200;
@@ -138,23 +139,20 @@ export const branchedPad = (from: Pad, fromId: string, at: number): Pad =>
     makeNote(`Branched from session \`${fromId}\`.`, at, "sessionpad")
   );
 
-export async function readPad(
-  $: EngineInterface,
-  sessionId: string
-): Promise<Pad> {
-  return parsePad(await $.store.get(notesKey(sessionId)));
+export async function readPad(io: Io, sessionId: string): Promise<Pad> {
+  return parsePad(await io.store.get(notesKey(sessionId)));
 }
 
 /** Writes the pad, or removes its key when it holds nothing. */
 export async function writePad(
-  $: EngineInterface,
+  io: Io,
   sessionId: string,
   pad: Pad
 ): Promise<void> {
   if (isEmptyPad(pad)) {
-    await $.store.delete(notesKey(sessionId));
+    await io.store.delete(notesKey(sessionId));
   } else {
-    await $.store.set(notesKey(sessionId), pad);
+    await io.store.set(notesKey(sessionId), pad);
   }
 }
 
@@ -186,30 +184,30 @@ export function oneAtATime<T>(
  * call changePad itself, which would wait on itself.
  */
 export async function changePad(
-  $: EngineInterface,
+  io: Io,
   sessionId: string,
   change: (pad: Pad) => Pad | Promise<Pad>,
   signal?: AbortSignal
 ): Promise<Pad> {
   return oneAtATime(async () => {
-    const changed = await change(await readPad($, sessionId));
-    await writePad($, sessionId, changed);
+    const changed = await change(await readPad(io, sessionId));
+    await writePad(io, sessionId, changed);
     return changed;
   }, signal);
 }
 
 /** Records that a session was seen, re-reading the shared index first. */
 export async function touchIndex(
-  $: EngineInterface,
+  io: Io,
   sessionId: string,
   entry: IndexEntry
 ): Promise<void> {
   await oneAtATime(async () => {
-    const stored = await $.store.get(INDEX_KEY);
+    const stored = await io.store.get(INDEX_KEY);
     // One that isn't an index is left as found: pruning stops on it, where
     // a fresh one would make every other session's files look unowned.
     if (stored !== undefined && !isRecord(stored)) return;
-    await $.store.set(INDEX_KEY, { ...(stored ?? {}), [sessionId]: entry });
+    await io.store.set(INDEX_KEY, { ...(stored ?? {}), [sessionId]: entry });
   });
 }
 
@@ -247,7 +245,7 @@ export function forgetRenewals(): void {
  * `refreshMs`) per session.
  */
 export async function touchSeen(
-  $: EngineInterface,
+  io: Io,
   sessionId: string,
   now: number,
   refreshMs = SEEN_REFRESH_MS
@@ -256,10 +254,10 @@ export async function touchSeen(
   if (renewed !== undefined && renewed <= now && now - renewed < refreshMs) {
     return;
   }
-  const cwd = await $.session.cwd().catch(() => "");
-  const repo = await $.session.repo().catch(() => null);
+  const cwd = await io.session.cwd().catch(() => "");
+  const repo = await io.session.repo().catch(() => null);
   await oneAtATime(async () => {
-    const stored = await $.store.get(INDEX_KEY);
+    const stored = await io.store.get(INDEX_KEY);
     if (stored !== undefined && !isRecord(stored)) return;
     const index = stored ?? {};
     const row = index[sessionId];
@@ -268,7 +266,7 @@ export async function touchSeen(
         renewedAt.set(sessionId, row.lastSeen);
         return;
       }
-      await $.store.set(INDEX_KEY, {
+      await io.store.set(INDEX_KEY, {
         ...index,
         [sessionId]: { ...row, lastSeen: now },
       });
@@ -278,7 +276,7 @@ export async function touchSeen(
         repo: repo?.root ?? null,
         lastSeen: now,
       };
-      await $.store.set(INDEX_KEY, { ...index, [sessionId]: fresh });
+      await io.store.set(INDEX_KEY, { ...index, [sessionId]: fresh });
     }
     renewedAt.set(sessionId, now);
   });
@@ -289,13 +287,13 @@ export async function touchSeen(
  * the index first, so they age out like any other.
  */
 export async function adoptRows(
-  $: EngineInterface,
+  io: Io,
   sessionIds: readonly string[],
   now: number
 ): Promise<void> {
   if (sessionIds.length === 0) return;
   await oneAtATime(async () => {
-    const stored = await $.store.get(INDEX_KEY);
+    const stored = await io.store.get(INDEX_KEY);
     if (stored !== undefined && !isRecord(stored)) return;
     const index = { ...(stored ?? {}) };
     let isChanged = false;
@@ -304,7 +302,7 @@ export async function adoptRows(
       index[id] = { cwd: "", repo: null, lastSeen: now };
       isChanged = true;
     }
-    if (isChanged) await $.store.set(INDEX_KEY, index);
+    if (isChanged) await io.store.set(INDEX_KEY, index);
   });
 }
 
@@ -313,13 +311,13 @@ export async function adoptRows(
  * still not seen since `before`: one seen meanwhile stays.
  */
 export async function dropFromIndex(
-  $: EngineInterface,
+  io: Io,
   sessionIds: readonly string[],
   before: number
 ): Promise<void> {
   if (sessionIds.length === 0) return;
   await oneAtATime(async () => {
-    const stored = await $.store.get(INDEX_KEY);
+    const stored = await io.store.get(INDEX_KEY);
     if (!isRecord(stored)) return;
     const kept = { ...stored };
     for (const id of sessionIds) {
@@ -332,7 +330,7 @@ export async function dropFromIndex(
         delete kept[id];
       }
     }
-    await $.store.set(INDEX_KEY, kept);
+    await io.store.set(INDEX_KEY, kept);
   });
 }
 
@@ -348,18 +346,18 @@ let seenTimer: Timer | undefined;
  * enough that its row is never older than half of `days`. A later
  * session.start in this module replaces the timer.
  */
-export function keepSeen($: EngineInterface, days: number): void {
+export function keepSeen(io: Io, days: number): void {
   seenTimer?.cancel();
   seenTimer = undefined;
   if (days === 0) return;
   const every = Math.min(SEEN_TIMER_MS, (days * 24 * 60 * 60 * 1000) / 4);
-  seenTimer = $.clock.every(every, () => {
+  seenTimer = io.clock.every(every, () => {
     (async () => {
       // The session it is now: a /clear or /resume may have moved it.
-      const id = await $.session.id();
-      await touchSeen($, id, await $.clock.now(), every);
+      const id = await io.session.id();
+      await touchSeen(io, id, await io.clock.now(), every);
     })().catch((error: unknown) => {
-      $.ui.log(`sessionpad: could not renew the session: ${String(error)}`, {
+      io.ui.log(`sessionpad: could not renew the session: ${String(error)}`, {
         to: "debug",
       });
     });

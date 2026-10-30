@@ -3,8 +3,9 @@
 // names of the files written, on the person's own plan or key; nothing else
 // leaves the machine.
 
-import type { EngineInterface, ModelUsage } from "claude-code";
+import type { ModelUsage } from "claude-code";
 
+import type { Io } from "./io";
 import type { TurnEntry } from "../types";
 import { cleanSummary } from "./timeline";
 
@@ -67,13 +68,13 @@ export type SummaryReply = { line: string | null; usage: ModelUsage | null };
 
 /** Asks the model for a turn's line. */
 export async function modelSummary(
-  $: EngineInterface,
+  io: Io,
   model: string,
   entry: TurnEntry,
   answer: string
 ): Promise<SummaryReply> {
   try {
-    const reply = await $.model.complete({
+    const reply = await io.model.complete({
       model,
       system: SUMMARY_SYSTEM,
       prompt: summaryPrompt(entry, answer),

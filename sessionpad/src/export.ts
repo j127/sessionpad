@@ -1,8 +1,7 @@
 // /pad-export: the session's headline, notes and whole timeline as one
 // Markdown file, to read later or keep beside the work.
 
-import type { EngineInterface } from "claude-code";
-
+import type { Io } from "./io";
 import type { Note, NoteAuthor, Pad, TimelineEntry, TurnEntry } from "../types";
 import { formatClock, formatDay, formatDuration, formatTime } from "./format";
 import { readPad } from "./store";
@@ -197,7 +196,7 @@ export function exportMarkdown(
 
 /** Where an export goes: the path asked for, `~` read as home, else the default. */
 async function exportPath(
-  $: EngineInterface,
+  io: Io,
   sessionId: string,
   asked: string
 ): Promise<string> {
@@ -205,20 +204,20 @@ async function exportPath(
     // Absolute or a network path: used as given. So is a Windows drive
     // path, on Windows only; elsewhere `c:x` is a relative name.
     if (/^[\\/]/.test(asked)) return asked;
-    const isWindows = ((await $.env.get("USERPROFILE")) ?? "") !== "";
+    const isWindows = ((await io.env.userProfile()) ?? "") !== "";
     if (isWindows && /^[A-Za-z]:/.test(asked)) return asked;
     if (!/^~(?=$|[\\/])/.test(asked)) {
       // Relative: under the session's folder, said in full so it can be found.
-      const cwd = await $.session.cwd();
+      const cwd = await io.session.cwd();
       return `${cwd.replace(/[\\/]+$/, "")}/${asked}`;
     }
-    const home = (await $.env.get("HOME")) || (await $.env.get("USERPROFILE"));
+    const home = (await io.env.home()) || (await io.env.userProfile());
     if (home === undefined || home === "") {
       throw new Error("no home folder is set, so `~` can't be read");
     }
     return `${home.replace(/[\\/]+$/, "")}${asked.slice(1)}`;
   }
-  const dir = await dataDir($);
+  const dir = await dataDir(io);
   if (dir === null) {
     throw new Error("no home folder is set; give a path: /pad-export <path>");
   }
@@ -230,13 +229,13 @@ async function exportPath(
  * there but can't be checked (a refused stat) is refused, never written over
  * unchecked.
  */
-async function statOf($: EngineInterface, path: string) {
+async function statOf(io: Io, path: string) {
   try {
-    return await $.fs.stat(path);
+    return await io.fs.stat(path);
   } catch (error) {
     const isMissing =
       /ENOENT/.test(String(error)) ||
-      !(await $.fs.exists(path).catch(() => true));
+      !(await io.fs.exists(path).catch(() => true));
     if (isMissing) return undefined;
     throw new Error(
       `${path} couldn't be checked, so nothing was written: ${String(error)}`
@@ -253,19 +252,19 @@ const unquote = (text: string): string =>
  * export, or to a new file; never over a file that isn't an export.
  */
 async function safeTarget(
-  $: EngineInterface,
+  io: Io,
   sessionId: string,
   path: string
 ): Promise<string> {
   let target = path;
-  let stat = await statOf($, target);
+  let stat = await statOf(io, target);
   if (stat?.kind === "dir") {
     target = `${path.replace(/[\\/]+$/, "")}/${fileName(sessionId)}.md`;
-    stat = await statOf($, target);
+    stat = await statOf(io, target);
   }
   if (stat === undefined) return target;
   if (stat.kind !== "file") throw new Error(`${target} is not a file`);
-  const text = await $.fs.read(target);
+  const text = await io.fs.read(target);
   if (!text.startsWith(EXPORT_MARK)) {
     throw new Error(
       `${target} already exists and isn't a sessionpad export, so it was left alone; choose another path`
@@ -275,24 +274,21 @@ async function safeTarget(
 }
 
 /** Writes this session's export and resolves the path written. */
-export async function exportThisSession(
-  $: EngineInterface,
-  asked = ""
-): Promise<string> {
-  const sessionId = await $.session.id();
+export async function exportThisSession(io: Io, asked = ""): Promise<string> {
+  const sessionId = await io.session.id();
   const named = unquote(asked.trim());
-  const path = await exportPath($, sessionId, named);
+  const path = await exportPath(io, sessionId, named);
   // The default path is sessionpad's own; a named one is checked first.
-  const target = named === "" ? path : await safeTarget($, sessionId, path);
-  const timeline = await loadTimeline($, sessionId);
+  const target = named === "" ? path : await safeTarget(io, sessionId, path);
+  const timeline = await loadTimeline(io, sessionId);
   const markdown = exportMarkdown(
     sessionId,
-    await readPad($, sessionId),
+    await readPad(io, sessionId),
     timeline.entries,
-    await $.clock.now(),
+    await io.clock.now(),
     timeline.problem
   );
-  await $.fs.write(target, markdown);
+  await io.fs.write(target, markdown);
   return target;
 }
 
@@ -327,15 +323,12 @@ export function isInside(path: string, dir: string): boolean {
  * the session's folder, how to open it. The Desktop app's file pane opens
  * only files inside the session's folders.
  */
-export async function describeExport(
-  $: EngineInterface,
-  path: string
-): Promise<string> {
+export async function describeExport(io: Io, path: string): Promise<string> {
   const said = `Exported to ${path}`;
-  const cwd = await $.session.cwd().catch(() => "");
+  const cwd = await io.session.cwd().catch(() => "");
   // Where each really is, links followed (/tmp is /private/tmp on a Mac).
   const real = async (one: string): Promise<string> =>
-    (await $.fs.stat(one, { resolve: true }).catch(() => undefined))
+    (await io.fs.stat(one, { resolve: true }).catch(() => undefined))
       ?.realPath ?? one;
   if (cwd === "" || isInside(await real(path), await real(cwd))) return said;
   return `${said}. It's outside this project, so the Desktop app's file pane can't open it: open it from Finder or your file manager, or export into the project with /pad-export <path>, such as /pad-export notes/pad.md.`;

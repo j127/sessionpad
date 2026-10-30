@@ -4,8 +4,7 @@
 // to turn summary lines on, and a change in /config reloads the mod with the
 // new value.
 
-import type { EngineInterface } from "claude-code";
-
+import type { Io } from "./io";
 import { showOffer } from "./state";
 
 /**
@@ -19,13 +18,10 @@ export const OFFER_KEY = "summary-offer";
  * Shows the Timeline tab's offer to turn summary lines on while they are off
  * and nobody has dismissed it yet; never fails the caller.
  */
-export async function refreshOffer(
-  $: EngineInterface,
-  isOff: boolean
-): Promise<void> {
+export async function refreshOffer(io: Io, isOff: boolean): Promise<void> {
   try {
-    const isAnswered = (await $.store.get(OFFER_KEY)) !== undefined;
-    await showOffer($, isOff && !isAnswered);
+    const isAnswered = (await io.store.get(OFFER_KEY)) !== undefined;
+    await showOffer(io, isOff && !isAnswered);
   } catch {
     // No offer this time: the store couldn't say whether it was answered.
   }

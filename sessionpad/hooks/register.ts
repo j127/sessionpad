@@ -1,10 +1,20 @@
 // sessionpad: a notepad for each session. This module wires the hooks; the
-// pieces live in ../src (data in store.ts, $.state in state.ts, actions in
-// pad.ts, drawing in ui.tsx).
+// pieces live in ../src (data in store.ts, $.state's atoms in state.ts,
+// actions in pad.ts, drawing in ui.tsx). They reach the engine through ioOf
+// below.
 
-import type { EngineInterface, Register } from "claude-code";
+import type {
+  EngineInterface,
+  PluginState,
+  Register,
+  StateAddress,
+  StateRead,
+  StateSetOptions,
+  StateSetResult,
+} from "claude-code";
 
 import type { Pad } from "../types";
+import type { Io } from "../src/io";
 import { emptyNoteField, forgetEditDrafts } from "../src/drafts";
 import { describeExport, exportThisSession } from "../src/export";
 import { formatTime } from "../src/format";
@@ -87,6 +97,159 @@ export function describePad(pad: Pad): string {
   if (hidden > 0) lines.push(`(${hidden} older notes are not shown)`);
   lines.push(...shown);
   return lines.join("\n");
+}
+
+// The pad's values in $.state. A $.state call names its value with the
+// plugin and key written out, here or in a const of this file.
+const TAB = { plugin: "sessionpad", key: "tab" } as const;
+const HEADLINE = { plugin: "sessionpad", key: "headline" } as const;
+const NOTES = { plugin: "sessionpad", key: "notes" } as const;
+const RECENT = { plugin: "sessionpad", key: "recent" } as const;
+const WORKSPACE = { plugin: "sessionpad", key: "workspace" } as const;
+const EDITING = { plugin: "sessionpad", key: "editing" } as const;
+const DELETED = { plugin: "sessionpad", key: "deleted" } as const;
+const USAGE = { plugin: "sessionpad", key: "usage" } as const;
+const OFFER = { plugin: "sessionpad", key: "offer" } as const;
+
+type PadState = PluginState["sessionpad"];
+
+/**
+ * The refusal for a value the pad doesn't keep in $.state. `unhandled` is
+ * the key a switch below fell through with: a key added to the contract and
+ * not to the switch makes it a value, which doesn't type-check.
+ */
+const notPads = (ref: StateAddress, unhandled?: never): Promise<never> =>
+  Promise.reject(
+    new Error(
+      `sessionpad: the pad keeps no state value ${ref.plugin}.${ref.key}`
+    )
+  );
+
+/**
+ * $.state for the atoms in ../src/state.ts, which `read` and `update` reach
+ * through: each value's get and set, under its own key.
+ */
+function stateOf($: EngineInterface): Io["state"] {
+  const get = (ref: StateAddress): Promise<StateRead<unknown>> => {
+    if (ref.plugin !== "sessionpad" || ref.id !== undefined) {
+      return notPads(ref);
+    }
+    const key = ref.key as keyof PadState;
+    switch (key) {
+      case "tab":
+        return $.state.get(TAB);
+      case "headline":
+        return $.state.get(HEADLINE);
+      case "notes":
+        return $.state.get(NOTES);
+      case "recent":
+        return $.state.get(RECENT);
+      case "workspace":
+        return $.state.get(WORKSPACE);
+      case "editing":
+        return $.state.get(EDITING);
+      case "deleted":
+        return $.state.get(DELETED);
+      case "usage":
+        return $.state.get(USAGE);
+      case "offer":
+        return $.state.get(OFFER);
+      default:
+        return notPads(ref, key);
+    }
+  };
+  const set = (
+    ref: StateAddress,
+    value: never,
+    options: StateSetOptions = {}
+  ): Promise<StateSetResult> => {
+    if (ref.plugin !== "sessionpad" || ref.id !== undefined) {
+      return notPads(ref);
+    }
+    const key = ref.key as keyof PadState;
+    switch (key) {
+      case "tab":
+        return $.state.set(TAB, value, options);
+      case "headline":
+        return $.state.set(HEADLINE, value, options);
+      case "notes":
+        return $.state.set(NOTES, value, options);
+      case "recent":
+        return $.state.set(RECENT, value, options);
+      case "workspace":
+        return $.state.set(WORKSPACE, value, options);
+      case "editing":
+        return $.state.set(EDITING, value, options);
+      case "deleted":
+        return $.state.set(DELETED, value, options);
+      case "usage":
+        return $.state.set(USAGE, value, options);
+      case "offer":
+        return $.state.set(OFFER, value, options);
+      default:
+        return notPads(ref, key);
+    }
+  };
+  // The engine's get and set are generic over the contract's keys; these
+  // two answer the same keys, by name.
+  return { get, set } as unknown as Io["state"];
+}
+
+/**
+ * Everything the modules in ../src do outside themselves, built from a
+ * hook's $: each member makes one call on $, written out here. The plugin
+ * directory reads a mod's calls from its hooks module alone and refuses $
+ * handed to a function in another file, so the modules take this instead.
+ * Timers and buttons the modules set up keep it, as they kept $ before.
+ */
+export function ioOf($: EngineInterface): Io {
+  return {
+    state: stateOf($),
+    store: {
+      get: (key) => $.store.get(key),
+      set: (key, value) => $.store.set(key, value),
+      delete: (key) => $.store.delete(key),
+      keys: () => $.store.keys(),
+    },
+    clock: {
+      now: () => $.clock.now(),
+      after: (ms, fn) => $.clock.after(ms, fn),
+      every: (ms, fn) => $.clock.every(ms, fn),
+    },
+    fs: {
+      read: (path) => $.fs.read(path),
+      write: (path, text) => $.fs.write(path, text),
+      list: (path) => $.fs.list(path),
+      exists: (path) => $.fs.exists(path),
+      stat: (path, options) =>
+        options === undefined ? $.fs.stat(path) : $.fs.stat(path, options),
+    },
+    session: {
+      id: () => $.session.id(),
+      cwd: () => $.session.cwd(),
+      repo: () => $.session.repo(),
+    },
+    ui: {
+      resolve: (e) => $.ui.resolve(e),
+      invalidate: (event) => $.ui.invalidate(event),
+      open: (pane) => $.ui.open(pane),
+      log: (text, options) => $.ui.log(text, options),
+      toast: (text) => $.ui.toast(text),
+    },
+    model: {
+      complete: (request) => $.model.complete(request),
+    },
+    env: {
+      home: () => $.env.get("HOME"),
+      userProfile: () => $.env.get("USERPROFILE"),
+      configDir: () => $.env.get("CLAUDE_CONFIG_DIR"),
+    },
+    run: {
+      git: (args, init) => $.process.run(["git", ...args], init),
+      du: (path, init) => $.process.run(["du", "-sk", "--", path], init),
+      rm: (paths, init) => $.process.run(["rm", "-f", "--", ...paths], init),
+    },
+  };
 }
 
 /** Command names another plugin or Claude Code itself already uses. */
@@ -321,24 +484,25 @@ export const register: Register = (on, options) => {
   const warned = new Set<string>();
 
   on("session.start", async ($, e, next) => {
+    const io = ioOf($);
     try {
       loadedId = await $.session.id();
-      await loadSession($, loadedId, e.cwd);
+      await loadSession(io, loadedId, e.cwd);
     } catch (error) {
       $.ui.log(`sessionpad: could not load the pad: ${String(error)}`, {
         to: "debug",
       });
     }
-    await refreshOffer($, isSummaryOff);
+    await refreshOffer(io, isSummaryOff);
     // A new session or a reload: no `du` from before is still this module's.
     forgetMeasuring();
     forgetRenewals();
-    await showWorkspace($);
+    await showWorkspace(io);
     await registerTools($);
     // Commands go last: a name clash there must not stop the rest.
     served = await registerCommands($);
-    if (loadedId !== undefined) schedulePrune($, retention, loadedId);
-    keepSeen($, retention);
+    if (loadedId !== undefined) schedulePrune(io, retention, loadedId);
+    keepSeen(io, retention);
     return next(e);
   });
 
@@ -350,8 +514,9 @@ export const register: Register = (on, options) => {
     async ($, e, next) => {
       // The old session's typing goes: an open note's at once, the note
       // field's in two draws (see emptyNoteField), whatever the move draws.
+      const io = ioOf($);
       forgetEditDrafts();
-      emptyNoteField($);
+      emptyNoteField(io);
       try {
         let id = e.session_id;
         if (!id) id = await $.session.id();
@@ -366,7 +531,7 @@ export const register: Register = (on, options) => {
                 ? "branch"
                 : undefined;
           try {
-            if (how !== undefined) await carryPad($, previous, id, how);
+            if (how !== undefined) await carryPad(io, previous, id, how);
           } catch (error) {
             $.ui.log(`sessionpad: could not carry the pad: ${String(error)}`, {
               to: "debug",
@@ -381,7 +546,7 @@ export const register: Register = (on, options) => {
             }
             let isTaken = false;
             if (how !== undefined) {
-              isTaken = await carryTimeline($, previous, id, how);
+              isTaken = await carryTimeline(io, previous, id, how);
             }
             if (how === "clear" && !isTaken) clearedTo.delete(previous);
           } catch (error) {
@@ -391,7 +556,7 @@ export const register: Register = (on, options) => {
             );
           }
         }
-        await loadSession($, id, e.cwd);
+        await loadSession(io, id, e.cwd);
       } catch (error) {
         $.ui.log(`sessionpad: could not reload the pad: ${String(error)}`, {
           to: "debug",
@@ -401,12 +566,12 @@ export const register: Register = (on, options) => {
       // The Undo card and an open note belonged to the pad left behind, so
       // they go too, should a host keep $.state.
       try {
-        await forgetPaneEdits($);
+        await forgetPaneEdits(io);
       } catch {
         // Left as they were: the next delete or open replaces them.
       }
-      await refreshOffer($, isSummaryOff);
-      await showWorkspace($);
+      await refreshOffer(io, isSummaryOff);
+      await showWorkspace(io);
       return next(e);
     }
   ).catch(($, e, next) => next(e));
@@ -419,7 +584,7 @@ export const register: Register = (on, options) => {
 
   on("command.run", { command: ["pad", "sessionpad"] }, async ($, e, next) => {
     if (!served.has(e.command)) return next(e);
-    return openPane($);
+    return openPane(ioOf($));
   }).catch(($, e, next) =>
     next.called || !served.has(e.command)
       ? next(e)
@@ -427,13 +592,14 @@ export const register: Register = (on, options) => {
   );
 
   // The commands do their work in the hook's own body. The plugin directory
-  // reads $ handed to another file's function only from a hook's own body; a
-  // function in this file may use $ in plain $.noun.method(...) calls and hand
-  // it, alone, only to another function in this file.
+  // refuses $ handed to another file's function, from a hook's own body too;
+  // a function in this file may use $ in plain $.noun.method(...) calls and
+  // hand it, alone, only to another function in this file. The modules in
+  // ../src get ioOf($) instead.
   on("command.run", { command: ["note", "pad-note"] }, async ($, e, next) => {
     if (!served.has(e.command)) return next(e);
     try {
-      const added = await addThisNote($, e.args, "user", next.signal);
+      const added = await addThisNote(ioOf($), e.args, "user", next.signal);
       if (added.status === "blank") {
         return { text: `Usage: /${e.command} <text>` };
       }
@@ -453,7 +619,7 @@ export const register: Register = (on, options) => {
     async ($, e, next) => {
       if (!served.has(e.command)) return next(e);
       try {
-        const set = await setThisHeadline($, e.args, next.signal);
+        const set = await setThisHeadline(ioOf($), e.args, next.signal);
         return { text: describeHeadline(set) };
       } catch (error) {
         return {
@@ -470,8 +636,9 @@ export const register: Register = (on, options) => {
   on("command.run", { command: "pad-export" }, async ($, e, next) => {
     if (!served.has(e.command)) return next(e);
     try {
-      const path = await exportThisSession($, e.args);
-      const text = await describeExport($, path);
+      const io = ioOf($);
+      const path = await exportThisSession(io, e.args);
+      const text = await describeExport(io, path);
       return { text };
     } catch (error) {
       return { text: `sessionpad: the export failed: ${String(error)}` };
@@ -563,7 +730,7 @@ export const register: Register = (on, options) => {
       const isChanged = log.fileCount > 0 || log.commands > 0;
       // The slow parts (git, the model) run on a timer, from turns.ts.
       finishTurnLater(
-        $,
+        ioOf($),
         finished,
         timeline,
         (id) => followersOf(clearedTo, id, finished.at),
@@ -586,10 +753,10 @@ export const register: Register = (on, options) => {
       return { deny: "sessionpad: `text` must be a non-empty string." };
     }
     if (input.kind === "headline") {
-      const set = await setThisHeadline($, text, next.signal);
+      const set = await setThisHeadline(ioOf($), text, next.signal);
       return { result: describeHeadline(set) };
     }
-    const added = await addThisNote($, text, "claude", next.signal);
+    const added = await addThisNote(ioOf($), text, "claude", next.signal);
     if (added.status !== "added") return { deny: describeAdd(added) };
     return { result: describeAdd(added) };
   }).catch(($, e, next) => {
@@ -601,7 +768,7 @@ export const register: Register = (on, options) => {
   });
 
   on("tool.call", { tool: "mcp__sessionpad__notes_read" }, async ($) => {
-    const pad = await readThisPad($);
+    const pad = await readThisPad(ioOf($));
     return { result: describePad(pad) };
   }).catch(($, e, next) => {
     $.ui.log(
@@ -612,14 +779,15 @@ export const register: Register = (on, options) => {
   });
 
   on("ui.render", { component: "Pane", requestId: "sessionpad" }, ($, e) =>
-    renderPane($, e)
+    renderPane(ioOf($), e)
   );
 
   on("ui.render", { component: "AbovePrompt" }, async ($, e, next) => {
     if (!showBand || e.props.hasSurvey) return next(e);
-    const headline = await readHeadline($);
+    const io = ioOf($);
+    const headline = await readHeadline(io);
     // A terminal's band is the headline alone (see renderBand): none without.
     if (headline === "" && !isBandAlways(e)) return next(e);
-    return renderBand($, e, headline, await next(e));
+    return renderBand(io, e, headline, await next(e));
   });
 };

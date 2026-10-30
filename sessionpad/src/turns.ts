@@ -3,8 +3,9 @@
 // model's summary line. The slow parts (git, the model) run after the turn,
 // on a timer, so the next prompt never waits for them.
 
-import type { EngineInterface, ToolCallResult, TurnUsage } from "claude-code";
+import type { ToolCallResult, TurnUsage } from "claude-code";
 
+import type { Io } from "./io";
 import type { TimelineEntry, TurnTokens } from "../types";
 import { gitPlace } from "./git";
 import { showTimeline, showUsage } from "./state";
@@ -80,19 +81,19 @@ export function followersOf(
   return followers;
 }
 
-function debug($: EngineInterface, text: string): void {
-  $.ui.log(`sessionpad: ${text}`, { to: "debug" });
+function debug(io: Io, text: string): void {
+  io.ui.log(`sessionpad: ${text}`, { to: "debug" });
 }
 
 /** Shows the entries, if the session they belong to is still the one open. */
 async function showIfOpen(
-  $: EngineInterface,
+  io: Io,
   sessionId: string,
   entries: TimelineEntry[] | null
 ): Promise<void> {
   if (entries === null) return;
-  const open = await $.session.id().catch(() => undefined);
-  if (open === sessionId) await showTimeline($, entries);
+  const open = await io.session.id().catch(() => undefined);
+  if (open === sessionId) await showTimeline(io, entries);
 }
 
 /**
@@ -114,12 +115,12 @@ async function showIfOpen(
  * reads as a timeline that isn't being kept.
  */
 export async function finishTurn(
-  $: EngineInterface,
+  io: Io,
   turn: FinishedTurn,
   settings: TimelineSettings,
   followers: (sessionId: string) => readonly string[] = () => []
 ): Promise<void> {
-  const place = await gitPlace($);
+  const place = await gitPlace(io);
   const entry = turnEntry(turn, place.branch, place.worktree);
   const failures: unknown[] = [];
   const writeEach = async (
@@ -128,13 +129,13 @@ export async function finishTurn(
     for (const id of [turn.sessionId, ...followers(turn.sessionId)]) {
       let entries: TimelineEntry[] | null;
       try {
-        entries = await changeTimeline($, id, change);
+        entries = await changeTimeline(io, id, change);
       } catch (error) {
         failures.push(error);
         continue;
       }
-      await showIfOpen($, id, entries).catch((error: unknown) =>
-        debug($, `the timeline was written but not shown: ${String(error)}`)
+      await showIfOpen(io, id, entries).catch((error: unknown) =>
+        debug(io, `the timeline was written but not shown: ${String(error)}`)
       );
     }
   };
@@ -142,7 +143,7 @@ export async function finishTurn(
   await writeEach((entries) => addEntry(entries, entry, settings.cap));
   if (settings.summaryModel !== null && isWorthSummary(entry)) {
     const { line, usage } = await modelSummary(
-      $,
+      io,
       settings.summaryModel,
       entry,
       turn.answer
@@ -152,9 +153,9 @@ export async function finishTurn(
     }
     if (usage !== null && isSpent(usage)) {
       try {
-        await showUsage($, await recordUsage($, usage, await $.clock.now()));
+        await showUsage(io, await recordUsage(io, usage, await io.clock.now()));
       } catch (error) {
-        debug($, `the summary's cost was not counted: ${String(error)}`);
+        debug(io, `the summary's cost was not counted: ${String(error)}`);
       }
     }
   }
@@ -168,25 +169,25 @@ export async function finishTurn(
  * logged, and toasted once per session (`warned` holds the ones told).
  */
 export function finishTurnLater(
-  $: EngineInterface,
+  io: Io,
   finished: FinishedTurn,
   settings: TimelineSettings,
   followers: (sessionId: string) => readonly string[],
   isChanged: boolean,
   warned: Set<string>
 ): void {
-  $.clock.after(0, () => {
-    scheduleRefresh($, isChanged ? "changed" : "none");
+  io.clock.after(0, () => {
+    scheduleRefresh(io, isChanged ? "changed" : "none");
     // A session at work stays seen, however long it stays open.
-    touchSeen($, finished.sessionId, finished.at).catch(() => undefined);
-    finishTurn($, finished, settings, followers).catch((error: unknown) => {
+    touchSeen(io, finished.sessionId, finished.at).catch(() => undefined);
+    finishTurn(io, finished, settings, followers).catch((error: unknown) => {
       const why = String(error);
-      $.ui.log(`sessionpad: the turn was not recorded: ${why}`, {
+      io.ui.log(`sessionpad: the turn was not recorded: ${why}`, {
         to: "debug",
       });
       if (warned.has(finished.sessionId)) return;
       warned.add(finished.sessionId);
-      $.ui.toast(
+      io.ui.toast(
         `sessionpad: turns in this session aren't being added to the timeline: ${why}`
       );
     });
