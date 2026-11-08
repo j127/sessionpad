@@ -56,9 +56,7 @@ echo '{"summaryModel":"haiku"}' | claude plugin configure <id> --values-stdin
 
 ## Install, update, uninstall
 
-Added from the plugin directory on claude.ai, it reaches Claude Code through your account (as `sessionpad@synced`), and you update or remove it there.
-
-From the author's own marketplace instead: in a terminal session, `/plugin install sessionpad --marketplace j127/sessionpad`; in the Desktop app, **+** next to the prompt box, **Plugins**, **Add marketplace** with `j127/sessionpad`, then **Add plugin**. That copy updates with `claude plugin update sessionpad@sessionpad` and uninstalls with `claude plugin uninstall sessionpad@sessionpad`. Uninstalling leaves your notes and timelines where they are.
+Session Pad installs from the author's own marketplace: in a terminal session, `/plugin install sessionpad --marketplace j127/sessionpad`; in the Desktop app, **+** next to the prompt box, **Plugins**, **Add marketplace** with `j127/sessionpad`, then **Add plugin**. It updates with `claude plugin update sessionpad@sessionpad` and uninstalls with `claude plugin uninstall sessionpad@sessionpad`. Uninstalling leaves your notes and timelines where they are.
 
 The full README, with the design notes, how to run the tests and what each setting does in detail, is at [github.com/j127/sessionpad](https://github.com/j127/sessionpad).
 
