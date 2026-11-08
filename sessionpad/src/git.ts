@@ -1,5 +1,5 @@
-// Where the session's work lives, read from git through io.run.git (a
-// $.process.run call in the hooks module). Never
+// Where the session's work lives, read from git through io.run.git (one
+// of four fixed $.process.run calls in the hooks module). Never
 // called while drawing: the end of a turn runs it on a timer.
 
 import type { GitCommand, Io } from "./io";

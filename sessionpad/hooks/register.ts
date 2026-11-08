@@ -262,6 +262,14 @@ export function ioOf($: EngineInterface): Io {
               ["git", "worktree", "list", "--porcelain"],
               init
             );
+          default: {
+            // A name added to GitCommand without its case here fails to
+            // type-check; at run time, it runs nothing.
+            const unknown: never = command;
+            return Promise.reject(
+              new Error(`sessionpad: no git command ${String(unknown)}`)
+            );
+          }
         }
       },
       du: (path, init) => $.process.run(["du", "-sk", "--", path], init),
