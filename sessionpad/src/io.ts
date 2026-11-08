@@ -15,6 +15,16 @@ type RunInit = NonNullable<Parameters<Engine["process"]["run"]>[1]>;
 type Ran = ReturnType<Engine["process"]["run"]>;
 type LogOptions = NonNullable<Parameters<Engine["ui"]["log"]>[1]>;
 
+/**
+ * The git commands the mod runs, each a whole command written out as fixed
+ * text in the hooks module, so the plugin directory reads exactly what runs:
+ * - `top-level`: `git rev-parse --show-toplevel`, the working tree's folder;
+ * - `branch`: `git symbolic-ref --short -q HEAD`, the branch checked out;
+ * - `short-sha`: `git rev-parse --short HEAD`, for a detached HEAD;
+ * - `worktrees`: `git worktree list --porcelain`, the repository's trees.
+ */
+export type GitCommand = "top-level" | "branch" | "short-sha" | "worktrees";
+
 export type Io = StateDollar & {
   store: Pick<Engine["store"], "get" | "set" | "delete" | "keys">;
   clock: Pick<Engine["clock"], "now" | "after" | "every">;
@@ -44,8 +54,8 @@ export type Io = StateDollar & {
     configDir: () => Promise<string | undefined>;
   };
   run: {
-    /** `git <args>`. */
-    git: (args: readonly string[], init: RunInit) => Ran;
+    /** One of the four read-only git commands, written out in the hooks module. */
+    git: (command: GitCommand, init: RunInit) => Ran;
     /** `du -sk -- <path>`: one tree's size in kibibytes. */
     du: (path: string, init: RunInit) => Ran;
     /** `rm -f -- <paths>`: the mod's own timeline files, when pruned. */

@@ -1,7 +1,7 @@
 {
   "name": "sessionpad",
   "displayName": "Session Pad",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "A notepad for each Claude Code session: a headline and notes, a timeline of every turn, and the session's worktree and disk use, in a pane and above the prompt.",
   "author": {
     "name": "j127"
@@ -12,7 +12,6 @@
   "supportUrl": "https://github.com/j127/sessionpad/issues",
   "privacyPolicyUrl": "https://github.com/j127/sessionpad/blob/main/PRIVACY.md",
   "termsOfServiceUrl": "https://github.com/j127/sessionpad/blob/main/LICENSE",
-  "types": "./types/index.d.ts",
   "userConfig": {
     "showBand": {
       "type": "boolean",

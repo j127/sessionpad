@@ -120,17 +120,30 @@ describe("ioOf's other calls", () => {
     ]);
   });
 
+  test("run.git runs each named command, whole", async () => {
+    const { $, calls } = fakeEngine(() => Promise.resolve({ exitCode: 0 }));
+    const io = ioOf($);
+    const init = { timeoutMs: 1 };
+    await io.run.git("top-level", init);
+    await io.run.git("branch", init);
+    await io.run.git("short-sha", init);
+    await io.run.git("worktrees", init);
+    expect(calls).toEqual(
+      [
+        ["git", "rev-parse", "--show-toplevel"],
+        ["git", "symbolic-ref", "--short", "-q", "HEAD"],
+        ["git", "rev-parse", "--short", "HEAD"],
+        ["git", "worktree", "list", "--porcelain"],
+      ].map((argv) => ({ name: "process.run", args: [argv, init] }))
+    );
+  });
+
   test("run names its program and keeps the arguments after --", async () => {
     const { $, calls } = fakeEngine(() => Promise.resolve({ exitCode: 0 }));
     const io = ioOf($);
-    await io.run.git(["rev-parse", "HEAD"], { timeoutMs: 1 });
     await io.run.du("/repo", { timeoutMs: 2, cwd: "/home" });
     await io.run.rm(["/a.json", "-b.json"], { cwd: "/t", timeoutMs: 3 });
     expect(calls).toEqual([
-      {
-        name: "process.run",
-        args: [["git", "rev-parse", "HEAD"], { timeoutMs: 1 }],
-      },
       {
         name: "process.run",
         args: [["du", "-sk", "--", "/repo"], { timeoutMs: 2, cwd: "/home" }],

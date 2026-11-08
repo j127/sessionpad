@@ -245,7 +245,25 @@ export function ioOf($: EngineInterface): Io {
       configDir: () => $.env.get("CLAUDE_CONFIG_DIR"),
     },
     run: {
-      git: (args, init) => $.process.run(["git", ...args], init),
+      // Each git command whole, as fixed text (see GitCommand in ../src/io.ts).
+      git: (command, init) => {
+        switch (command) {
+          case "top-level":
+            return $.process.run(["git", "rev-parse", "--show-toplevel"], init);
+          case "branch":
+            return $.process.run(
+              ["git", "symbolic-ref", "--short", "-q", "HEAD"],
+              init
+            );
+          case "short-sha":
+            return $.process.run(["git", "rev-parse", "--short", "HEAD"], init);
+          case "worktrees":
+            return $.process.run(
+              ["git", "worktree", "list", "--porcelain"],
+              init
+            );
+        }
+      },
       du: (path, init) => $.process.run(["du", "-sk", "--", path], init),
       rm: (paths, init) => $.process.run(["rm", "-f", "--", ...paths], init),
     },
