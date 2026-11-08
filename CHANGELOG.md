@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.1 (not released yet)
+
+### Changed
+
+- The four git commands the mod runs are each written out whole, as fixed text, in the hooks module, so the plugin directory can read exactly what runs. They are the same commands as before.
+- `plugin.json` no longer names `types`: the contract is at its default path, `types/index.d.ts`, which Claude Code 2.1.299 and later find without it, and the plugin directory reported the field as unrecognized.
+- The plugin README answers the directory's review in its own terms: the exact git commands, that the mod edits no build, start-up, settings or instructions file of its own accord, that no tool but its own two is answered in place of the tool, what its hooks on commands and on `/clear`, `/resume` and `/branch` do, and that the summary call is the only request it makes itself.
+
 ## 0.4.0 (2026-10-29)
 
 ### Changed
